@@ -29,6 +29,9 @@ build:
 golden:
 	TABSTUDIO_UPDATE_SQL_GOLDENS=1 uv run --locked pytest tests/golden/test_sql.py
 
-bench bench-full demo-gif browser:
+bench bench-full:
+	uv run --locked --group bench python -m scripts.bench_full $(BENCH_ARGS)
+
+demo-gif browser:
 	@printf '%s\n' 'TODO: $@ is not implemented; see docs/development.md.'
 	@exit 2

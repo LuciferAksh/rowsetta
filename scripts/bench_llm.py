@@ -1,11 +1,14 @@
-import argparse
+import importlib
 import json
-from statistics import median
-from time import perf_counter
-from urllib.request import OpenerDirector, ProxyHandler, Request, build_opener
+import sys
+from pathlib import Path
+
+if __package__ is None:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from urllib.request import OpenerDirector, Request
 
 import pandas as pd
-from bench_smoke import SEED, penguins_split
 from pydantic import BaseModel, ConfigDict
 
 MODEL = "qwen3.6:35b-a3b"
@@ -52,14 +55,21 @@ def row_text(row: pd.Series, columns: list[str]) -> str:
     return "; ".join(f"{column}={row[column]}" for column in columns)
 
 
-def predict_label(opener: OpenerDirector, prompt: str, classes: list[str]) -> str:
+def predict_label(
+    opener: OpenerDirector,
+    prompt: str,
+    classes: list[str],
+    *,
+    seed: int = 7,
+    timeout: float = REQUEST_TIMEOUT_SECONDS,
+) -> str:
     """Constrain a local chat response to the known class names."""
     body = {
         "model": MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "stream": False,
         "think": False,
-        "options": {"temperature": 0, "seed": SEED},
+        "options": {"temperature": 0, "seed": seed},
         "format": {
             "type": "object",
             "properties": {"label": {"type": "string", "enum": classes}},
@@ -73,7 +83,7 @@ def predict_label(opener: OpenerDirector, prompt: str, classes: list[str]) -> st
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    with opener.open(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
+    with opener.open(request, timeout=timeout) as response:
         result = ChatResponse.model_validate_json(response.read())
     if not result.done:
         message = "Ollama returned an incomplete generation."
@@ -85,12 +95,8 @@ def predict_label(opener: OpenerDirector, prompt: str, classes: list[str]) -> st
     return label
 
 
-def main() -> None:
-    """Measure ten uncached, sequential penguins labels on local Ollama."""
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--smoke", action="store_true", required=True)
-    parser.parse_args()
-    opener = build_opener(ProxyHandler({}))
+def verify_model(opener: OpenerDirector) -> None:
+    """Refuse missing or changed local artifacts before requesting a label."""
     with opener.open(
         "http://127.0.0.1:11434/api/tags", timeout=REQUEST_TIMEOUT_SECONDS
     ) as response:
@@ -102,33 +108,11 @@ def main() -> None:
     if matches[0].digest != MODEL_DIGEST:
         message = "Model digest changed; restore the artifact recorded in ADR 0011."
         raise SystemExit(message)
-    print(f"model={MODEL} digest={matches[0].digest}", flush=True)
-    train, test = penguins_split()
-    columns = [str(column) for column in train.columns if column != "species"]
-    classes = sorted(str(label) for label in train["species"].unique())
-    prefix = (
-        "Label the row using the labelled examples. Return JSON with one label.\n"
-        f"Columns: {', '.join(columns)}\n"
-        + "\n".join(
-            f"{row_text(row, columns)}; label={row['species']}" for _, row in train.iterrows()
-        )
-        + "\nRow to label:\n"
-    )
-    timings: list[float] = []
-    correct = 0
-    for number, (_, row) in enumerate(test.iterrows(), start=1):
-        start = perf_counter()
-        label = predict_label(opener, prefix + row_text(row, columns), classes)
-        elapsed = perf_counter() - start
-        timings.append(elapsed)
-        correct += int(label == row["species"])
-        print(f"row={number} label={label} seconds={elapsed:.6f}", flush=True)
-    print(
-        f"rows={len(timings)} accuracy={correct / len(timings):.6f} "
-        f"seconds_per_row={sum(timings) / len(timings):.6f} "
-        f"median_seconds_per_row={median(timings):.6f} total_seconds={sum(timings):.6f} "
-        f"LLM_EVAL_ROWS={LLM_EVAL_ROWS}"
-    )
+
+
+def main() -> None:
+    """Run the cached local-LLM comparison on shared random-strategy label sets."""
+    importlib.import_module("scripts.bench_llm_run").run()
 
 
 if __name__ == "__main__":
