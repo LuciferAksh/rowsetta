@@ -68,14 +68,19 @@ def proposals_from_proba(
     probabilities = pd.DataFrame(proba.copy(), index=list(rows), columns=list(classes))
     labels = store.training_rows()
     confidence: dict[int, float] = {}
+    abstained: set[int] = set()
     for position, row_id in enumerate(rows):
         if row_id in labels:
             probabilities.loc[row_id] = np.nan
         else:
             winner = int(proba[position].argmax())
-            labels[row_id] = classes[winner]
             confidence[row_id] = float(proba[position, winner])
-    return Proposals(labels, confidence, probabilities, frozenset(), generation)
+            if confidence[row_id] < store.threshold:
+                labels[row_id] = "unsure"
+                abstained.add(row_id)
+            else:
+                labels[row_id] = classes[winner]
+    return Proposals(labels, confidence, probabilities, frozenset(abstained), generation)
 
 
 def predict_table(

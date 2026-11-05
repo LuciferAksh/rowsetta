@@ -94,6 +94,25 @@ def test_probability_order_generation_and_ties(sample: tuple[Table, LabelStore])
     np.testing.assert_array_equal(proba, np.full((6, 2), 0.5))
 
 
+@pytest.mark.parametrize("threshold", [0.0, 1.0])
+def test_abstention_at_threshold_boundaries(
+    threshold: float, sample: tuple[Table, LabelStore]
+) -> None:
+    _, store = sample
+    store.threshold = threshold
+    proba = np.tile([0.5, 0.5], (6, 1))
+    proba[5] = [0.0, 1.0]
+
+    result = proposals_from_proba(proba, store.classes, store, generation=0)
+
+    assert result.label[50] == ("unsure" if threshold == 1 else "b")
+    assert result.label[60] == "a"
+    assert result.abstained == (frozenset({50}) if threshold == 1 else frozenset())
+    assert result.confidence == {50: 0.5, 60: 1.0}
+    assert {row: result.label[row] for row in store.human} == store.human
+    np.testing.assert_array_equal(result.proba.loc[[50, 60]], proba[[4, 5]])
+
+
 @pytest.mark.parametrize(
     "proba",
     [np.ones((6, 1)), np.full((6, 2), np.nan), np.full((6, 2), 0.8), np.tile([-0.1, 1.1], (6, 1))],
