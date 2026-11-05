@@ -9,6 +9,7 @@ import pytest
 from tabular_studio.core.errors import (
     BadCsvError,
     FileTooLargeError,
+    NotServed,
     TooManyColumnsError,
     UserError,
 )
@@ -17,6 +18,7 @@ ERROR_EXAMPLES: tuple[UserError, ...] = (
     FileTooLargeError(200_000_001, 200_000_000),
     TooManyColumnsError(tuple(f"column_{index}" for index in range(101)), 100),
     BadCsvError("Unexpected end of quoted field", 3),
+    NotServed(),
 )
 
 
@@ -47,6 +49,9 @@ def test_error_contract_fields_are_nonempty(error: UserError) -> None:
 
 @pytest.mark.parametrize("error", ERROR_EXAMPLES, ids=lambda error: type(error).__name__)
 def test_cli_recovery_starts_with_a_named_command(error: UserError) -> None:
+    if isinstance(error, NotServed):
+        assert error.next_step == "Press e and label the row shown"
+        return
     assert error.next_step.startswith(("tabular-studio ", "uvx ", "make ", "iconv "))
 
 

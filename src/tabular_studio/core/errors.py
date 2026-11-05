@@ -78,3 +78,16 @@ class BadCsvError(UserError):
             "Save it as UTF-8 CSV with a comma, semicolon or tab separator, then run "
             f"`{shlex.join(['tabular-studio', 'open', file_name])}`",
         )
+
+
+class NotServedError(UserError):
+    """An evaluation edit did not address the currently served random row."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "Evaluation rows are served at random.",
+            "Press e and label the row shown",
+        )
+
+
+NotServed = NotServedError
