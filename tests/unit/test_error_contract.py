@@ -1,0 +1,100 @@
+import importlib
+import importlib.util
+import inspect
+import pkgutil
+import shlex
+
+import pytest
+
+from tabular_studio.core.errors import (
+    BadCsvError,
+    FileTooLargeError,
+    TooManyColumnsError,
+    UserError,
+)
+
+ERROR_EXAMPLES: tuple[UserError, ...] = (
+    FileTooLargeError(200_000_001, 200_000_000),
+    TooManyColumnsError(tuple(f"column_{index}" for index in range(101)), 100),
+    BadCsvError("Unexpected end of quoted field", 3),
+)
+
+
+def _discover_user_errors() -> set[type[UserError]]:
+    error_types: set[type[UserError]] = set()
+    for package_name in ("tabular_studio.core", "tabular_studio.api"):
+        if importlib.util.find_spec(package_name) is None:
+            continue
+        package = importlib.import_module(package_name)
+        for module_info in pkgutil.walk_packages(package.__path__, prefix=f"{package_name}."):
+            module = importlib.import_module(module_info.name)
+            for _, candidate in inspect.getmembers(module, inspect.isclass):
+                if issubclass(candidate, UserError) and candidate is not UserError:
+                    error_types.add(candidate)
+    return error_types
+
+
+def test_every_user_error_has_a_contract_example() -> None:
+    assert _discover_user_errors() == {type(error) for error in ERROR_EXAMPLES}
+
+
+@pytest.mark.parametrize("error", ERROR_EXAMPLES, ids=lambda error: type(error).__name__)
+def test_error_contract_fields_are_nonempty(error: UserError) -> None:
+    assert error.what.strip()
+    assert error.next_step.strip()
+    assert str(error) == error.what
+
+
+@pytest.mark.parametrize("error", ERROR_EXAMPLES, ids=lambda error: type(error).__name__)
+def test_cli_recovery_starts_with_a_named_command(error: UserError) -> None:
+    assert error.next_step.startswith(("tabular-studio ", "uvx ", "make ", "iconv "))
+
+
+def test_file_limit_message_preserves_bytes_and_rounds_up_recovery_budget() -> None:
+    error = FileTooLargeError(200_000_001, 200_000_000)
+
+    assert error.what == (
+        "`data.csv` is 200.000001 MB; the limit is 200 MB (50 MB in the browser)."
+    )
+    assert error.next_step == "tabular-studio open data.csv --max-file-mb 201"
+
+
+def test_recovery_commands_quote_user_supplied_arguments() -> None:
+    file_name = "sales $(date).csv"
+    columns = ("customer name", 'a"b', "cost; currency")
+    size_error = FileTooLargeError(2, 1, file_name=file_name)
+    column_error = TooManyColumnsError(columns, 2, file_name=file_name)
+
+    assert shlex.split(size_error.next_step) == [
+        "tabular-studio",
+        "open",
+        file_name,
+        "--max-file-mb",
+        "1",
+    ]
+    assert shlex.split(column_error.next_step) == [
+        "tabular-studio",
+        "open",
+        file_name,
+        "--columns",
+        'customer name,a"b',
+    ]
+
+
+def test_bad_csv_recovery_keeps_the_save_instruction_after_a_quoted_command() -> None:
+    file_name = "sales $(date).csv"
+    error = BadCsvError("Invalid UTF-8 encoding", 2, file_name=file_name)
+    command, instruction = error.next_step.split(". Save it", maxsplit=1)
+
+    assert shlex.split(command) == [
+        "iconv",
+        "-f",
+        "WINDOWS-1252",
+        "-t",
+        "UTF-8",
+        file_name,
+        ">",
+        file_name + ".utf8.csv",
+    ]
+    assert "as UTF-8 CSV with a comma, semicolon or tab separator, then run" in instruction
+    assert shlex.join(["tabular-studio", "open", file_name]) in instruction
