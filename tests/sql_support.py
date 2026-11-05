@@ -44,14 +44,19 @@ class PgEngine:
             psycopg.connect(os.environ["TABSTUDIO_PG_DSN"]) as connection,
             connection.cursor() as cursor,
         ):
-            create, insert, rows = _statements(frame, table_name, "%s")
+            ordinal = "__test_row_ordinal"
+            while ordinal in frame.columns:
+                ordinal += "_"
+            ordered_frame = frame.assign(**{ordinal: range(len(frame))})
+            create, insert, rows = _statements(ordered_frame, table_name, "%s")
             cursor.execute(create.encode())
             cursor.executemany(insert.encode(), rows)
             cursor.execute(sql.encode())
             assert cursor.description is not None
-            return pd.DataFrame(
+            result = pd.DataFrame(
                 cursor.fetchall(), columns=[column.name for column in cursor.description]
             )
+            return result.sort_values(ordinal).drop(columns=ordinal).reset_index(drop=True)
 
 
 def _statements(

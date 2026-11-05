@@ -22,7 +22,9 @@ from tests.unit.test_distill import FourLeafTree, labelled, ten_rows
 pytestmark = pytest.mark.native
 
 
-@pytest.mark.parametrize("dialect", ["duckdb", "sqlite"])
+@pytest.mark.parametrize(
+    "dialect", ["duckdb", "sqlite", pytest.param("postgres", marks=pytest.mark.pg)]
+)
 def test_student_export_preserves_abstention_and_confidence(dialect: Dialect) -> None:
     table, store, proposals = ten_rows()
     student = replace(fit_student(table, store, proposals), threshold=0.8)
@@ -31,6 +33,7 @@ def test_student_export_preserves_abstention_and_confidence(dialect: Dialect) ->
     result = engine(dialect).execute(sql, table.frame)
     assert predictions(result) == student.predict(table.frame) == ["a"] * 5 + [None] * 5
     assert result["predicted_answer_confidence"].tolist() == [1.0] * 5 + [0.6] * 5
+    assert result["predicted_answer_confidence"].dtype == np.dtype("float64")
     assert sql.startswith(facts.header() + "SELECT *, ")
 
 
@@ -80,18 +83,33 @@ def test_default_majority_labels_and_literal_escaping(dialect: Dialect) -> None:
     assert predictions(engine(dialect).execute(sql, table.frame)) == student.predict(table.frame)
 
 
-def test_unsplit_tree_and_four_decimal_purity() -> None:
+@pytest.mark.parametrize(
+    "dialect", ["duckdb", "sqlite", pytest.param("postgres", marks=pytest.mark.pg)]
+)
+def test_unsplit_tree_and_four_decimal_purity(dialect: Dialect) -> None:
     table, store, proposals = labelled(
         pd.DataFrame({"x": [0] * 15, "answer": ["a"] * 10 + ["b"] * 5})
     )
     student = fit_student(table, store, proposals)
     sql = tree_to_sql(
-        student.tree, feature_spec=student.feature_spec, target="answer", dialect="sqlite"
+        student.tree, feature_spec=student.feature_spec, target="answer", dialect=dialect
     )
-    result = engine("sqlite").execute(sql, table.frame)
+    result = engine(dialect).execute(sql, table.frame)
     assert "CASE" not in sql
     assert predictions(result) == ["a"] * 15
     assert result["predicted_answer_confidence"].tolist() == [0.6667] * 15
+    assert result["predicted_answer_confidence"].dtype == np.dtype("float64")
+
+
+@pytest.mark.pg
+def test_postgres_results_are_aligned_to_source_rows() -> None:
+    frame = pd.DataFrame({"x": [2, 1, 3], "__test_row_ordinal": [9, 8, 7]})
+    result = engine("postgres").execute(
+        "SELECT *, x * 10 AS prediction FROM t ORDER BY x DESC", frame
+    )
+    assert result["x"].tolist() == [2, 1, 3]
+    assert result["prediction"].tolist() == [20, 10, 30]
+    assert result["__test_row_ordinal"].tolist() == [9, 8, 7]
 
 
 def test_leaf_labels_must_match_leaf_count() -> None:

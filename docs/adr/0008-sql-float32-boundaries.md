@@ -14,6 +14,11 @@ The shared `split_condition` function supplies these literals to both SQL and
 leaf summaries. Source numeric columns must retain float64 precision. Missing
 cells are SQL NULL and follow the tree's `missing_go_to_left` routing.
 
+Confidence values retain four decimal places. PostgreSQL casts the complete
+confidence expression to `DOUBLE PRECISION`, including an unsplit tree's leaf
+literal, so the result is a float rather than PostgreSQL's default `NUMERIC`
+type for decimal literals.
+
 The exporter supports numeric and one-hot categorical splits. A used datetime split
 raises `UnsupportedDatetimeSplitError`, names its column, and supplies a
 command-first recovery step to exclude the column and re-teach without it.

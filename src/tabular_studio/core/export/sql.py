@@ -222,6 +222,7 @@ def tree_to_sql(
         )
 
     prediction, confidence = visit(0)
+    confidence = f"CAST({confidence} AS DOUBLE PRECISION)" if dialect == "postgres" else confidence
     header = certificate.header() if certificate is not None else ""
     return "".join(
         (
