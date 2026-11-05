@@ -1,12 +1,11 @@
 # 0006: Pre-registered teacher-value rule
 
-Status: proposed, awaiting approval.
+Status: accepted on 2026-11-05, before the first full benchmark run. The rule and its thresholds are frozen.
 
 ## Decision
 
-I must approve this rule before the first full benchmark run. Approval
-freezes the rule and its thresholds; they cannot change after that first run.
-The approved rule must be committed before the run.
+This rule was approved and committed before the first full benchmark run.
+Its thresholds cannot change after that run.
 
 For one dataset, budget and seed, the distilled rule beats an arm when its
 held-out accuracy is higher and the exact McNemar test on the paired held-out
