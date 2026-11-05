@@ -78,6 +78,24 @@ Apple Silicon default or recording a comparison in ADR 0003.
   at construction and sleeps only in `predict_proba`; call it in the worker
   thread for the planned refit interaction tests.
 
+## Browser computation contract
+
+- `api.worker.RefitWorker` takes a teacher and queues startup warm-up on its
+  single executor thread. `ready.result()` exposes startup failures. Warm-up fits
+  a 32-row synthetic frame and predicts it to exercise deferred device work;
+  it publishes no proposals and does not increment `refit_generation`.
+- `refit(table, store)` snapshots the label store and returns a future. Tables
+  retain their existing read-only ownership contract. Each request increments
+  `refit_generation`; a superseded result returns `None` without publication.
+  Successful current results carry their request generation in `proposals`.
+  Fitting failures propagate through the future. After a warm-up failure, queued
+  refits propagate that failure without fitting or publishing.
+- Use the worker as a context manager or call `close()` to drain queued work and
+  release its thread. Published proposals remain the last successful result;
+  callers can compare their generation with `refit_generation` while refitting.
+- Worker tests are marked `native` because their executor and synchronization
+  require threads unavailable in the Pyodide unit-test environment.
+
 ## MPS matrix (2026-11-05, run outside the sandbox)
 
 Median of five runs after one warm-up, seconds, `--device mps`:
