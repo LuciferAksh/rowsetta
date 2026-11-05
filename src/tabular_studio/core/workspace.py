@@ -1,6 +1,6 @@
 from dataclasses import dataclass, replace
 from datetime import date
-from typing import Literal
+from typing import Literal, Protocol
 
 import numpy as np
 
@@ -55,10 +55,24 @@ class ExportMetadata:
     checkpoint_sha256: str
 
 
+class SessionPersistence(Protocol):
+    """Injected session I/O for local shells; browser workspaces stay in memory."""
+
+    def open(self, data: bytes, source: SourceRef) -> tuple[LabelStore | None, str | None]:
+        """Resolve the dataset and restore only a matching session."""
+        ...
+
+    def save(self, store: LabelStore) -> None:
+        """Persist a complete session mutation."""
+        ...
+
+
 class Workspace:
     """Own one table and invalidate derived results whenever session inputs change."""
 
-    def __init__(self) -> None:
+    def __init__(self, persistence: SessionPersistence | None = None) -> None:
+        self.persistence = persistence
+        self.notice: str | None = None
         self.table: Table | None = None
         self.source: SourceRef | None = None
         self.data = b""
@@ -83,8 +97,12 @@ class Workspace:
                 error.max_columns,
                 file_name=file_name,
             ) from error
-        self.source = SourceRef.from_table(file_name, data, table)
-        self.table, self.data, self.store = table, data, None
+        source = SourceRef.from_table(file_name, data, table)
+        store, notice = self.persistence.open(data, source) if self.persistence else (None, None)
+        if store is not None:
+            self._require_features(table, store)
+        self.source, self.notice = source, notice
+        self.table, self.data, self.store = table, data, store
         self.invalidate()
 
     def set_target(self, target: str, classes: tuple[str, ...]) -> None:
@@ -122,10 +140,12 @@ class Workspace:
     def next_eval(self) -> int | None:
         """Reserve a random row before exposing it for blind evaluation."""
         store = self.require_store()
-        before = tuple(store.eval_served)
+        before = (tuple(store.eval_served), store.current_eval_row)
         row = store.next_eval_row()
-        if before != tuple(store.eval_served):
+        if before != (tuple(store.eval_served), store.current_eval_row):
             self.student = None
+            if self.persistence is not None:
+                self.persistence.save(store)
         return row
 
     def exclude(self, name: str, *, excluded: bool) -> None:
@@ -150,6 +170,8 @@ class Workspace:
         self.generation += 1
         self.proposals = None
         self.student = None
+        if self.persistence is not None and self.store is not None:
+            self.persistence.save(self.store)
 
     def missing_labels(self) -> dict[str, int]:
         """Return the human labels still needed before proposals can start."""

@@ -36,6 +36,7 @@ def workspace_state(runtime: WorkspaceRuntime, *, dev_states: bool) -> dict[str,
     hidden = set(store.eval_served) if store is not None else set[int]()
     return {
         "loaded": workspace.table is not None,
+        "notice": workspace.notice,
         "target": store.target if store is not None else None,
         "classes": store.classes if store is not None else (),
         "human": store.human if store is not None else {},

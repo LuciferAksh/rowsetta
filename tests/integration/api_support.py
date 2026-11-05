@@ -28,6 +28,7 @@ async def api(
         teacher=teacher if teacher is not None else FakeTeacher(),
         security=SessionSecurity(LAUNCH_CODE),
         static_dir=tmp_path / "absent-static",
+        data_dir=tmp_path / "sessions",
     )
     async with (
         app.router.lifespan_context(app),

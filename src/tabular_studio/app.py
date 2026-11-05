@@ -33,6 +33,7 @@ from tabular_studio.core.errors import UserError
 from tabular_studio.core.table import MAX_ROWS
 from tabular_studio.core.teacher import Teacher
 from tabular_studio.core.workspace import Workspace
+from tabular_studio.storage import SessionStorage
 from tabular_studio.teachers.fake import FakeTeacher
 from tabular_studio.teachers.tabicl import TabICLTeacher
 
@@ -42,9 +43,12 @@ def create_app(
     teacher: Teacher,
     security: SessionSecurity,
     static_dir: Path | None = None,
+    data_dir: Path | None = None,
+    source_path: Path | None = None,
 ) -> FastAPI:
     """Build an isolated local app whose teacher and session belong to one launch."""
-    workspace = Workspace()
+    storage = SessionStorage(data_dir=data_dir, source_path=source_path)
+    workspace = Workspace(storage)
     runtime = WorkspaceRuntime(workspace, teacher)
 
     @asynccontextmanager
