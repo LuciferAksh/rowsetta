@@ -91,3 +91,32 @@ class NotServedError(UserError):
 
 
 NotServed = NotServedError
+
+
+class WorkspaceError(UserError):
+    """The requested operation is unavailable for the current workspace inputs."""
+
+    def __init__(
+        self,
+        what: str,
+        next_step: str = "tabular-studio demo; load a CSV and choose its target.",
+        *,
+        status_code: int = 409,
+    ) -> None:
+        self.status_code = status_code
+        super().__init__(what, next_step)
+
+
+class NeedLabelsError(UserError):
+    """Each configured class needs enough human examples for the teacher."""
+
+    def __init__(self, missing: dict[str, int]) -> None:
+        self.missing = missing
+        needed = "; ".join(
+            f"{count} more {'row' if count == 1 else 'rows'} of: {label}"
+            for label, count in missing.items()
+        )
+        super().__init__(
+            "Proposals start once every class has 2 labels.",
+            f"tabular-studio demo; label {needed}",
+        )

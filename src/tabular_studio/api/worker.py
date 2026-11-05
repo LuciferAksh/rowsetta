@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import replace
 from threading import Lock
@@ -41,7 +42,13 @@ class RefitWorker:
         with self._lock:
             return self._proposals
 
-    def refit(self, table: Table, store: LabelStore) -> Future[Proposals | None]:
+    def refit(
+        self,
+        table: Table,
+        store: LabelStore,
+        *,
+        on_progress: Callable[[int, int], None] | None = None,
+    ) -> Future[Proposals | None]:
         """Queue a snapshot, returning its result or raising its fitting error."""
         with self._lock:
             if self._closed:
@@ -49,7 +56,7 @@ class RefitWorker:
                 raise RuntimeError(message)
             self._refit_generation += 1
             return self._executor.submit(
-                self._refit, table, store.model_copy(deep=True), self._refit_generation
+                self._refit, table, store.model_copy(deep=True), self._refit_generation, on_progress
             )
 
     def close(self) -> None:
@@ -76,9 +83,18 @@ class RefitWorker:
         # TabICL may defer device work until prediction, even after fitting.
         self._teacher.predict_proba(frame)
 
-    def _refit(self, table: Table, store: LabelStore, generation: int) -> Proposals | None:
+    def _refit(
+        self,
+        table: Table,
+        store: LabelStore,
+        generation: int,
+        on_progress: Callable[[int, int], None] | None,
+    ) -> Proposals | None:
         self.ready.result()
-        result = replace(predict_table(self._teacher, table, store), generation=generation)
+        result = replace(
+            predict_table(self._teacher, table, store, on_progress=on_progress),
+            generation=generation,
+        )
         with self._lock:
             if generation != self._refit_generation:
                 return None

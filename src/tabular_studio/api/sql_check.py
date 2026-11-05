@@ -8,6 +8,7 @@ import duckdb
 import pandas as pd
 from fastapi import HTTPException
 
+from tabular_studio.api.errors import ApiError, error_body
 from tabular_studio.core.distill import Student
 from tabular_studio.core.export.sql import Executed
 from tabular_studio.core.table import load_csv
@@ -19,7 +20,12 @@ def sql_check(source: Path, student: Student, *, target: str, sql: str) -> Execu
     The caller supplies header-less DuckDB SQL and renders the returned execution
     facts into the final certificate only after this check succeeds.
     """
-    table = load_csv(source.read_bytes(), max_rows=sys.maxsize)
+    return sql_check_data(source.read_bytes(), student, target=target, sql=sql)
+
+
+def sql_check_data(data: bytes, student: Student, *, target: str, sql: str) -> Executed:
+    """Verify original uploaded bytes without writing user data to a temporary file."""
+    table = load_csv(data, max_rows=sys.maxsize)
     expected = student.predict(table.frame)
     with duckdb.connect(":memory:") as connection:
         connection.register("t", table.frame)
@@ -37,11 +43,12 @@ def sql_check(source: Path, student: Student, *, target: str, sql: str) -> Execu
 def _reject(row: int, reason: str) -> None:
     message = f"SQL export mismatch at source row {row}: {reason}."
     logging.getLogger(__name__).error(message)
+    error = ApiError(
+        message,
+        "tabular-studio open data.csv; re-teach the rule and retry the export.",
+        status_code=500,
+    )
     raise HTTPException(
         status_code=500,
-        detail={
-            "error": message,
-            "next_step": "tabular-studio open data.csv; re-teach the rule and retry the export.",
-            "row_id": row,
-        },
-    )
+        detail={**error_body(error), "row_id": row},
+    ) from error

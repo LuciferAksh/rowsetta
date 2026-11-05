@@ -6,12 +6,15 @@ import shlex
 
 import pytest
 
+from tabular_studio.api.errors import ApiError, FrontendMissingError, ModelUnavailableError
 from tabular_studio.core.errors import (
     BadCsvError,
     FileTooLargeError,
+    NeedLabelsError,
     NotServed,
     TooManyColumnsError,
     UserError,
+    WorkspaceError,
 )
 from tabular_studio.core.export.sql import UnsupportedDatetimeSplitError
 
@@ -20,6 +23,11 @@ ERROR_EXAMPLES: tuple[UserError, ...] = (
     TooManyColumnsError(tuple(f"column_{index}" for index in range(101)), 100),
     BadCsvError("Unexpected end of quoted field", 3),
     NotServed(),
+    NeedLabelsError({"Chinstrap": 1}),
+    WorkspaceError("No CSV is loaded."),
+    ApiError("A valid launch session is required.", status_code=403),
+    FrontendMissingError(),
+    ModelUnavailableError(),
     UnsupportedDatetimeSplitError("created_at"),
 )
 
