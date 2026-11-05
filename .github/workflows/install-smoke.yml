@@ -1,0 +1,14 @@
+# WAIT: A releasable package and installation checks must exist first.
+# Manual placeholder only; replace with the task workflow before enabling automation.
+name: "Install smoke (WAIT)"
+on:
+  workflow_dispatch:
+permissions: {}
+jobs:
+  wait:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Report outstanding setup
+        run: |
+          printf '%s\n' 'WAIT: A releasable package and installation checks must exist first.'
+          exit 1

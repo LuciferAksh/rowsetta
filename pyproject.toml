@@ -1,0 +1,85 @@
+[build-system]
+requires = ["hatchling==1.33.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tabular-studio"
+version = "0.1.0"
+description = "Local tabular labelling and rule export (working title)"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+requires-python = ">=3.13"
+dependencies = [
+  "tabicl==2.2.0",
+  "torch==2.15.0",
+  "scikit-learn>=1.8.0,<2",
+  "pandas>=3.0.2,<4",
+  "numpy>=2.4,<3",
+  "scipy>=1.18.0,<2",
+  "duckdb>=2.0.0,<3",
+  "fastapi>=0.162.0,<1",
+  "uvicorn>=0.54.0,<1",
+  "huggingface-hub>=2.4.0,<3",
+  "pydantic>=2.14,<3",
+]
+
+[project.scripts]
+tabular-studio = "tabular_studio.cli:main"
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux' or sys_platform == 'win32'" }]
+
+[dependency-groups]
+dev = [
+  "ruff==0.17.3",
+  "pyright==1.1.414",
+  "pytest==9.2.0",
+  "hypothesis==6.170.14",
+  "httpx==0.28.1",
+  "psycopg[binary]==3.3.8",
+  "dbt-core==1.12.6",
+  "dbt-duckdb==1.11.1",
+  "fonttools==4.68.0",
+  "pre-commit==4.7.0",
+]
+bench = ["tabpfn==9.2.0", "orbital==0.6.0"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tabular_studio"]
+artifacts = ["src/tabular_studio/static/**"]
+
+[tool.hatch.build.targets.sdist]
+exclude = []
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["ALL"]
+# These exclusions match the recorded configuration: avoid conflicting formatting and redundant docstrings.
+ignore = ["D203", "D213", "COM812", "ISC001", "CPY001", "D100", "D104", "D105", "D107"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "D", "PLR2004"]
+"scripts/**" = ["T201", "INP001"]
+
+[tool.pyright]
+typeCheckingMode = "strict"
+pythonVersion = "3.13"
+reportMissingTypeStubs = "warning"
+
+[tool.pytest.ini_options]
+addopts = "-q --strict-markers"
+testpaths = ["tests"]
+markers = [
+  "model: downloads and runs TabICL (requires TABSTUDIO_RUN_MODEL=1)",
+  "pg: needs PostgreSQL at TABSTUDIO_PG_DSN",
+  "native: needs subprocesses, sqlite3, duckdb or hypothesis; excluded inside Pyodide",
+]

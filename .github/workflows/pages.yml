@@ -1,0 +1,14 @@
+# WAIT: Pages requires a remote and hosted configuration.
+# Manual placeholder only; replace with the task workflow before enabling automation.
+name: "Pages (WAIT)"
+on:
+  workflow_dispatch:
+permissions: {}
+jobs:
+  wait:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Report outstanding setup
+        run: |
+          printf '%s\n' 'WAIT: Pages requires a remote and hosted configuration.'
+          exit 1

@@ -1,0 +1,14 @@
+# WAIT: Model acquisition and benchmark tasks must land first.
+# Manual placeholder only; replace with the task workflow before enabling automation.
+name: "Monthly smoke (WAIT)"
+on:
+  workflow_dispatch:
+permissions: {}
+jobs:
+  wait:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Report outstanding setup
+        run: |
+          printf '%s\n' 'WAIT: Model acquisition and benchmark tasks must land first.'
+          exit 1

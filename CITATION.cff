@@ -1,0 +1,7 @@
+cff-version: 1.2.0
+message: "If you use this project, cite the repository once its public URL is available."
+title: "Tabular Studio (working title)"
+authors:
+  - name: "Tabular Studio contributors"
+license: Apache-2.0
+# WAIT: confirm authorship, final name and repository URL before release.

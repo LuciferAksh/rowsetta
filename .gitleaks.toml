@@ -1,0 +1,4 @@
+title = "Tabular Studio (working title) secret scanning"
+
+[extend]
+useDefault = true

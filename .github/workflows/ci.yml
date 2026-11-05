@@ -1,0 +1,14 @@
+# WAIT: A remote and reviewed full action SHAs are required. Run make check locally.
+# Manual placeholder only; replace with the task workflow before enabling automation.
+name: "Checks (WAIT)"
+on:
+  workflow_dispatch:
+permissions: {}
+jobs:
+  wait:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Report outstanding setup
+        run: |
+          printf '%s\n' 'WAIT: A remote and reviewed full action SHAs are required. Run make check locally.'
+          exit 1
