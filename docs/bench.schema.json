@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Benchmark measurements",
+  "type": "object",
+  "required": ["teacher"],
+  "properties": {
+    "teacher": {
+      "type": "object",
+      "required": ["penguins_6_labels"],
+      "properties": {
+        "penguins_6_labels": {
+          "type": "object",
+          "required": ["accuracy"],
+          "properties": {
+            "accuracy": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        }
+      }
+    }
+  }
+}
