@@ -45,7 +45,7 @@ env -u TABPFN_TOKEN uv run --group bench python scripts/bench_baseline_tabpfn.py
 TabPFN v2: labels=20 rows=10 accuracy=1.000000 seconds=8.279573 TABPFN_TOKEN=unset
 ```
 
-Exit status: 0. No manual account step is needed for this v2 path. Later model
+Exit status: 0. No account step is needed for this v2 path. Later model
 versions and their access terms were not tested.
 
 The final script was rerun against the now-cached v2 weights, again exiting 0:

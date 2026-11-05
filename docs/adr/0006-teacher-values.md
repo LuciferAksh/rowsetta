@@ -4,7 +4,7 @@ Status: proposed, awaiting approval.
 
 ## Decision
 
-This rule must be approved before the first full benchmark run. Approval
+I must approve this rule before the first full benchmark run. Approval
 freezes the rule and its thresholds; they cannot change after that first run.
 The approved rule must be committed before the run.
 
@@ -20,4 +20,4 @@ when at least 3 of the 6 datasets pass.
 
 If the rule is not met, I will choose either to reposition the product
 around live fill, the blind evaluation protocol and the certificate, with copy
-saying the rule matches a tuned tree, or to replace this project with a different one.
+saying the rule matches a tuned tree, or to pursue a different project.

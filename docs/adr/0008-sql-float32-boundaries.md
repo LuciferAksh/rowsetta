@@ -1,6 +1,6 @@
 # 0008: SQL boundaries and supported feature types
 
-Status: accepted for SQL export.
+Status: accepted for SQL export implementation.
 
 scikit-learn casts tree inputs to float32 before comparing them with a float64
 threshold. Comparing the original SQL value directly with that threshold can
@@ -22,8 +22,7 @@ not implemented in this change.
 
 `tree_to_sql` groups optional table naming, leaf labels and certificate facts
 in frozen `SqlOptions`. Required feature specification, target and dialect stay
-keyword arguments. This decision supersedes the initial literal
-signature to meet the argument-count lint bar.
+keyword arguments. This signature meets the argument-count lint bar.
 
 The shell verifies header-less DuckDB SQL against every source row before
 returning an export in any supported dialect. A mismatch returns HTTP 500 with

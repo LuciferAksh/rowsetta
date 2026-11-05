@@ -19,4 +19,4 @@ The core must keep filesystem, network, clock and randomness outside its busines
 logic. The shell owns I/O. Python is packaged with hatchling so frontend packaging can add the
 frontend wheel build hook. The browser dependency review remains pending.
 
-See [scaffold findings](scaffold.md) for setup constraints and outstanding inputs.
+See [development notes](development.md) for setup constraints and outstanding inputs.

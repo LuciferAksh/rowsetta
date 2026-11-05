@@ -56,7 +56,7 @@ packages = ["src/tabular_studio"]
 artifacts = ["src/tabular_studio/static/**"]
 
 [tool.hatch.build.targets.sdist]
-exclude = []
+only-include = ["/src/tabular_studio", "/pyproject.toml", "/README.md", "/LICENSE", "/NOTICE"]
 
 [tool.ruff]
 line-length = 100

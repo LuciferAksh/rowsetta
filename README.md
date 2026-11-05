@@ -25,7 +25,7 @@ uv run tabular-studio --help
 gitleaks git --redact
 ```
 
-See [scaffold findings and waits](docs/scaffold.md),
+See [development notes](docs/development.md),
 [architecture](docs/architecture.md) and [contributing](CONTRIBUTING.md).
 
 ## Licence

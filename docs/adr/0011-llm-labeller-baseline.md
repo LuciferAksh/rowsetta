@@ -121,8 +121,8 @@ ollama list
 uv run python scripts/bench_llm.py --smoke
 ```
 
-If the runtime or model is unavailable on a later machine, the maintainer
-runs those commands locally after installing Ollama. Do not replace the model,
+If the runtime or model is unavailable on a later machine, run those commands
+locally after installing Ollama. Do not replace the model,
 invent a digest or timing, or treat a missing-model exit as a successful smoke.
 
 ## Final checks

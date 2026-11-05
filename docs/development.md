@@ -1,4 +1,4 @@
-# Scaffold findings
+# Development notes
 
 ## Registry verification
 
@@ -60,12 +60,12 @@ Sources: `https://pypi.org/pypi/<package>/json` and
   under engineering standards section 5a. Re-confirmed both registry versions on
   2026-11-05; `uv.lock` retains pandas 3.1.1 and the frontend retains Vite 8.3.6.
   Pyodide floors remain unchanged.
-- Added `@types/node` as a frontend development dependency on
-  2026-11-05. Pinned 26.6.6, the latest stable 26.x release reported by
+- Pinned `@types/node` 26.6.6 as a frontend development dependency on
+  2026-11-05, the latest stable 26.x release reported by
   `https://registry.npmjs.org/@types%2fnode`, to match Node 26 LTS. Its required
   `undici-types` dependency is transitive. No other direct dependency was added.
   These declarations satisfy the Vite and Vitest Node types without weakening
-  TypeScript, Svelte or ESLint checks. No separate dependency-pin ADR is specified.
+  TypeScript, Svelte or ESLint checks.
 - TypeScript stays at 6.0.3 although 7.0.2 is available: typescript-eslint 8.72.1
   requires a version below 6.1.0. Keep this dependency ceiling.
 - Build backend: hatchling 1.33.0. Pre-commit 4.7.0 is included to make setup
@@ -78,29 +78,28 @@ Sources: `https://pypi.org/pypi/<package>/json` and
   attribution, and forecast-web 1.0.0's npm NOTICE. No model was downloaded.
   Browser code review and vendoring remain pending, so forecast-web is not installed yet.
 
-## Scope and waits
+## Pending work
 
-- WAIT: final name and accepted trademark search. See ADR 0000.
-- WAIT: no remote. Workflow files are manual placeholders that fail explicitly.
+- TODO: final name and accepted trademark search. See ADR 0000.
+- TODO: no remote. Workflow files are manual placeholders that fail explicitly.
   Resolve full action SHAs, replace the placeholders, enable
   PR checks and Dependabot, protect main and configure CodeQL default setup.
   No hosted workflow, Docker manifest or CI timing was verified. The initial configuration's
   CPU-source before/after CI measurement cannot run without a remote.
-- WAIT: supply the Hugging Face token locally for the weight
+- TODO: supply the Hugging Face token locally for the weight
   mirror. It is unnecessary for scaffold checks.
-- WAIT: private security and conduct contacts, citation authorship and repository
-  URL require confirmation before public launch.
-- WAIT: `hatch_build.py` and the custom frontend wheel hook. The skeleton
+- TODO before public release: set private security and conduct contacts, citation
+  authorship and repository URL.
+- TODO: `hatch_build.py` and the custom frontend wheel hook. The skeleton
   builds frontend and Python artifacts separately, without claiming a bundled UI.
-- WAIT: development-container implementation and a real Codespaces check.
+- TODO: development-container implementation and a real Codespaces check.
 - Release, Pages, install and monthly-model workflows are reserved for their
   implementation tasks, with no scheduled runs or publishing permissions.
 - `dev` starts only Vite until the API exists. The future API proxy is set to
   127.0.0.1:8787. `bench`, `bench-full`, `golden`, `demo-gif` and `browser` fail
-  with an explicit WAIT rather than reporting an unimplemented operation as passed.
+  with an explicit TODO rather than reporting an unimplemented operation as passed.
 - The Svelte page is unstyled. Visual direction remains pending.
-- README contains a technical scaffold description. Final hero copy is WAIT:
-  the product-copy section was left unchanged.
+- README contains a technical scaffold description. Final hero copy is pending.
 
 ## Verification
 
@@ -115,9 +114,8 @@ Acceptance commands and their observed results are recorded after execution.
 - `pnpm --dir frontend test`: one test passed.
 - `make build`: frontend assets, Python sdist and wheel built successfully.
   Package inspection found that hatchling does not apply `.git/info/exclude`;
-  the sdist now explicitly excludes local development instructions.
-- Initial `make check` failed on absent Node declarations. The
-  authorization above resolves the dependency restriction. Adding the pinned
+  the sdist uses an explicit allowlist of package inputs.
+- Initial `make check` failed on absent Node declarations. Adding the pinned
   declarations resolved the errors with the existing strict settings unchanged.
 
 ### Final scaffold acceptance, 2026-11-05
@@ -162,4 +160,4 @@ INF scanned ~0 bytes (0) in 29.4ms
 INF no leaks found
 ```
 
-Scaffold acceptance passes. The scope and publication prerequisites above remain unchanged.
+Scaffold acceptance passes. The pending work above remains unchanged.

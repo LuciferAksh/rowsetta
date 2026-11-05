@@ -17,5 +17,5 @@ Document decisions in `docs/adr/` and measured findings in `docs/`. Before revie
 explain the problem, the resulting behaviour and the checks you ran. Follow the
 [code of conduct](CODE_OF_CONDUCT.md) and [security policy](SECURITY.md).
 
-WAIT: the remote, branch protections, CodeQL default setup and hosted workflow
-activation require hosted configuration. See [scaffold findings](docs/scaffold.md).
+TODO before public release: configure branch protections, CodeQL default setup and
+hosted workflows. These require the hosted repository. See [development notes](docs/development.md).
