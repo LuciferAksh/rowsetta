@@ -26,6 +26,9 @@ build:
 	pnpm --dir frontend build
 	uv build
 
-bench bench-full golden demo-gif browser:
+golden:
+	TABSTUDIO_UPDATE_SQL_GOLDENS=1 uv run --locked pytest tests/golden/test_sql.py
+
+bench bench-full demo-gif browser:
 	@printf '%s\n' 'WAIT: $@ is reserved for its implementation task; see docs/scaffold.md.'
 	@exit 2
