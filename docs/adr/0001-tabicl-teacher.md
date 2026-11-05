@@ -48,6 +48,14 @@ TabPFN v2: labels=20 rows=10 accuracy=1.000000 seconds=8.279573 TABPFN_TOKEN=uns
 Exit status: 0. No manual account step is needed for this v2 path. Later model
 versions and their access terms were not tested.
 
+The final script was rerun against the now-cached v2 weights, again exiting 0:
+
+```text
+TabPFN v2: labels=20 rows=10 accuracy=1.000000 seconds=0.182649 TABPFN_TOKEN=unset
+```
+
+These timings have different cache states and are not benchmark comparisons.
+
 The sandbox run relocated the uv, Hugging Face, model, matplotlib and skrub
 caches with `UV_CACHE_DIR`, `HF_HOME`, `TABPFN_MODEL_CACHE_DIR`, `MPLCONFIGDIR`
 and `SKB_DATA_DIRECTORY`, respectively, to directories beneath `/private/tmp/`.

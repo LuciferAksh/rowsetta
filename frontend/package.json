@@ -19,6 +19,7 @@
     "e2e": "playwright test"
   },
   "dependencies": {
+    "forecast-web": "file:vendor/forecast-web-1.0.0.tgz",
     "svelte": "5.57.3"
   },
   "devDependencies": {

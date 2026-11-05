@@ -9,6 +9,7 @@ from bench_smoke import SEED, penguins_split
 from pydantic import BaseModel, ConfigDict
 
 MODEL = "qwen3.6:35b-a3b"
+MODEL_DIGEST = "0ce5ff81f9ffdf89dd8192ca7b5d34cefd8996a875b3aaaaafaf5c4813569eba"
 LLM_EVAL_ROWS = 200
 REQUEST_TIMEOUT_SECONDS = 600
 
@@ -97,6 +98,9 @@ def main() -> None:
     matches = [model for model in tags.models if model.name == MODEL]
     if len(matches) != 1:
         message = f"Model missing; run: ollama pull {MODEL}"
+        raise SystemExit(message)
+    if matches[0].digest != MODEL_DIGEST:
+        message = "Model digest changed; restore the artifact recorded in ADR 0011."
         raise SystemExit(message)
     print(f"model={MODEL} digest={matches[0].digest}", flush=True)
     train, test = penguins_split()

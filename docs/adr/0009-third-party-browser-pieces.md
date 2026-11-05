@@ -83,17 +83,26 @@ The first download measured these SHA-256 values. They are pinned in
 `scripts/fetch_bench_datasets.py`; subsequent reads verify cached bytes too.
 Archives are benchmark-only, outside the distributed dataset package.
 
-| Dataset | Archive bytes | SHA-256 |
-| --- | --- | --- |
-| Dry Bean | 4738776 | `0a64eff5be87f48c3dbbfc0a12a56c5d5b5167ef8e61cd45d69b3e7c7130c06f` |
-| Mushroom | 141318 | `face32f32647e0d939f6233f36dd30dd5d619ae9f3f9b8e10bea4ac7e1f60b1a` |
-| Car Evaluation | 6342 | `1559d51dcf327f4f8c71b711ceed7fd95a382fc8d8e1998667f4f23b82860403` |
+| Dataset        | Archive bytes | SHA-256                                                            |
+| -------------- | ------------- | ------------------------------------------------------------------ |
+| Dry Bean       | 4738776       | `0a64eff5be87f48c3dbbfc0a12a56c5d5b5167ef8e61cd45d69b3e7c7130c06f` |
+| Mushroom       | 141318        | `face32f32647e0d939f6233f36dd30dd5d619ae9f3f9b8e10bea4ac7e1f60b1a` |
+| Car Evaluation | 6342          | `1559d51dcf327f4f8c71b711ceed7fd95a382fc8d8e1998667f4f23b82860403` |
 
 Each UCI page explicitly states CC BY 4.0, checked on 2026-11-05:
 [Dry Bean](https://archive.ics.uci.edu/dataset/602/dry+bean+dataset),
 [Mushroom](https://archive.ics.uci.edu/dataset/73/mushroom),
 [Car Evaluation](https://archive.ics.uci.edu/dataset/19/car+evaluation).
 No source was dropped for its licence.
+
+Source citations for the benchmark card update:
+
+- Dry Bean [Dataset]. (2020). UCI Machine Learning Repository.
+  <https://doi.org/10.24432/C50S4B>. Licence: CC BY 4.0.
+- Mushroom [Dataset]. (1981). UCI Machine Learning Repository.
+  <https://doi.org/10.24432/C5959T>. Licence: CC BY 4.0.
+- Bohanec, M. (1988). Car Evaluation [Dataset]. UCI Machine Learning Repository.
+  <https://doi.org/10.24432/C5JP48>. Licence: CC BY 4.0.
 
 The fetcher stores the source ZIPs under
 `~/.cache/tabular-studio/bench/`, or beneath `XDG_CACHE_HOME` when set. It checks
@@ -120,3 +129,57 @@ Verified 3 benchmark archives in /private/tmp/tabular-t03-cache/tabular-studio/b
 Sandbox execution used `UV_CACHE_DIR=/private/tmp/tabular-t03-uv` and
 `XDG_CACHE_HOME=/private/tmp/tabular-t03-cache` to avoid writes outside the job's
 writable roots. These change cache locations, not the probes or data.
+
+The six card-validation cases passed. An additional temporary corrupt-cache
+probe replaced `dry_bean.zip` with invalid bytes in a separate scratch cache.
+The fetcher exited 1 with `dataset checksum mismatch: dry_bean` and preserved
+those bytes for inspection; no benchmark cache or source archive was changed.
+
+## Browser dependency review completion
+
+The remaining paths were authorized and completed on 2026-11-05.
+`frontend/vendor/forecast-web-1.0.0.tgz` contains the unchanged npm archive,
+downloaded via `npm pack` with `--ignore-scripts` and independently verified
+against the complete SHA-512 integrity above and the recorded SHA-256.
+LICENSE and NOTICE remain inside it. The frontend depends on
+`file:vendor/forecast-web-1.0.0.tgz`; its pnpm 12.16.1 lockfile records the same
+integrity and resolves ONNX Runtime to 1.31.1. No other direct dependency changed.
+
+The transitive `protobufjs@7.6.6` postinstall script only reads package metadata
+to check dependency version declarations and optionally prints a warning.
+After reviewing that script, `pnpm approve-builds protobufjs --yes` recorded
+its explicit permission in `frontend/pnpm-workspace.yaml`. A subsequent
+`pnpm --dir frontend install --frozen-lockfile` exited 0. The sandbox used
+`--store-dir /private/tmp/tabular-t03-pnpm` for both commands.
+
+`datasets/CARDS.md` now indexes the three benchmark-only archives, records
+CC BY 4.0 for each, and links each UCI source and citation. The source licence
+statements were rechecked. The card test requires all six planned datasets
+and validates every indexed licence, so omitting a benchmark card fails.
+
+The archive verification, TabICL constructor inspection, token-free TabPFN v2
+smoke and ten-row LLM smoke all exited 0 again after the completion changes.
+The TabICL signature still includes `kv_cache`, `device`, `model_path` and
+`n_estimators`. Latest TabPFN output:
+
+```text
+TabPFN v2: labels=20 rows=10 accuracy=1.000000 seconds=0.259882 TABPFN_TOKEN=unset
+```
+
+The LLM result is recorded in [ADR 0011](0011-llm-labeller-baseline.md).
+Browser integration, runtime network assertions, cached-weight integrity and
+distribution attribution remain pending as described above.
+
+The full browser dependency acceptance passed. `UV_CACHE_DIR=/private/tmp/tabular-t03-uv
+make check` exited 0 with:
+
+```text
+0 errors, 0 warnings, 0 informations
+89 passed in 3.05s
+COMPLETED 444 FILES 0 ERRORS 0 WARNINGS 0 FILES_WITH_PROBLEMS
+Test Files  1 passed (1)
+     Tests  1 passed (1)
+```
+
+The focused card check exited 0 with `6 passed in 0.16s`; archive verification
+exited 0 with `Verified 3 benchmark archives` in the scratch cache.

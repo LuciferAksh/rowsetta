@@ -14,18 +14,26 @@ def card_licences(text: str) -> dict[str, str]:
     datasets = cells[2:]
     assert datasets, "The card index must contain datasets"
     assert len({row[0] for row in datasets}) == len(datasets), "Duplicate dataset card"
-    return {name: licence for name, _, licence in datasets}
+    licences = {name: licence for name, _, licence in datasets}
+    for name, licence in licences.items():
+        assert licence in {"CC BY 4.0", "CC0"}, f"{name}: unsupported or missing licence"
+    return licences
 
 
 def test_every_dataset_has_an_allowed_licence_line() -> None:
-    licences = card_licences(CARDS.read_text())
-
-    for name, licence in licences.items():
-        assert licence in {"CC BY 4.0", "CC0"}, f"{name}: unsupported or missing licence"
+    assert set(card_licences(CARDS.read_text())) == {
+        "Palmer penguins",
+        "Bank Marketing",
+        "Adult",
+        "Dry Bean",
+        "Mushroom",
+        "Car Evaluation",
+    }
 
 
 @pytest.mark.parametrize("licence", ["", "unknown", "CC BY-NC 4.0", "MIT", "CC BY 4.0 pending"])
 def test_card_licence_validation_rejects_unapproved_or_missing_licences(licence: str) -> None:
     text = f"| Dataset | Files | Licence |\n| --- | --- | --- |\n| Example | data.csv | {licence} |"
 
-    assert card_licences(text)["Example"] not in {"CC BY 4.0", "CC0"}
+    with pytest.raises(AssertionError, match="unsupported or missing licence"):
+        card_licences(text)
