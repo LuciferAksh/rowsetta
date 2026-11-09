@@ -39,7 +39,8 @@ def test_full_flow_does_not_resolve_or_connect(
     asyncio.run(run())
 
 
-def test_telemetry_and_hub_offline_are_set_before_hub_import() -> None:
+@pytest.mark.parametrize("module", ["tabular_studio.app", "tabular_studio.cli"])
+def test_telemetry_and_hub_offline_are_set_before_hub_import(module: str) -> None:
 
     environment = {
         key: value
@@ -50,11 +51,11 @@ def test_telemetry_and_hub_offline_are_set_before_hub_import() -> None:
         [
             sys.executable,
             "-c",
-            """
+            f"""
 import os
 import sys
 assert 'huggingface_hub' not in sys.modules
-import tabular_studio.app
+import {module}
 from huggingface_hub import constants
 assert os.environ['HF_HUB_DISABLE_TELEMETRY'] == '1'
 assert constants.HF_HUB_DISABLE_TELEMETRY

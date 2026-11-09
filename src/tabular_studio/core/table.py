@@ -8,7 +8,12 @@ from typing import Literal
 import pandas as pd
 from pandas.api.types import infer_dtype, is_bool_dtype, is_numeric_dtype
 
-from tabular_studio.core.errors import BadCsvError, FileTooLargeError, TooManyColumnsError
+from tabular_studio.core.errors import (
+    BadCsvError,
+    FileTooLargeError,
+    TooManyColumnsError,
+    UnknownColumnsError,
+)
 
 MAX_ROWS = 10_000
 MAX_COLS = 100  # TabICLv2 is pretrained on at most 100 columns.
@@ -42,11 +47,18 @@ class Table:
     source_rows: int
 
 
-def load_csv(data: bytes, *, max_rows: int = MAX_ROWS, max_bytes: int = MAX_FILE_BYTES) -> Table:
+def load_csv(
+    data: bytes,
+    *,
+    max_rows: int = MAX_ROWS,
+    max_bytes: int = MAX_FILE_BYTES,
+    keep_columns: tuple[str, ...] | None = None,
+) -> Table:
     """Decode UTF-8 CSV, enforce limits, then sample before inferring column kinds.
 
-    Raises FileTooLargeError, TooManyColumnsError or BadCsvError for rejected input. Browser
-    callers supply their own row and byte budgets; no filesystem access occurs.
+    Raises FileTooLargeError, TooManyColumnsError, UnknownColumnsError or BadCsvError for
+    rejected input. Browser callers supply their own row and byte budgets; no filesystem
+    access occurs. `keep_columns` keeps only those columns, in the order given.
     """
     if len(data) > max_bytes:
         raise FileTooLargeError(len(data), max_bytes)
@@ -64,6 +76,11 @@ def load_csv(data: bytes, *, max_rows: int = MAX_ROWS, max_bytes: int = MAX_FILE
         reason = str(error).strip()
         raise BadCsvError(reason, _parser_line_number(reason)) from error
 
+    if keep_columns is not None:
+        unknown = tuple(name for name in keep_columns if name not in frame.columns)
+        if unknown:
+            raise UnknownColumnsError(unknown, tuple(frame.columns), MAX_COLS)
+        frame = frame.loc[:, list(dict.fromkeys(keep_columns))]
     if len(frame.columns) > MAX_COLS:
         raise TooManyColumnsError(tuple(frame.columns), MAX_COLS)
     # pandas otherwise interprets surplus fields on the first data row as an index.

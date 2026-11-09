@@ -9,7 +9,12 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from tabular_studio.core.errors import BadCsvError, FileTooLargeError, TooManyColumnsError
+from tabular_studio.core.errors import (
+    BadCsvError,
+    FileTooLargeError,
+    TooManyColumnsError,
+    UnknownColumnsError,
+)
 from tabular_studio.core.table import MAX_COLS, MAX_FILE_BYTES, MAX_ROWS, SAMPLE_SEED, load_csv
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
@@ -126,6 +131,25 @@ def test_column_limit_has_an_executable_next_step() -> None:
     assert caught.value.next_step == (
         "tabular-studio open data.csv --columns " + ",".join(names[:MAX_COLS])
     )
+
+
+def test_selected_columns_fit_a_wide_file_in_the_requested_order() -> None:
+    names = tuple(f"column_{index}" for index in range(MAX_COLS + 1))
+    data = (",".join(names) + "\n" + ",".join("1" for _ in names) + "\n").encode()
+
+    table = load_csv(data, keep_columns=("column_100", "column_0", "column_100"))
+
+    assert list(table.frame.columns) == ["column_100", "column_0"]
+    assert [column.name for column in table.columns] == ["column_100", "column_0"]
+
+
+def test_unknown_selected_columns_name_each_missing_column() -> None:
+    with pytest.raises(UnknownColumnsError) as caught:
+        load_csv(b"species,island\nAdelie,Dream\n", keep_columns=("species", "isle", "beak"))
+
+    assert caught.value.unknown == ("isle", "beak")
+    assert caught.value.what == "`data.csv` has no column named `isle`, `beak`."
+    assert caught.value.next_step == "tabular-studio open data.csv --columns species,island"
 
 
 def test_boolean_columns_become_lowercase_categorical_strings() -> None:

@@ -64,6 +64,35 @@ class TooManyColumnsError(UserError):
         )
 
 
+class UnknownColumnsError(UserError):
+    """A column selection names columns the file does not have."""
+
+    def __init__(
+        self,
+        unknown: tuple[str, ...],
+        column_names: tuple[str, ...],
+        max_columns: int,
+        *,
+        file_name: str = "data.csv",
+    ) -> None:
+        self.unknown = unknown
+        self.column_names = column_names
+        self.max_columns = max_columns
+        self.file_name = file_name
+        super().__init__(
+            f"`{file_name}` has no column named {', '.join(f'`{name}`' for name in unknown)}.",
+            shlex.join(
+                [
+                    "tabular-studio",
+                    "open",
+                    file_name,
+                    "--columns",
+                    ",".join(column_names[:max_columns]),
+                ]
+            ),
+        )
+
+
 class BadCsvError(UserError):
     """The input could not be decoded or parsed as supported CSV."""
 

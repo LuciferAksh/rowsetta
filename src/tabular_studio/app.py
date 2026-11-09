@@ -5,6 +5,7 @@ os.environ["HF_HUB_OFFLINE"] = "1"
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -30,12 +31,25 @@ from tabular_studio.api.security import (
     SessionSecurity,
 )
 from tabular_studio.core.errors import UserError
-from tabular_studio.core.table import MAX_ROWS
+from tabular_studio.core.table import MAX_FILE_BYTES, MAX_ROWS
 from tabular_studio.core.teacher import Teacher
 from tabular_studio.core.workspace import Workspace
 from tabular_studio.storage import SessionStorage
 from tabular_studio.teachers.fake import FakeTeacher
 from tabular_studio.teachers.tabicl import TabICLTeacher
+
+
+@dataclass(frozen=True)
+class LaunchCsv:
+    """A CSV loaded before the app starts, so its errors reach the command line.
+
+    A user's own file keeps its session beside it; a bundled file keeps it in the data dir.
+    """
+
+    path: Path
+    session_beside: bool
+    max_bytes: int = MAX_FILE_BYTES
+    columns: tuple[str, ...] | None = None
 
 
 def create_app(
@@ -44,15 +58,17 @@ def create_app(
     security: SessionSecurity,
     static_dir: Path | None = None,
     data_dir: Path | None = None,
-    source_path: Path | None = None,
+    csv: LaunchCsv | None = None,
 ) -> FastAPI:
     """Build an isolated local app whose teacher and session belong to one launch."""
-    storage = SessionStorage(data_dir=data_dir, source_path=source_path)
-    workspace = Workspace(storage)
+    max_rows = row_limit()
+    workspace = _workspace(data_dir, csv, max_rows=max_rows)
     runtime = WorkspaceRuntime(workspace, teacher)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
+        # A resumed session already has labels, so its proposals start without an edit.
+        runtime.schedule()
         try:
             yield
         finally:
@@ -98,13 +114,35 @@ def create_app(
     app.include_router(
         workspace_router(
             runtime,
-            max_rows=int(os.environ.get("TABSTUDIO_MAX_ROWS", str(MAX_ROWS))),
+            max_rows=max_rows,
             dev_states=os.environ.get("TABSTUDIO_STATES") == "1",
         )
     )
     if (static / "index.html").is_file():
         app.mount("/", StaticFiles(directory=static, html=True))
     return app
+
+
+def _workspace(data_dir: Path | None, csv: LaunchCsv | None, *, max_rows: int) -> Workspace:
+    if csv is None:
+        return Workspace(SessionStorage(data_dir=data_dir))
+    source_path = csv.path if csv.session_beside else None
+    workspace = Workspace(
+        SessionStorage(data_dir=data_dir, source_path=source_path), max_bytes=csv.max_bytes
+    )
+    workspace.load(
+        csv.path.read_bytes(),
+        csv.path.name,
+        max_rows=max_rows,
+        columns=csv.columns,
+        display_name=str(csv.path),
+    )
+    return workspace
+
+
+def row_limit() -> int:
+    """Read the working-sample cap; saved sessions only resume under the same cap."""
+    return int(os.environ.get("TABSTUDIO_MAX_ROWS", str(MAX_ROWS)))
 
 
 def local_teacher() -> Teacher:

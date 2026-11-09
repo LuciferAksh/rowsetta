@@ -13,6 +13,7 @@ from tabular_studio.core.errors import (
     NeedLabelsError,
     NotServed,
     TooManyColumnsError,
+    UnknownColumnsError,
     UserError,
     WorkspaceError,
 )
@@ -21,6 +22,7 @@ from tabular_studio.core.export.sql import UnsupportedDatetimeSplitError
 ERROR_EXAMPLES: tuple[UserError, ...] = (
     FileTooLargeError(200_000_001, 200_000_000),
     TooManyColumnsError(tuple(f"column_{index}" for index in range(101)), 100),
+    UnknownColumnsError(("isle",), ("species", "island"), 100),
     BadCsvError("Unexpected end of quoted field", 3),
     NotServed(),
     NeedLabelsError({"Chinstrap": 1}),

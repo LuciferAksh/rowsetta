@@ -28,6 +28,14 @@ from tabular_studio.core.export.json import to_json
 from tabular_studio.core.export.python import to_python
 from tabular_studio.core.export.sql import Certificate, Dialect, NotExecuted, to_sql
 from tabular_studio.core.leaks import find_leaks
+from tabular_studio.core.workspace import Workspace
+
+type ExportFormat = Literal["sql", "dbt", "python", "json"]
+EXPORT_MEDIA_TYPES: dict[ExportFormat, str] = {
+    "sql": "application/sql",
+    "python": "text/x-python",
+    "json": "application/json",
+}
 
 
 @dataclass(frozen=True)
@@ -204,35 +212,43 @@ def workspace_export_router(runtime: WorkspaceRuntime) -> APIRouter:
 
     @router.get("/export")
     async def export(
-        export_format: Annotated[
-            Literal["sql", "dbt", "python", "json"], Query(alias="format")
-        ] = "sql",
+        export_format: Annotated[ExportFormat, Query(alias="format")] = "sql",
         dialect: Dialect = "duckdb",
     ) -> Response:
         if runtime.failure is not None:
             raise runtime.failure
-        facts = workspace.certificate(export_metadata(fake=runtime.fake_teacher))
-        student = workspace.student
-        if student is None:
-            msg = "Distil the current rule before exporting."
-            raise WorkspaceError(msg)
-        checked = to_sql(student, dialect="duckdb", certificate=facts).removeprefix(facts.header())
-        execution = sql_check_data(workspace.data, student, target=facts.target, sql=checked)
-        facts = replace(facts, execution=execution)
-        if export_format == "python":
-            return Response(
-                facts.header().replace("-- ", "# ") + to_python(student), media_type="text/x-python"
-            )
-        if export_format == "json":
-            return Response(to_json(student, certificate=facts), media_type="application/json")
-        if export_format == "dbt":
-            try:
-                files = to_dbt(student, source="source_data", certificate=facts, dialect=dialect)
-            except ValueError as error:
-                raise ApiError(str(error), status_code=422) from error
-            return JSONResponse(files)
-        return Response(
-            to_sql(student, dialect=dialect, certificate=facts), media_type="application/sql"
+        artifact = export_artifact(
+            workspace, fake=runtime.fake_teacher, export_format=export_format, dialect=dialect
         )
+        if isinstance(artifact, dict):
+            return JSONResponse(artifact)
+        return Response(artifact, media_type=EXPORT_MEDIA_TYPES[export_format])
 
     return router
+
+
+def export_artifact(
+    workspace: Workspace, *, fake: bool, export_format: ExportFormat, dialect: Dialect
+) -> str | dict[str, str]:
+    """Render the current rule after proving its SQL on every source row.
+
+    dbt exports are project-relative paths mapped to file contents.
+    """
+    facts = workspace.certificate(export_metadata(fake=fake))
+    student = workspace.student
+    if student is None:
+        msg = "Distil the current rule before exporting."
+        raise WorkspaceError(msg)
+    checked = to_sql(student, dialect="duckdb", certificate=facts).removeprefix(facts.header())
+    execution = sql_check_data(workspace.data, student, target=facts.target, sql=checked)
+    facts = replace(facts, execution=execution)
+    if export_format == "python":
+        return facts.header().replace("-- ", "# ") + to_python(student)
+    if export_format == "json":
+        return to_json(student, certificate=facts)
+    if export_format == "dbt":
+        try:
+            return to_dbt(student, source="source_data", certificate=facts, dialect=dialect)
+        except ValueError as error:
+            raise ApiError(str(error), status_code=422) from error
+    return to_sql(student, dialect=dialect, certificate=facts)

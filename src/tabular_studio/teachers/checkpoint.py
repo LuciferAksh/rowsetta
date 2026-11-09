@@ -23,11 +23,20 @@ class ModelHub(Protocol):
         ...
 
 
+def file_sha256(path: Path) -> str:
+    """Hash a file without reading it into memory at once."""
+    with path.open("rb") as stream:
+        return hashlib.file_digest(stream, "sha256").hexdigest()
+
+
+def is_pinned(path: Path, digest: str) -> bool:
+    """Whether a file with this digest is the pinned checkpoint."""
+    return digest == SHA256 and path.stat().st_size == SIZE_BYTES
+
+
 def verify_checkpoint(path: Path) -> None:
     """Remove corrupt weights before loading them into the model."""
-    with path.open("rb") as stream:
-        digest = hashlib.file_digest(stream, "sha256").hexdigest()
-    if digest != SHA256 or path.stat().st_size != SIZE_BYTES:
+    if not is_pinned(path, file_sha256(path)):
         path.unlink()
         raise SystemExit(CHECKSUM_ERROR)
 

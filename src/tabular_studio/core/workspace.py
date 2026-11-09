@@ -21,13 +21,14 @@ from tabular_studio.core.errors import (
     FileTooLargeError,
     NeedLabelsError,
     TooManyColumnsError,
+    UnknownColumnsError,
     WorkspaceError,
 )
 from tabular_studio.core.evaluation import EvalResult, evaluate
 from tabular_studio.core.export.sql import Certificate, ColumnType, NotExecuted
 from tabular_studio.core.features import TeacherFrame, teacher_frame
 from tabular_studio.core.session import LabelStore, SourceRef
-from tabular_studio.core.table import Table, load_csv
+from tabular_studio.core.table import MAX_FILE_BYTES, Table, load_csv
 from tabular_studio.core.teacher import MIN_LABELS_PER_CLASS, Proposals, Teacher, predict_table
 
 __all__ = [
@@ -70,8 +71,11 @@ class SessionPersistence(Protocol):
 class Workspace:
     """Own one table and invalidate derived results whenever session inputs change."""
 
-    def __init__(self, persistence: SessionPersistence | None = None) -> None:
+    def __init__(
+        self, persistence: SessionPersistence | None = None, *, max_bytes: int = MAX_FILE_BYTES
+    ) -> None:
         self.persistence = persistence
+        self.max_bytes = max_bytes
         self.notice: str | None = None
         self.table: Table | None = None
         self.source: SourceRef | None = None
@@ -81,21 +85,38 @@ class Workspace:
         self.student: Student | None = None
         self.generation = 0
 
-    def load(self, data: bytes, file_name: str, *, max_rows: int) -> None:
-        """Replace the table only after CSV validation succeeds."""
+    def load(
+        self,
+        data: bytes,
+        file_name: str,
+        *,
+        max_rows: int,
+        columns: tuple[str, ...] | None = None,
+        display_name: str | None = None,
+    ) -> None:
+        """Replace the table only after CSV validation succeeds.
+
+        Errors name the file `display_name` when given, such as a path typed on the command
+        line, so their recovery command runs from the same place.
+        """
+        shown = display_name or file_name
         try:
-            table = load_csv(data, max_rows=max_rows)
+            table = load_csv(
+                data, max_rows=max_rows, max_bytes=self.max_bytes, keep_columns=columns
+            )
         except BadCsvError as error:
-            raise BadCsvError(error.reason, error.line_number, file_name=file_name) from error
+            raise BadCsvError(error.reason, error.line_number, file_name=shown) from error
         except FileTooLargeError as error:
-            raise FileTooLargeError(
-                error.size_bytes, error.max_bytes, file_name=file_name
-            ) from error
+            raise FileTooLargeError(error.size_bytes, error.max_bytes, file_name=shown) from error
         except TooManyColumnsError as error:
             raise TooManyColumnsError(
                 error.column_names,
                 error.max_columns,
-                file_name=file_name,
+                file_name=shown,
+            ) from error
+        except UnknownColumnsError as error:
+            raise UnknownColumnsError(
+                error.unknown, error.column_names, error.max_columns, file_name=shown
             ) from error
         source = SourceRef.from_table(file_name, data, table)
         store, notice = self.persistence.open(data, source) if self.persistence else (None, None)
