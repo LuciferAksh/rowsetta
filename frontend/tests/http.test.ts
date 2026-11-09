@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BackendError, createBackend, type Fetch } from '../src/backend/http';
-import type { TablePage, WorkspaceState } from '../src/backend/types';
+import type {
+  ServerEvent,
+  TablePage,
+  WorkspaceState,
+} from '../src/backend/types';
 
 const STATE: WorkspaceState = {
   loaded: true,
@@ -224,6 +228,210 @@ describe('successful responses', () => {
         dialect: 'duckdb',
       }),
     ).toEqual({ format: 'dbt', files: { 'models/rule.sql': 'select 1;\n' } });
+  });
+});
+
+describe('health and session download', () => {
+  it('reports a server that answers its health probe', async () => {
+    const { fetch, sent } = serving(() => Response.json({ ok: true }));
+
+    expect(await createBackend(fetch).health()).toBe(true);
+    expect(sent).toEqual([{ input: '/health', init: { method: 'GET' } }]);
+  });
+
+  it('treats a health answer without `ok` as malformed', async () => {
+    const { fetch } = serving(() => Response.json({ status: 'up' }));
+
+    const error = await failure(createBackend(fetch).health());
+
+    expect(error.kind).toBe('malformed');
+    expect(error.body.error).toContain('health.ok');
+  });
+
+  it('returns the session file as it was served', async () => {
+    const saved = '{"target": "species", "human": {"0": "Adelie"}}';
+    const { fetch, sent } = serving(
+      () =>
+        new Response(saved, {
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    );
+
+    const file = await createBackend(fetch).session();
+
+    expect(sent).toEqual([{ input: '/session', init: { method: 'GET' } }]);
+    expect(file.type).toBe('application/json');
+    expect(await file.text()).toBe(saved);
+  });
+
+  it('rejects a session download before any target is chosen', async () => {
+    const body = {
+      error: 'Choose a target and its classes first.',
+      next_step: 'tabular-studio demo; load a CSV and choose its target.',
+    };
+    const { fetch } = serving(() => Response.json(body, { status: 409 }));
+
+    const error = await failure(createBackend(fetch).session());
+
+    expect(error.kind).toBe('rejected');
+    expect(error.body).toEqual(body);
+  });
+});
+
+type Listener = (event: MessageEvent<unknown>) => void;
+
+class FakeChannel {
+  readonly url: string;
+  closed = false;
+  private readonly listeners = new Map<string, Listener[]>();
+
+  constructor(url: string) {
+    this.url = url;
+  }
+
+  addEventListener(type: string, listener: Listener): void {
+    this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]);
+  }
+
+  close(): void {
+    this.closed = true;
+  }
+
+  dispatch(type: string, data?: unknown): void {
+    const event = new MessageEvent(type, {
+      data: data === undefined ? undefined : JSON.stringify(data),
+    });
+    for (const listener of this.listeners.get(type) ?? []) listener(event);
+  }
+}
+
+function following(): {
+  channels: FakeChannel[];
+  received: ServerEvent[];
+  stop: () => void;
+} {
+  const channels: FakeChannel[] = [];
+  const received: ServerEvent[] = [];
+  const backend = createBackend(
+    () => Promise.reject(new Error('no fetch expected')),
+    (url) => {
+      const channel = new FakeChannel(url);
+      channels.push(channel);
+      return channel;
+    },
+  );
+  const stop = backend.events((event) => {
+    received.push(event);
+  });
+  return { channels, received, stop };
+}
+
+function latest(channels: readonly FakeChannel[]): FakeChannel {
+  const channel = channels.at(-1);
+  if (channel === undefined) throw new Error('no event stream was opened');
+  return channel;
+}
+
+describe('server events', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('decodes each refit event from the stream', () => {
+    const { channels, received } = following();
+    const channel = latest(channels);
+
+    channel.dispatch('open');
+    channel.dispatch('refit_started', { generation: 4 });
+    channel.dispatch('progress', { done: 120, total: 338 });
+    channel.dispatch('refit_done', { generation: 4 });
+    channel.dispatch('refit_failed', {
+      error: 'The model file is missing or failed its checksum.',
+      next_step: 'tabular-studio doctor --fix',
+    });
+
+    expect(channel.url).toBe('/events');
+    expect(received).toEqual([
+      { kind: 'connected' },
+      { kind: 'refit_started', generation: 4 },
+      { kind: 'progress', done: 120, total: 338 },
+      { kind: 'refit_done', generation: 4 },
+      {
+        kind: 'refit_failed',
+        failure: {
+          error: 'The model file is missing or failed its checksum.',
+          next_step: 'tabular-studio doctor --fix',
+        },
+      },
+    ]);
+  });
+
+  it('reports an event that breaks the contract as malformed', () => {
+    const { channels, received } = following();
+
+    latest(channels).dispatch('progress', { done: '120', total: 338 });
+
+    expect(received).toHaveLength(1);
+    const [event] = received;
+    expect(event?.kind).toBe('malformed');
+    expect(event?.kind === 'malformed' && event.failure.error).toContain(
+      'progress.done',
+    );
+  });
+
+  it('reconnects after a drop, doubling the wait up to a cap', () => {
+    const { channels, received } = following();
+    const waits: number[] = [];
+
+    for (let drop = 0; drop < 7; drop += 1) {
+      const channel = latest(channels);
+      channel.dispatch('error');
+      expect(channel.closed).toBe(true);
+      const last = received.at(-1);
+      if (last?.kind !== 'disconnected') throw new Error('expected a drop');
+      waits.push(last.retryMs);
+      vi.advanceTimersByTime(last.retryMs - 1);
+      expect(channels).toHaveLength(drop + 1);
+      vi.advanceTimersByTime(1);
+      expect(channels).toHaveLength(drop + 2);
+    }
+
+    expect(waits).toEqual([1000, 2000, 4000, 8000, 16000, 30000, 30000]);
+  });
+
+  it('starts the wait over once a reconnection opens', () => {
+    const { channels, received } = following();
+
+    latest(channels).dispatch('error');
+    vi.runOnlyPendingTimers();
+    latest(channels).dispatch('error');
+    vi.runOnlyPendingTimers();
+    latest(channels).dispatch('open');
+    latest(channels).dispatch('error');
+
+    expect(received).toEqual([
+      { kind: 'disconnected', retryMs: 1000 },
+      { kind: 'disconnected', retryMs: 2000 },
+      { kind: 'connected' },
+      { kind: 'disconnected', retryMs: 1000 },
+    ]);
+  });
+
+  it('stops following: closes the stream and cancels a pending reconnect', () => {
+    const open = following();
+    open.stop();
+    expect(latest(open.channels).closed).toBe(true);
+
+    const dropped = following();
+    latest(dropped.channels).dispatch('error');
+    dropped.stop();
+    vi.runAllTimers();
+
+    expect(dropped.channels).toHaveLength(1);
   });
 });
 

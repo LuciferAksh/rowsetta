@@ -24,6 +24,7 @@ from tabular_studio.api.errors import (
 )
 from tabular_studio.api.routes import workspace_router
 from tabular_studio.api.runtime import WorkspaceRuntime
+from tabular_studio.api.schemas import Health
 from tabular_studio.api.security import (
     ALLOWED_HOSTS,
     ErrorContractMiddleware,
@@ -100,8 +101,8 @@ def create_app(
         return JSONResponse(error_body(failure), status_code=error.status_code)
 
     @app.get("/health")
-    async def health() -> dict[str, bool]:
-        return {"ok": True}
+    async def health() -> Health:
+        return Health(ok=True)
 
     static = static_dir if static_dir is not None else Path(__file__).parent / "static"
 

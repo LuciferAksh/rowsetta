@@ -1,6 +1,119 @@
 {
   "components": {
     "schemas": {
+      "Agreement": {
+        "description": "Rows where the rule agrees with the teacher, among answered rows.",
+        "properties": {
+          "coverage": {
+            "$ref": "#/components/schemas/Coverage"
+          },
+          "k": {
+            "title": "K",
+            "type": "integer"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "k",
+          "n",
+          "coverage"
+        ],
+        "title": "Agreement",
+        "type": "object"
+      },
+      "Audit": {
+        "description": "Columns that may leak the answer.",
+        "properties": {
+          "leaks": {
+            "items": {
+              "$ref": "#/components/schemas/LeakHint"
+            },
+            "title": "Leaks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "leaks"
+        ],
+        "title": "Audit",
+        "type": "object"
+      },
+      "Cell": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "ColumnInfo": {
+        "description": "A source column's inferred kind and ratios.",
+        "properties": {
+          "distinct_ratio": {
+            "title": "Distinct Ratio",
+            "type": "number"
+          },
+          "kind": {
+            "enum": [
+              "numeric",
+              "categorical",
+              "text",
+              "datetime"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "missing_ratio": {
+            "title": "Missing Ratio",
+            "type": "number"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "distinct_ratio",
+          "missing_ratio"
+        ],
+        "title": "ColumnInfo",
+        "type": "object"
+      },
+      "Coverage": {
+        "description": "Answered rows out of all eligible rows.",
+        "properties": {
+          "answered": {
+            "title": "Answered",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "answered",
+          "total"
+        ],
+        "title": "Coverage",
+        "type": "object"
+      },
       "DistillInput": {
         "additionalProperties": false,
         "description": "Select the maximum depth for the distilled rule.",
@@ -13,6 +126,137 @@
           }
         },
         "title": "DistillInput",
+        "type": "object"
+      },
+      "Distilled": {
+        "description": "The distilled rule as display lines, for the inputs of one generation.",
+        "properties": {
+          "generation": {
+            "title": "Generation",
+            "type": "integer"
+          },
+          "leaf_summary": {
+            "items": {
+              "$ref": "#/components/schemas/LeafLine"
+            },
+            "title": "Leaf Summary",
+            "type": "array"
+          }
+        },
+        "required": [
+          "leaf_summary",
+          "generation"
+        ],
+        "title": "Distilled",
+        "type": "object"
+      },
+      "ErrorBody": {
+        "description": "The recovery fields every failure carries, here as a refit failure inside the state.",
+        "properties": {
+          "error": {
+            "title": "Error",
+            "type": "string"
+          },
+          "missing": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Missing",
+            "type": "object"
+          },
+          "next_step": {
+            "title": "Next Step",
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "next_step"
+        ],
+        "title": "ErrorBody",
+        "type": "object"
+      },
+      "EvalNext": {
+        "description": "The next blind evaluation row, or null once every row has been served.",
+        "properties": {
+          "row_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row Id"
+          }
+        },
+        "required": [
+          "row_id"
+        ],
+        "title": "EvalNext",
+        "type": "object"
+      },
+      "Evaluation": {
+        "description": "Accuracy on blind evaluation rows against the majority-class baseline.",
+        "properties": {
+          "accuracy": {
+            "$ref": "#/components/schemas/Measured"
+          },
+          "balanced_accuracy": {
+            "discriminator": {
+              "mapping": {
+                "measured": "#/components/schemas/Measured",
+                "needs_rows": "#/components/schemas/NeedsRows"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Measured"
+              },
+              {
+                "$ref": "#/components/schemas/NeedsRows"
+              }
+            ],
+            "title": "Balanced Accuracy"
+          },
+          "majority_baseline": {
+            "title": "Majority Baseline",
+            "type": "number"
+          },
+          "majority_class": {
+            "title": "Majority Class",
+            "type": "string"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "per_class_recall": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Per Class Recall",
+            "type": "object"
+          }
+        },
+        "required": [
+          "n",
+          "accuracy",
+          "balanced_accuracy",
+          "per_class_recall",
+          "majority_class",
+          "majority_baseline"
+        ],
+        "title": "Evaluation",
         "type": "object"
       },
       "ExclusionInput": {
@@ -52,6 +296,20 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "Health": {
+        "description": "The unauthenticated liveness probe; it carries no workspace state.",
+        "properties": {
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "Health",
+        "type": "object"
+      },
       "LabelInput": {
         "additionalProperties": false,
         "description": "Set or clear one answer in the selected labelling mode.",
@@ -81,6 +339,215 @@
           "label"
         ],
         "title": "LabelInput",
+        "type": "object"
+      },
+      "LeafLine": {
+        "description": "One root-to-leaf rule line with the source rows it covers.",
+        "properties": {
+          "agree": {
+            "$ref": "#/components/schemas/Agreement"
+          },
+          "conditions": {
+            "items": {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Conditions",
+            "type": "array"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "line_no": {
+            "title": "Line No",
+            "type": "integer"
+          },
+          "row_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Row Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "line_no",
+          "conditions",
+          "label",
+          "row_ids",
+          "agree"
+        ],
+        "title": "LeafLine",
+        "type": "object"
+      },
+      "LeakHint": {
+        "description": "A column that may give the answer away.",
+        "properties": {
+          "column": {
+            "title": "Column",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "identifier",
+              "single-column",
+              "name"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          }
+        },
+        "required": [
+          "column",
+          "kind",
+          "reason",
+          "score"
+        ],
+        "title": "LeakHint",
+        "type": "object"
+      },
+      "Measured": {
+        "description": "A measured proportion with its 95% interval.",
+        "properties": {
+          "hi": {
+            "title": "Hi",
+            "type": "number"
+          },
+          "kind": {
+            "const": "measured",
+            "title": "Kind",
+            "type": "string"
+          },
+          "lo": {
+            "title": "Lo",
+            "type": "number"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "kind",
+          "value",
+          "lo",
+          "hi"
+        ],
+        "title": "Measured",
+        "type": "object"
+      },
+      "NeedsRows": {
+        "description": "Evaluation rows per class while a measurement is withheld.",
+        "properties": {
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "kind": {
+            "const": "needs_rows",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "counts"
+        ],
+        "title": "NeedsRows",
+        "type": "object"
+      },
+      "TablePage": {
+        "description": "One page of source rows; the target column is always null.",
+        "properties": {
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/ColumnInfo"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "row_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Row Ids",
+            "type": "array"
+          },
+          "rows": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/Cell"
+              },
+              "type": "object"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "source_rows": {
+            "title": "Source Rows",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "row_ids",
+          "columns",
+          "total",
+          "source_rows",
+          "page",
+          "size"
+        ],
+        "title": "TablePage",
         "type": "object"
       },
       "TargetInput": {
@@ -165,6 +632,166 @@
         ],
         "title": "ValidationError",
         "type": "object"
+      },
+      "WorkspaceState": {
+        "description": "Labels, proposals and measurements, with reserved evaluation predictions removed.",
+        "properties": {
+          "abstained": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Abstained",
+            "type": "array"
+          },
+          "classes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Classes",
+            "type": "array"
+          },
+          "confidence": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Confidence",
+            "type": "object"
+          },
+          "dev_states": {
+            "title": "Dev States",
+            "type": "boolean"
+          },
+          "eval_count": {
+            "title": "Eval Count",
+            "type": "integer"
+          },
+          "evaluation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Evaluation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "excluded_columns": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Excluded Columns",
+            "type": "array"
+          },
+          "failure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ErrorBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "generation": {
+            "title": "Generation",
+            "type": "integer"
+          },
+          "human": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Human",
+            "type": "object"
+          },
+          "loaded": {
+            "title": "Loaded",
+            "type": "boolean"
+          },
+          "missing": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Missing",
+            "type": "object"
+          },
+          "next_row": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Row"
+          },
+          "notice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notice"
+          },
+          "proposals": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Proposals",
+            "type": "object"
+          },
+          "refit_generation": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refit Generation"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          },
+          "threshold": {
+            "title": "Threshold",
+            "type": "number"
+          }
+        },
+        "required": [
+          "loaded",
+          "notice",
+          "target",
+          "classes",
+          "human",
+          "eval_count",
+          "threshold",
+          "excluded_columns",
+          "generation",
+          "refit_generation",
+          "proposals",
+          "confidence",
+          "abstained",
+          "missing",
+          "next_row",
+          "evaluation",
+          "failure",
+          "dev_states"
+        ],
+        "title": "WorkspaceState",
+        "type": "object"
       }
     }
   },
@@ -198,9 +825,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Audit Audit Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/Audit"
                 }
               }
             },
@@ -239,9 +864,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Exclusion Columns  Name  Excluded Put",
-                  "type": "object"
+                  "$ref": "#/components/schemas/WorkspaceState"
                 }
               }
             },
@@ -279,9 +902,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Distill Distill Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/Distilled"
                 }
               }
             },
@@ -309,9 +930,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Eval Next Eval Next Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/EvalNext"
                 }
               }
             },
@@ -397,11 +1016,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "boolean"
-                  },
-                  "title": "Response Health Health Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/Health"
                 }
               }
             },
@@ -440,9 +1055,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Label Labels  Row Id  Put",
-                  "type": "object"
+                  "$ref": "#/components/schemas/WorkspaceState"
                 }
               }
             },
@@ -486,9 +1099,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get State State Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/WorkspaceState"
                 }
               }
             },
@@ -531,9 +1142,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Page Table Table Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/TablePage"
                 }
               }
             },
@@ -559,9 +1168,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Load Table Table Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/WorkspaceState"
                 }
               }
             },
@@ -589,9 +1196,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Target Target Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/WorkspaceState"
                 }
               }
             },
@@ -629,9 +1234,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Threshold Threshold Put",
-                  "type": "object"
+                  "$ref": "#/components/schemas/WorkspaceState"
                 }
               }
             },
@@ -659,9 +1262,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Undo Undo Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/WorkspaceState"
                 }
               }
             },

@@ -1,8 +1,8 @@
 // Wire types for the local HTTP API. Field names keep the backend's snake_case so
 // a body reads the same in the browser, the server and the session file.
-// Request bodies mirror src/tabular_studio/api/schemas.py and are checked against
-// tests/openapi.json; responses mirror src/tabular_studio/api/presentation.py and
-// routes.py, whose untyped dicts the schema does not describe, so http.ts decodes them.
+// Request and response bodies mirror src/tabular_studio/api/schemas.py and are
+// checked against tests/openapi.json. Server events are not in that schema; they
+// mirror src/tabular_studio/api/runtime.py. http.ts decodes every response.
 
 export const LABEL_MODES = ['human', 'eval'] as const;
 export type LabelMode = (typeof LABEL_MODES)[number];
@@ -171,3 +171,17 @@ export interface LeakHint {
 export type ExportArtifact =
   | { format: 'dbt'; files: Readonly<Record<string, string>> }
   | { format: Exclude<ExportFormat, 'dbt'>; text: string };
+
+/**
+ * What the event stream reports. `connected` follows every (re)connection, after
+ * which `/state` is the only record of what was missed; `malformed` is an event
+ * that broke this contract.
+ */
+export type ServerEvent =
+  | { kind: 'connected' }
+  | { kind: 'disconnected'; retryMs: number }
+  | { kind: 'refit_started'; generation: number }
+  | { kind: 'progress'; done: number; total: number }
+  | { kind: 'refit_done'; generation: number }
+  | { kind: 'refit_failed'; failure: ErrorBody }
+  | { kind: 'malformed'; failure: ErrorBody };

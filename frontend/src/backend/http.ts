@@ -9,6 +9,7 @@ import type {
   ExportQuery,
   LabelInput,
   LeakHint,
+  ServerEvent,
   TablePage,
   TableQuery,
   TargetInput,
@@ -48,6 +49,22 @@ const UNREACHABLE: ErrorBody = {
 const MALFORMED_NEXT_STEP =
   'Reload this page; if it repeats, reinstall tabular-studio.';
 
+// A restarted local server is back within seconds; the cap keeps a stopped one
+// from being asked more than twice a minute.
+const RECONNECT_FIRST_MS = 1_000;
+const RECONNECT_MAX_MS = 30_000;
+
+/** The part of `EventSource` the client uses. */
+export interface EventChannel {
+  addEventListener(
+    type: string,
+    listener: (event: MessageEvent<unknown>) => void,
+  ): void;
+  close(): void;
+}
+
+export type OpenEvents = (url: string) => EventChannel;
+
 export interface Backend {
   state(): Promise<WorkspaceState>;
   loadDemo(): Promise<WorkspaceState>;
@@ -65,18 +82,28 @@ export interface Backend {
   audit(): Promise<LeakHint[]>;
   /** The current rule, after the server has checked its SQL against every source row. */
   exportRule(query: ExportQuery): Promise<ExportArtifact>;
+  /** Whether the server answers; the one route that needs no launch session. */
+  health(): Promise<boolean>;
+  /** The session file: target, classes, labels and settings, as saved on disk. */
+  session(): Promise<Blob>;
+  /**
+   * Follow refit events, reconnecting with a doubling wait after each drop.
+   * Returns a function that stops following.
+   */
+  events(listener: (event: ServerEvent) => void): () => void;
+}
+
+function malformedBody(cause: Error): ErrorBody {
+  return {
+    error: `The local server sent an unexpected response (${cause.message}).`,
+    next_step: MALFORMED_NEXT_STEP,
+  };
 }
 
 function malformed(status: number, cause: Error): BackendError {
-  return new BackendError(
-    'malformed',
-    {
-      error: `The local server sent an unexpected response (${cause.message}).`,
-      next_step: MALFORMED_NEXT_STEP,
-    },
-    status,
-    { cause },
-  );
+  return new BackendError('malformed', malformedBody(cause), status, {
+    cause,
+  });
 }
 
 function isDecodingFailure(
@@ -116,9 +143,94 @@ function json(method: 'POST' | 'PUT', body: object): RequestInit {
   };
 }
 
-/** Same-origin client; the launch cookie authenticates each request. */
+function relay(
+  channel: EventChannel,
+  name: string,
+  toEvent: (data: unknown, path: string) => ServerEvent,
+  listener: (event: ServerEvent) => void,
+): void {
+  channel.addEventListener(name, ({ data }) => {
+    let event: ServerEvent;
+    try {
+      event = toEvent(typeof data === 'string' ? JSON.parse(data) : data, name);
+    } catch (error) {
+      if (!isDecodingFailure(error)) throw error;
+      event = { kind: 'malformed', failure: malformedBody(error) };
+    }
+    listener(event);
+  });
+}
+
+function follow(
+  openEvents: OpenEvents,
+  listener: (event: ServerEvent) => void,
+): () => void {
+  let retryMs = RECONNECT_FIRST_MS;
+  let reconnect: ReturnType<typeof setTimeout> | undefined;
+
+  function connect(): EventChannel {
+    const channel = openEvents('/events');
+    channel.addEventListener('open', () => {
+      retryMs = RECONNECT_FIRST_MS;
+      listener({ kind: 'connected' });
+    });
+    // EventSource retries a dropped connection at its own pace but gives up
+    // after an HTTP error; closing and reopening handles both the same way.
+    channel.addEventListener('error', () => {
+      channel.close();
+      listener({ kind: 'disconnected', retryMs });
+      reconnect = setTimeout(() => {
+        current = connect();
+      }, retryMs);
+      retryMs = Math.min(retryMs * 2, RECONNECT_MAX_MS);
+    });
+    relay(
+      channel,
+      'refit_started',
+      (data, path) => ({
+        kind: 'refit_started',
+        generation: decode.generation(data, path),
+      }),
+      listener,
+    );
+    relay(
+      channel,
+      'progress',
+      (data, path) => ({ kind: 'progress', ...decode.progress(data, path) }),
+      listener,
+    );
+    relay(
+      channel,
+      'refit_done',
+      (data, path) => ({
+        kind: 'refit_done',
+        generation: decode.generation(data, path),
+      }),
+      listener,
+    );
+    relay(
+      channel,
+      'refit_failed',
+      (data, path) => ({
+        kind: 'refit_failed',
+        failure: decode.errorBody(data, path),
+      }),
+      listener,
+    );
+    return channel;
+  }
+
+  let current = connect();
+  return () => {
+    clearTimeout(reconnect);
+    current.close();
+  };
+}
+
+/** Same-origin client; the launch cookie authenticates each request and the event stream. */
 export function createBackend(
   fetchResource: Fetch = (input, init) => fetch(input, init),
+  openEvents: OpenEvents = (url) => new EventSource(url),
 ): Backend {
   async function send(input: string, init: RequestInit): Promise<Response> {
     let response: Response;
@@ -191,5 +303,9 @@ export function createBackend(
       }
       return { format, text: await response.text() };
     },
+    health: async () =>
+      decoded(await send('/health', get), decode.health, 'health'),
+    session: async () => (await send('/session', get)).blob(),
+    events: (listener) => follow(openEvents, listener),
   };
 }

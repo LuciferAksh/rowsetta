@@ -262,6 +262,22 @@ export function leaks(value: unknown, path: string): LeakHint[] {
   return reader(value, path)('leaks', arrayOf(leakHint));
 }
 
+export function health(value: unknown, path: string): boolean {
+  return reader(value, path)('ok', boolean);
+}
+
+export function generation(value: unknown, path: string): number {
+  return reader(value, path)('generation', integer);
+}
+
+export function progress(
+  value: unknown,
+  path: string,
+): { done: number; total: number } {
+  const read = reader(value, path);
+  return { done: read('done', integer), total: read('total', integer) };
+}
+
 export const dbtFiles: (
   value: unknown,
   path: string,

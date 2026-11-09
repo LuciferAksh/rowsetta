@@ -2,14 +2,26 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { BackendError, createBackend } from '../src/backend/http';
 import {
+  COLUMN_KINDS,
   EXPORT_FORMATS,
   LABEL_MODES,
+  LEAK_KINDS,
   SQL_DIALECTS,
+  type ColumnInfo,
+  type Distilled,
   type DistillInput,
+  type ErrorBody,
+  type Evaluation,
   type ExclusionInput,
   type LabelInput,
+  type LeafLine,
+  type LeakHint,
+  type Measured,
+  type NeedsRows,
+  type TablePage,
   type TargetInput,
   type ThresholdInput,
+  type WorkspaceState,
 } from '../src/backend/types';
 
 // Regenerate with: uv run python scripts/export_openapi.py > frontend/tests/openapi.json
@@ -44,16 +56,25 @@ function strings(value: unknown): string[] {
 }
 
 // The wire type a TypeScript field must have. TypeScript cannot tell integers
-// from floats, so the test pins which one each number field is.
+// from floats, so the test pins which one each number field is. Nested models
+// are `object` here and checked under their own schema name.
 type WireType<V> = [V] extends [string]
   ? 'string'
   : [V] extends [number]
     ? 'number' | 'integer'
     : [V] extends [boolean]
       ? 'boolean'
-      : [V] extends [readonly (infer Item)[]]
-        ? `array<${WireType<Item>}>`
-        : never;
+      : [V] extends [string | number | boolean]
+        ? [string | number | boolean] extends [V]
+          ? 'boolean|integer|number|string'
+          : never
+        : [V] extends [readonly (infer Item)[]]
+          ? `array<${WireType<Item>}>`
+          : [V] extends [object]
+            ? string extends keyof V
+              ? `record<${WireType<NonNullable<V[string]>>}${null extends V[string] ? '|null' : ''}>`
+              : 'object'
+            : never;
 
 type FieldShapes<T> = {
   [K in keyof T]-?: {
@@ -83,12 +104,198 @@ const requestBodies = {
   } satisfies FieldShapes<ThresholdInput>,
 };
 
+// Envelopes the client unwraps before returning their single field.
+interface Audit {
+  leaks: readonly LeakHint[];
+}
+interface EvalNext {
+  row_id: number | null;
+}
+interface Health {
+  ok: boolean;
+}
+
+const responseBodies = {
+  Agreement: {
+    k: { type: 'integer', nullable: false, required: true },
+    n: { type: 'integer', nullable: false, required: true },
+    coverage: { type: 'object', nullable: false, required: true },
+  } satisfies FieldShapes<LeafLine['agree']>,
+  Audit: {
+    leaks: { type: 'array<object>', nullable: false, required: true },
+  } satisfies FieldShapes<Audit>,
+  ColumnInfo: {
+    name: { type: 'string', nullable: false, required: true },
+    kind: { type: 'string', nullable: false, required: true },
+    distinct_ratio: { type: 'number', nullable: false, required: true },
+    missing_ratio: { type: 'number', nullable: false, required: true },
+  } satisfies FieldShapes<ColumnInfo>,
+  Coverage: {
+    answered: { type: 'integer', nullable: false, required: true },
+    total: { type: 'integer', nullable: false, required: true },
+  } satisfies FieldShapes<LeafLine['agree']['coverage']>,
+  Distilled: {
+    leaf_summary: { type: 'array<object>', nullable: false, required: true },
+    generation: { type: 'integer', nullable: false, required: true },
+  } satisfies FieldShapes<Distilled>,
+  ErrorBody: {
+    error: { type: 'string', nullable: false, required: true },
+    next_step: { type: 'string', nullable: false, required: true },
+    missing: { type: 'record<integer>', nullable: false, required: false },
+  } satisfies FieldShapes<ErrorBody>,
+  EvalNext: {
+    row_id: { type: 'integer', nullable: true, required: true },
+  } satisfies FieldShapes<EvalNext>,
+  Evaluation: {
+    n: { type: 'integer', nullable: false, required: true },
+    accuracy: { type: 'object', nullable: false, required: true },
+    balanced_accuracy: { type: 'object', nullable: false, required: true },
+    per_class_recall: {
+      type: 'record<number|null>',
+      nullable: false,
+      required: true,
+    },
+    majority_class: { type: 'string', nullable: false, required: true },
+    majority_baseline: { type: 'number', nullable: false, required: true },
+  } satisfies FieldShapes<Evaluation>,
+  Health: {
+    ok: { type: 'boolean', nullable: false, required: true },
+  } satisfies FieldShapes<Health>,
+  LeafLine: {
+    line_no: { type: 'integer', nullable: false, required: true },
+    conditions: {
+      type: 'array<array<string>>',
+      nullable: false,
+      required: true,
+    },
+    label: { type: 'string', nullable: true, required: true },
+    row_ids: { type: 'array<integer>', nullable: false, required: true },
+    agree: { type: 'object', nullable: false, required: true },
+  } satisfies FieldShapes<LeafLine>,
+  LeakHint: {
+    column: { type: 'string', nullable: false, required: true },
+    kind: { type: 'string', nullable: false, required: true },
+    reason: { type: 'string', nullable: false, required: true },
+    score: { type: 'number', nullable: true, required: true },
+  } satisfies FieldShapes<LeakHint>,
+  Measured: {
+    kind: { type: 'string', nullable: false, required: true },
+    value: { type: 'number', nullable: false, required: true },
+    lo: { type: 'number', nullable: false, required: true },
+    hi: { type: 'number', nullable: false, required: true },
+  } satisfies FieldShapes<Measured>,
+  NeedsRows: {
+    kind: { type: 'string', nullable: false, required: true },
+    counts: { type: 'record<integer>', nullable: false, required: true },
+  } satisfies FieldShapes<NeedsRows>,
+  TablePage: {
+    rows: {
+      type: 'array<record<boolean|integer|number|string|null>>',
+      nullable: false,
+      required: true,
+    },
+    row_ids: { type: 'array<integer>', nullable: false, required: true },
+    columns: { type: 'array<object>', nullable: false, required: true },
+    total: { type: 'integer', nullable: false, required: true },
+    source_rows: { type: 'integer', nullable: false, required: true },
+    page: { type: 'integer', nullable: false, required: true },
+    size: { type: 'integer', nullable: false, required: true },
+  } satisfies FieldShapes<TablePage>,
+  WorkspaceState: {
+    loaded: { type: 'boolean', nullable: false, required: true },
+    notice: { type: 'string', nullable: true, required: true },
+    target: { type: 'string', nullable: true, required: true },
+    classes: { type: 'array<string>', nullable: false, required: true },
+    human: { type: 'record<string>', nullable: false, required: true },
+    eval_count: { type: 'integer', nullable: false, required: true },
+    threshold: { type: 'number', nullable: false, required: true },
+    excluded_columns: {
+      type: 'array<string>',
+      nullable: false,
+      required: true,
+    },
+    generation: { type: 'integer', nullable: false, required: true },
+    refit_generation: { type: 'integer', nullable: true, required: true },
+    proposals: { type: 'record<string>', nullable: false, required: true },
+    confidence: { type: 'record<number>', nullable: false, required: true },
+    abstained: { type: 'array<integer>', nullable: false, required: true },
+    missing: { type: 'record<integer>', nullable: false, required: true },
+    next_row: { type: 'integer', nullable: true, required: true },
+    evaluation: { type: 'object', nullable: true, required: true },
+    failure: { type: 'object', nullable: true, required: true },
+    dev_states: { type: 'boolean', nullable: false, required: true },
+  } satisfies FieldShapes<WorkspaceState>,
+};
+
+// The model each client call decodes. Routes absent here answer with a file,
+// a stream or the page itself rather than a JSON model.
+const responseSchemas: Readonly<Record<string, string>> = {
+  'GET /audit': 'Audit',
+  'GET /eval/next': 'EvalNext',
+  'GET /health': 'Health',
+  'GET /state': 'WorkspaceState',
+  'GET /table': 'TablePage',
+  'POST /distill': 'Distilled',
+  'POST /table': 'WorkspaceState',
+  'POST /target': 'WorkspaceState',
+  'POST /undo': 'WorkspaceState',
+  'PUT /columns/{name}/excluded': 'WorkspaceState',
+  'PUT /labels/{row_id}': 'WorkspaceState',
+  'PUT /threshold': 'WorkspaceState',
+};
+
+function variantsOf(property: Json): Json[] | undefined {
+  const variants = property['anyOf'] ?? property['oneOf'];
+  return Array.isArray(variants) ? variants.filter(isJson) : undefined;
+}
+
+function isNull(property: Json): boolean {
+  return property['type'] === 'null';
+}
+
+function referenced(property: Json): Json {
+  const reference = property['$ref'];
+  const name =
+    typeof reference === 'string' ? reference.split('/').at(-1) : undefined;
+  return at(openapi, 'components', 'schemas', name ?? '');
+}
+
+// Union members are sorted and `null` goes last, matching `WireType`.
+// A reference to a model is `object`; a reference to an alias is its type.
 function wireType(property: Json): string {
+  if ('$ref' in property) {
+    const schema = referenced(property);
+    return 'properties' in schema ? 'object' : wireType(schema);
+  }
+  const variants = variantsOf(property);
+  if (variants !== undefined) {
+    const present = [
+      ...new Set(variants.filter((v) => !isNull(v)).map(wireType)),
+    ];
+    const union = present.every((type) => type === 'object')
+      ? 'object'
+      : present.sort().join('|');
+    return variants.some(isNull) ? `${union}|null` : union;
+  }
   const type = property['type'];
   if (type === 'array') {
+    if (Array.isArray(property['prefixItems'])) {
+      const items = new Set(
+        property['prefixItems'].filter(isJson).map(wireType),
+      );
+      if (items.size !== 1) {
+        throw new Error(
+          `openapi.json: mixed tuple ${JSON.stringify(property)}`,
+        );
+      }
+      return `array<${[...items].join('')}>`;
+    }
     return `array<${wireType(at(property, 'items'))}>`;
   }
-  if (typeof type !== 'string') {
+  if (type === 'object' && isJson(property['additionalProperties'])) {
+    return `record<${wireType(property['additionalProperties'])}>`;
+  }
+  if (typeof type !== 'string' || type === 'object') {
     throw new Error(
       `openapi.json: untyped property ${JSON.stringify(property)}`,
     );
@@ -97,18 +304,16 @@ function wireType(property: Json): string {
 }
 
 function fieldShape(property: Json, required: boolean) {
-  const variants = Array.isArray(property['anyOf'])
-    ? property['anyOf'].filter(isJson)
-    : [property];
-  const present = variants.filter((variant) => variant['type'] !== 'null');
+  const variants = variantsOf(property) ?? [property];
+  const present = variants.filter((variant) => !isNull(variant));
   const [only] = present;
-  if (only === undefined || present.length !== 1) {
+  if (only === undefined) {
     throw new Error(
       `openapi.json: ambiguous property ${JSON.stringify(property)}`,
     );
   }
   return {
-    type: wireType(only),
+    type: present.length === 1 ? wireType(only) : wireType({ anyOf: present }),
     nullable: present.length !== variants.length,
     required,
   };
@@ -170,15 +375,88 @@ describe('request bodies match the served OpenAPI schema', () => {
   });
 });
 
+function responseSchemaName(operation: Json): string | undefined {
+  const content = at(operation, 'responses', '200', 'content');
+  const schema = isJson(content['application/json'])
+    ? at(content['application/json'], 'schema')
+    : {};
+  const reference = schema['$ref'];
+  return typeof reference === 'string'
+    ? reference.split('/').at(-1)
+    : undefined;
+}
+
+describe('response bodies match the served OpenAPI schema', () => {
+  it.each(Object.entries(responseBodies))(
+    '%s has the same field names, types, nullability and optionality',
+    (schemaName, fields) => {
+      expect(servedFields(schemaName)).toEqual(fields);
+    },
+  );
+
+  it('declares a type for every model the backend serves, and no other', () => {
+    // FastAPI adds the validation error models; this backend never sends them.
+    const frameworkModels = ['HTTPValidationError', 'ValidationError'];
+    const served = Object.entries(at(openapi, 'components', 'schemas'))
+      .filter(
+        ([name, schema]) =>
+          isJson(schema) &&
+          'properties' in schema &&
+          !name.endsWith('Input') &&
+          !frameworkModels.includes(name),
+      )
+      .map(([name]) => name);
+
+    expect(served.sort()).toEqual(Object.keys(responseBodies).sort());
+  });
+
+  it('answers each JSON route with the model its client call decodes', () => {
+    const served = Object.entries(at(openapi, 'paths')).flatMap(
+      ([path, operations]) =>
+        Object.entries(at(operations)).flatMap(([method, operation]) => {
+          const name = responseSchemaName(at(operation));
+          return name === undefined
+            ? []
+            : [[`${method.toUpperCase()} ${path}`, name] as const];
+        }),
+    );
+
+    expect(Object.fromEntries(served)).toEqual(responseSchemas);
+  });
+
+  it('tags the measurement union by kind and uses the served enums', () => {
+    const schemas = at(openapi, 'components', 'schemas');
+    const balanced = at(
+      schemas,
+      'Evaluation',
+      'properties',
+      'balanced_accuracy',
+    );
+
+    expect(at(balanced, 'discriminator')['propertyName']).toBe('kind');
+    expect(at(schemas, 'Measured', 'properties', 'kind')['const']).toBe(
+      'measured',
+    );
+    expect(at(schemas, 'NeedsRows', 'properties', 'kind')['const']).toBe(
+      'needs_rows',
+    );
+    expect(
+      strings(at(schemas, 'ColumnInfo', 'properties', 'kind')['enum']),
+    ).toEqual(COLUMN_KINDS);
+    expect(
+      strings(at(schemas, 'LeakHint', 'properties', 'kind')['enum']),
+    ).toEqual(LEAK_KINDS);
+  });
+});
+
 interface RecordedRequest {
   method: string;
   url: URL;
   body: BodyInit | null | undefined;
 }
 
-// Routes the browser reaches without this client: the page itself, a file
-// download link, the event stream, and the command-line health probe.
-const OUTSIDE_CLIENT = ['GET /', 'GET /events', 'GET /health', 'GET /session'];
+// The page itself is the one route the browser reaches without this client.
+const OUTSIDE_CLIENT = ['GET /'];
 
 function operationKey(request: RecordedRequest): string {
   const templates = Object.keys(at(openapi, 'paths'));
@@ -195,17 +473,30 @@ function operationKey(request: RecordedRequest): string {
 
 async function recordEveryRequest(): Promise<RecordedRequest[]> {
   const requests: RecordedRequest[] = [];
-  const backend = createBackend((input, init) => {
-    requests.push({
-      method: init.method ?? 'GET',
-      url: new URL(input, 'http://127.0.0.1'),
-      body: init.body,
-    });
-    return Promise.resolve(
-      Response.json({ error: 'stub', next_step: 'stub' }, { status: 409 }),
-    );
-  });
+  const backend = createBackend(
+    (input, init) => {
+      requests.push({
+        method: init.method ?? 'GET',
+        url: new URL(input, 'http://127.0.0.1'),
+        body: init.body,
+      });
+      return Promise.resolve(
+        Response.json({ error: 'stub', next_step: 'stub' }, { status: 409 }),
+      );
+    },
+    (url) => {
+      requests.push({
+        method: 'GET',
+        url: new URL(url, 'http://127.0.0.1'),
+        body: undefined,
+      });
+      return { addEventListener: () => undefined, close: () => undefined };
+    },
+  );
+  backend.events(() => undefined)();
   const calls = [
+    () => backend.health(),
+    () => backend.session(),
     () => backend.state(),
     () => backend.loadDemo(),
     () => backend.uploadCsv(new File(['a,b\n1,2\n'], 'rows.csv')),
