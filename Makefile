@@ -13,6 +13,7 @@ check:
 	uv run --locked ruff check .
 	uv run --locked pyright
 	uv run --locked pytest -m "not model and not pg"
+	uv run --locked python scripts/export_openapi.py | diff -u frontend/tests/openapi.json -
 	pnpm --dir frontend format:check
 	pnpm --dir frontend lint
 	pnpm --dir frontend check
