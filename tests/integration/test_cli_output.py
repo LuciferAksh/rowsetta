@@ -15,12 +15,12 @@ STARTUP_LINES = 3
 STARTUP_TIMEOUT_SECONDS = 30
 
 
-def environment(tmp_path: Path) -> dict[str, str]:
+def environment(tmp_path: Path, *, teacher: str = "fake") -> dict[str, str]:
     return {
         **os.environ,
         "NO_COLOR": "1",
         "COLUMNS": "80",
-        "TABSTUDIO_TEACHER": "fake",
+        "TABSTUDIO_TEACHER": teacher,
         "TABSTUDIO_DEVICE": "cpu",
         "HOME": str(tmp_path),
         "HF_HOME": str(tmp_path / "hf"),
@@ -45,14 +45,14 @@ def transcript(command: str, stdout: str, stderr: str, returncode: int | None) -
     return re.sub(r"token=\S+", "token=<token>", text)
 
 
-def run(tmp_path: Path, command: str) -> str:
+def run(tmp_path: Path, command: str, *, teacher: str = "fake") -> str:
     result = subprocess.run(
         [sys.executable, "-m", "tabular_studio", *command.split()],
         capture_output=True,
         text=True,
         check=False,
         cwd=tmp_path,
-        env=environment(tmp_path),
+        env=environment(tmp_path, teacher=teacher),
     )
     return transcript(command, result.stdout, result.stderr, result.returncode)
 
@@ -71,6 +71,12 @@ def test_help(tmp_path: Path) -> None:
 
 def test_doctor_without_a_cached_model(tmp_path: Path) -> None:
     assert_golden("doctor", run(tmp_path, "doctor"))
+
+
+def test_offline_first_run(tmp_path: Path) -> None:
+    transcript = run(tmp_path, "demo --offline --no-browser", teacher="tabicl")
+
+    assert_golden("error-offline-first-run", transcript)
 
 
 def test_too_many_columns(tmp_path: Path) -> None:

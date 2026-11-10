@@ -1,6 +1,7 @@
 import pytest
 
 from tabular_studio.core.errors import NeedLabelsError, WorkspaceError
+from tabular_studio.core.session import LabelStore
 from tabular_studio.core.teacher import predict_table
 from tabular_studio.core.workspace import DEFAULT_THRESHOLD, Workspace
 from tabular_studio.teachers.fake import FakeTeacher
@@ -57,6 +58,13 @@ def test_new_sessions_start_at_the_default_abstention_threshold(workspace: Works
     assert workspace.require_store().threshold == DEFAULT_THRESHOLD == 0.60
     workspace.set_target_from_column("answer")
     assert workspace.require_store().threshold == DEFAULT_THRESHOLD
+
+
+def test_only_app_sessions_abstain_below_060_and_bare_label_stores_never_abstain(
+    workspace: Workspace,
+) -> None:
+    assert workspace.require_store().threshold == 0.60
+    assert LabelStore.model_fields["threshold"].default == 0.0
 
 
 def test_last_feature_cannot_be_excluded(workspace: Workspace) -> None:

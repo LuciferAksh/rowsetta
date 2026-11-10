@@ -1,0 +1,4 @@
+$ tabular-studio demo --offline --no-browser
+error: The model is not downloaded yet, and --offline skips the download.
+Next: tabular-studio doctor --fix while online
+[exit 1]

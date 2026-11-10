@@ -1,3 +1,5 @@
+import os
+import shlex
 import sys
 import webbrowser
 from argparse import ArgumentParser, ArgumentTypeError, Namespace
@@ -15,7 +17,8 @@ from tabular_studio.app import LaunchCsv, create_app, local_teacher
 from tabular_studio.core.errors import BYTES_PER_MB, FileTooLargeError, UserError
 from tabular_studio.core.export.sql import Dialect
 from tabular_studio.core.table import MAX_FILE_BYTES
-from tabular_studio.doctor import doctor
+from tabular_studio.core.teacher import Teacher
+from tabular_studio.doctor import doctor, fetch_checkpoint
 from tabular_studio.headless import export_session
 
 DATASETS = Path(__file__).parent / "datasets"
@@ -65,6 +68,11 @@ def _parser() -> ArgumentParser:
         command.add_argument("--host", default="127.0.0.1")
         command.add_argument("--port", type=int, default=8787)
         command.add_argument("--no-browser", action="store_true")
+        command.add_argument(
+            "--offline",
+            action="store_true",
+            help="fail instead of downloading the model when it is not cached",
+        )
     export = commands.add_parser("export", help="Refit a saved session and print its rule")
     export.add_argument("session", type=Path)
     export.add_argument("--format", choices=get_args(ExportFormat.__value__), default="sql")
@@ -90,11 +98,11 @@ def _serve(parser: ArgumentParser, args: Namespace) -> None:
             max_bytes=args.max_file_mb * BYTES_PER_MB,
             columns=args.columns,
         )
-        app = _open(csv, security)
+        app = _open(csv, security, offline=args.offline)
         loaded = str(args.path)
     else:
         csv = LaunchCsv(DATASETS / f"{args.name}.csv", session_beside=False)
-        app = create_app(teacher=local_teacher(), security=security, csv=csv)
+        app = create_app(teacher=_teacher(offline=args.offline), security=security, csv=csv)
         loaded = csv.path.name
     browser_host = "127.0.0.1" if args.host == str(IPv4Address(0)) else args.host
     url = f"http://{browser_host}:{args.port}/?{urlencode({'token': security.token})}"
@@ -106,7 +114,7 @@ def _serve(parser: ArgumentParser, args: Namespace) -> None:
     uvicorn.run(app, host=args.host, port=args.port, access_log=False)
 
 
-def _open(csv: LaunchCsv, security: SessionSecurity) -> FastAPI:
+def _open(csv: LaunchCsv, security: SessionSecurity, *, offline: bool) -> FastAPI:
     try:
         size = csv.path.stat().st_size
     except OSError as error:
@@ -114,11 +122,18 @@ def _open(csv: LaunchCsv, security: SessionSecurity) -> FastAPI:
     # Checked before reading, so an oversized file never enters memory.
     if size > csv.max_bytes:
         raise FileTooLargeError(size, csv.max_bytes, file_name=str(csv.path))
-    teacher = local_teacher()
+    teacher = _teacher(offline=offline)
     try:
         return create_app(teacher=teacher, security=security, csv=csv)
     except OSError as error:
         raise _unreadable(csv.path, error) from error
+
+
+def _teacher(*, offline: bool) -> Teacher:
+    # The fake teacher has no weights, so tests and the states gallery never download.
+    if os.environ.get("TABSTUDIO_TEACHER") != "fake":
+        fetch_checkpoint(offline=offline, retry=shlex.join(["tabular-studio", *sys.argv[1:]]))
+    return local_teacher()
 
 
 def _unreadable(path: Path, error: OSError) -> UserError:
