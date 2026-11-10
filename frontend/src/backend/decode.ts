@@ -11,6 +11,7 @@ import {
   type LeakHint,
   type Measured,
   type NeedsRows,
+  type Suspect,
   type TablePage,
   type WorkspaceState,
 } from './types';
@@ -261,6 +262,20 @@ function leakHint(value: unknown, path: string): LeakHint {
 
 export function leaks(value: unknown, path: string): LeakHint[] {
   return reader(value, path)('leaks', arrayOf(leakHint));
+}
+
+function suspect(value: unknown, path: string): Suspect {
+  const read = reader(value, path);
+  return {
+    row_id: read('row_id', integer),
+    given: read('given', string),
+    given_probability: read('given_probability', number),
+    likely: read('likely', string),
+  };
+}
+
+export function suspects(value: unknown, path: string): Suspect[] {
+  return reader(value, path)('suspects', arrayOf(suspect));
 }
 
 export function health(value: unknown, path: string): boolean {

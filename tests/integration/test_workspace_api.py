@@ -229,3 +229,23 @@ def test_upload_limits_have_recovery(tmp_path: Path, monkeypatch: pytest.MonkeyP
             assert "--max-file-mb" in str(body(response)["next_step"])
 
     asyncio.run(run())
+
+
+def test_suspects_rank_an_existing_label_column_out_of_fold(tmp_path: Path) -> None:
+    async def run() -> None:
+        async with api(tmp_path) as (_, client):
+            await authenticate(client)
+            truth = await load_penguins(client)
+            await train(client, truth)
+            too_few = await client.get("/suspects")
+            assert too_few.status_code == 409
+            assert body(too_few)["missing"] == {"Adelie": 3, "Chinstrap": 3, "Gentoo": 3}
+            await client.post("/target", json={"target": "species"})
+            assert (await client.put("/labels/0", json={"label": "Gentoo"})).status_code == 200
+            suspects = TypeAdapter(list[dict[str, JsonValue]]).validate_python(
+                body(await client.get("/suspects"))["suspects"]
+            )
+            assert len(suspects) == len(truth)
+            assert suspects[0] == suspects[0] | {"row_id": 0, "given": "Gentoo", "likely": "Adelie"}
+
+    asyncio.run(run())

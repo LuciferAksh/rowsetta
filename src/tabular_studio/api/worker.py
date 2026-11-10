@@ -7,6 +7,7 @@ from typing import Self
 
 import pandas as pd
 
+from tabular_studio.core.audit import Suspect, audit_labels
 from tabular_studio.core.session import LabelStore
 from tabular_studio.core.table import Table
 from tabular_studio.core.teacher import Proposals, Teacher, predict_table
@@ -59,6 +60,14 @@ class RefitWorker:
                 self._refit, table, store.model_copy(deep=True), self._refit_generation, on_progress
             )
 
+    def audit(self, table: Table, store: LabelStore) -> Future[list[Suspect]]:
+        """Queue out-of-fold scoring behind refits so the teacher is never fitted concurrently."""
+        with self._lock:
+            if self._closed:
+                message = "Cannot audit after the worker has closed."
+                raise RuntimeError(message)
+            return self._executor.submit(self._audit, table, store.model_copy(deep=True))
+
     def close(self) -> None:
         """Wait for queued work and release the executor thread."""
         with self._lock:
@@ -82,6 +91,10 @@ class RefitWorker:
         self._teacher.fit(frame, labels)
         # TabICL may defer device work until prediction, even after fitting.
         self._teacher.predict_proba(frame)
+
+    def _audit(self, table: Table, store: LabelStore) -> list[Suspect]:
+        self.ready.result()
+        return audit_labels(self._teacher, table, store)
 
     def _refit(
         self,

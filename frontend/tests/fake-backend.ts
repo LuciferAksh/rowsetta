@@ -30,6 +30,7 @@ export function fakeBackend(
     setThreshold: unused,
     distill: unused,
     audit: unused,
+    suspects: unused,
     exportRule: unused,
     health: unused,
     session: unused,

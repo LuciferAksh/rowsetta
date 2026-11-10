@@ -12,6 +12,7 @@ import EvalPanel from '../src/EvalPanel.svelte';
 import { evaluationText, recallText } from '../src/evaluation';
 import { certificateFigures } from '../src/certificate';
 import ExportPanel from '../src/ExportPanel.svelte';
+import AuditList from '../src/AuditList.svelte';
 import LeakList from '../src/LeakList.svelte';
 import { disagreementLines, lineFilter, ruleLineText } from '../src/rule';
 import RuleView from '../src/RuleView.svelte';
@@ -262,6 +263,28 @@ describe('panels', () => {
     expect(body).toContain('alone predicts the label');
     expect(body).toContain('suggests an identifier or an outcome');
     expect(body).toContain('Include column y_after');
+  });
+
+  it('lists the least plausible labels first and marks one already changed', async () => {
+    const studio = new Studio(
+      fakeBackend([], {
+        suspects: () =>
+          Promise.resolve([
+            { row_id: 1, given: 'no', given_probability: 0.04, likely: 'yes' },
+            { row_id: 0, given: 'no', given_probability: 0.9, likely: 'no' },
+          ]),
+      }).backend,
+    );
+    await studio.apply(Promise.resolve(STATE));
+    const before = render(AuditList, { props: { studio } }).body;
+    expect(before).not.toContain('Row 1');
+    await studio.checkLabels();
+    const { body } = render(AuditList, { props: { studio } });
+    expect(body.indexOf('Row 1')).toBeLessThan(body.indexOf('Row 0'));
+    expect(body.replace(/\s+/g, ' ')).toContain(
+      'labelled no; the model gives that 4% and says yes',
+    );
+    expect(body).toContain('(now yes)');
   });
 
   it('lists the rule as numbered buttons', async () => {

@@ -171,6 +171,15 @@ export interface LeakHint {
   score: number | null;
 }
 
+/** A human label scored by a model that never saw its row. */
+export interface Suspect {
+  row_id: number;
+  given: string;
+  /** The out-of-fold probability of the given label. */
+  given_probability: number;
+  likely: string;
+}
+
 export type ExportArtifact =
   | { format: 'dbt'; files: Readonly<Record<string, string>> }
   | { format: Exclude<ExportFormat, 'dbt'>; text: string };

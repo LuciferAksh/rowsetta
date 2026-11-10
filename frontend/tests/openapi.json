@@ -502,6 +502,52 @@
         "title": "NeedsRows",
         "type": "object"
       },
+      "Suspect": {
+        "description": "A human label and the out-of-fold teacher probability of that label.",
+        "properties": {
+          "given": {
+            "title": "Given",
+            "type": "string"
+          },
+          "given_probability": {
+            "title": "Given Probability",
+            "type": "number"
+          },
+          "likely": {
+            "title": "Likely",
+            "type": "string"
+          },
+          "row_id": {
+            "title": "Row Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "row_id",
+          "given",
+          "given_probability",
+          "likely"
+        ],
+        "title": "Suspect",
+        "type": "object"
+      },
+      "Suspects": {
+        "description": "Human labels from least to most plausible.",
+        "properties": {
+          "suspects": {
+            "items": {
+              "$ref": "#/components/schemas/Suspect"
+            },
+            "title": "Suspects",
+            "type": "array"
+          }
+        },
+        "required": [
+          "suspects"
+        ],
+        "title": "Suspects",
+        "type": "object"
+      },
       "TablePage": {
         "description": "One page of source rows; the target column is always null.",
         "properties": {
@@ -1114,6 +1160,24 @@
           }
         },
         "summary": "Get State"
+      }
+    },
+    "/suspects": {
+      "get": {
+        "operationId": "suspects_suspects_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Suspects"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Suspects"
       }
     },
     "/table": {

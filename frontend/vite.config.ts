@@ -17,6 +17,7 @@ const API_PATHS = [
   '/labels',
   '/session',
   '/state',
+  '/suspects',
   '/table',
   '/target',
   '/threshold',

@@ -6,6 +6,7 @@ import type {
   ExportQuery,
   LeakHint,
   ServerEvent,
+  Suspect,
   TablePage,
   TargetInput,
   WorkspaceState,
@@ -91,6 +92,8 @@ export class Studio {
   /** The certificate lines of the last export; the same for every format. */
   certificate = $state.raw<readonly string[]>([]);
   leaks = $state.raw<readonly LeakHint[]>([]);
+  /** `null` until the labels are checked, and again once they change. */
+  suspects = $state.raw<readonly Suspect[] | null>(null);
   keySheetOpen = $state.raw(false);
 
   readonly #backend: Backend;
@@ -207,6 +210,12 @@ export class Studio {
     });
   }
 
+  checkLabels(): Promise<void> {
+    return this.#settle(this.#backend.suspects(), (ranked) => {
+      this.suspects = ranked;
+    });
+  }
+
   /** Enter evaluation on the next served row, or leave it. */
   async toggleEvaluation(): Promise<void> {
     if (this.mode.kind === 'evaluate') {
@@ -299,6 +308,7 @@ export class Studio {
     this.exported = null;
     this.certificate = [];
     this.leaks = [];
+    this.suspects = null;
     if (this.filter !== null) void this.filterRows(null);
   }
 

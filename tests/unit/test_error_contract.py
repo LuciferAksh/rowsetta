@@ -7,6 +7,7 @@ import shlex
 import pytest
 
 from tabular_studio.api.errors import ApiError, FrontendMissingError, ModelUnavailableError
+from tabular_studio.core.audit import NeedAuditLabelsError
 from tabular_studio.core.errors import (
     BadCsvError,
     FileTooLargeError,
@@ -26,6 +27,7 @@ ERROR_EXAMPLES: tuple[UserError, ...] = (
     BadCsvError("Unexpected end of quoted field", 3),
     NotServed(),
     NeedLabelsError({"Chinstrap": 1}),
+    NeedAuditLabelsError({"Chinstrap": 2}),
     WorkspaceError("No CSV is loaded."),
     ApiError("A valid launch session is required.", status_code=403),
     FrontendMissingError(),

@@ -1,5 +1,6 @@
 """SQL export route for a shell-supplied snapshot of the current rule."""
 
+import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -23,6 +24,8 @@ from tabular_studio.api.schemas import (
     LabelInput,
     LeafLine,
     LeakHint,
+    Suspect,
+    Suspects,
     TablePage,
     TargetInput,
     ThresholdInput,
@@ -202,6 +205,13 @@ def inspection_router(runtime: WorkspaceRuntime, *, dev_states: bool) -> APIRout
     async def audit() -> Audit:
         hints = find_leaks(workspace.require_table(), workspace.require_store())
         return Audit(leaks=[LeakHint.model_validate(hint) for hint in hints])
+
+    @router.get("/suspects")
+    async def suspects() -> Suspects:
+        ranked = await asyncio.wrap_future(
+            runtime.worker.audit(workspace.require_table(), workspace.require_store())
+        )
+        return Suspects(suspects=[Suspect.model_validate(suspect) for suspect in ranked])
 
     @router.get("/session")
     async def session() -> Response:

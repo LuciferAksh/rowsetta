@@ -1,3 +1,4 @@
+from tabular_studio.core.audit import NeedAuditLabelsError
 from tabular_studio.core.errors import (
     BadCsvError,
     FileTooLargeError,
@@ -47,7 +48,7 @@ class ModelUnavailableError(ApiError):
 def error_body(error: UserError) -> dict[str, object]:
     """Keep the same recovery fields across middleware, routes and refit failures."""
     body: dict[str, object] = {"error": error.what, "next_step": error.next_step}
-    if isinstance(error, NeedLabelsError):
+    if isinstance(error, (NeedLabelsError, NeedAuditLabelsError)):
         body["missing"] = error.missing
     return body
 

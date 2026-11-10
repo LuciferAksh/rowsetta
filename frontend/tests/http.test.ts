@@ -203,6 +203,13 @@ describe('successful responses', () => {
       }),
     );
     const audited = serving(() => Response.json({ leaks: [leak] }));
+    const suspect = {
+      row_id: 3,
+      given: 'Gentoo',
+      given_probability: 0.02,
+      likely: 'Adelie',
+    };
+    const checked = serving(() => Response.json({ suspects: [suspect] }));
 
     expect(
       await createBackend(distilled.fetch).distill({ max_depth: 2 }),
@@ -212,6 +219,7 @@ describe('successful responses', () => {
       generation: 4,
     });
     expect(await createBackend(audited.fetch).audit()).toEqual([leak]);
+    expect(await createBackend(checked.fetch).suspects()).toEqual([suspect]);
   });
 
   it('returns SQL as text and a dbt project as files', async () => {

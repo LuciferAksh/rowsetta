@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AuditList from './AuditList.svelte';
   import { createBackend } from './backend/http';
   import EvalPanel from './EvalPanel.svelte';
   import ExportPanel from './ExportPanel.svelte';
@@ -42,6 +43,7 @@
       <TableView {studio} />
       <EvalPanel {studio} />
       <LeakList {studio} />
+      <AuditList {studio} />
     {/if}
     <KeySheet {studio} />
   {/if}

@@ -9,6 +9,7 @@ import type {
   ExportQuery,
   LabelInput,
   LeakHint,
+  Suspect,
   ServerEvent,
   TablePage,
   TableQuery,
@@ -80,6 +81,8 @@ export interface Backend {
   distill(input: DistillInput): Promise<Distilled>;
   /** Columns that may leak the answer; empty until enough human labels exist. */
   audit(): Promise<LeakHint[]>;
+  /** Human labels from least to most plausible, each scored out of fold. */
+  suspects(): Promise<Suspect[]>;
   /** The current rule, after the server has checked its SQL against every source row. */
   exportRule(query: ExportQuery): Promise<ExportArtifact>;
   /** Whether the server answers; the one route that needs no launch session. */
@@ -292,6 +295,8 @@ export function createBackend(
       ),
     audit: async () =>
       decoded(await send('/audit', get), decode.leaks, 'audit'),
+    suspects: async () =>
+      decoded(await send('/suspects', get), decode.suspects, 'suspects'),
     exportRule: async ({ format, dialect }) => {
       const query = new URLSearchParams({ format, dialect });
       const response = await send(`/export?${query.toString()}`, get);

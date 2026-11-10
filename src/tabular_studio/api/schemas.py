@@ -206,6 +206,21 @@ class Audit(OutputModel):
     leaks: list[LeakHint]
 
 
+class Suspect(OutputModel):
+    """A human label and the out-of-fold teacher probability of that label."""
+
+    row_id: int
+    given: str
+    given_probability: float
+    likely: str
+
+
+class Suspects(OutputModel):
+    """Human labels from least to most plausible."""
+
+    suspects: list[Suspect]
+
+
 class Health(OutputModel):
     """The unauthenticated liveness probe; it carries no workspace state."""
 

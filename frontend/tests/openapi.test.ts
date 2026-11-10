@@ -18,6 +18,7 @@ import {
   type LeakHint,
   type Measured,
   type NeedsRows,
+  type Suspect,
   type TablePage,
   type TargetInput,
   type ThresholdInput,
@@ -183,6 +184,15 @@ const responseBodies = {
     reason: { type: 'string', nullable: false, required: true },
     score: { type: 'number', nullable: true, required: true },
   } satisfies FieldShapes<LeakHint>,
+  Suspect: {
+    row_id: { type: 'integer', nullable: false, required: true },
+    given: { type: 'string', nullable: false, required: true },
+    given_probability: { type: 'number', nullable: false, required: true },
+    likely: { type: 'string', nullable: false, required: true },
+  } satisfies FieldShapes<Suspect>,
+  Suspects: {
+    suspects: { type: 'array<object>', nullable: false, required: true },
+  } satisfies FieldShapes<{ suspects: readonly Suspect[] }>,
   Measured: {
     kind: { type: 'string', nullable: false, required: true },
     value: { type: 'number', nullable: false, required: true },
@@ -239,6 +249,7 @@ const responseSchemas: Readonly<Record<string, string>> = {
   'GET /eval/next': 'EvalNext',
   'GET /health': 'Health',
   'GET /state': 'WorkspaceState',
+  'GET /suspects': 'Suspects',
   'GET /table': 'TablePage',
   'POST /distill': 'Distilled',
   'POST /table': 'WorkspaceState',
@@ -515,6 +526,7 @@ async function recordEveryRequest(): Promise<RecordedRequest[]> {
     () => backend.setThreshold({ threshold: 0.8 }),
     () => backend.distill({ max_depth: 3 }),
     () => backend.audit(),
+    () => backend.suspects(),
     () => backend.exportRule({ format: 'sql', dialect: 'postgres' }),
   ];
   for (const call of calls) {
