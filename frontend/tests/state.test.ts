@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { BackendError, type Backend } from '../src/backend/http';
-import type { ServerEvent, WorkspaceState } from '../src/backend/types';
+import { BackendError } from '../src/backend/http';
+import type {
+  LabelInput,
+  TablePage,
+  TableQuery,
+  WorkspaceState,
+} from '../src/backend/types';
+import { NO_PROPOSALS } from '../src/labelling';
 import { Studio } from '../src/state.svelte';
+import { fakeBackend } from './fake-backend';
 
 const BASE: WorkspaceState = {
   loaded: true,
@@ -52,52 +59,6 @@ function pending<T>(): Pending<T> {
     resolve = settle;
   });
   return { promise, resolve };
-}
-
-function unused(): never {
-  throw new Error('not used by the workspace state');
-}
-
-// Serves `/state` from a queue and lets the test push server events.
-function fakeBackend(states: (() => Promise<WorkspaceState>)[]) {
-  let listener: ((event: ServerEvent) => void) | undefined;
-  let stopped = false;
-  const backend: Backend = {
-    state: () => {
-      const next = states.shift();
-      if (next === undefined) throw new Error('unexpected /state request');
-      return next();
-    },
-    loadDemo: unused,
-    uploadCsv: unused,
-    tablePage: unused,
-    setTarget: unused,
-    setLabel: unused,
-    undo: unused,
-    nextEvalRow: unused,
-    setExcluded: unused,
-    setThreshold: unused,
-    distill: unused,
-    audit: unused,
-    exportRule: unused,
-    health: unused,
-    session: unused,
-    events: (follow) => {
-      listener = follow;
-      return () => {
-        stopped = true;
-      };
-    },
-  };
-  return {
-    backend,
-    send: (event: ServerEvent) => {
-      if (listener === undefined) throw new Error('not following events');
-      listener(event);
-    },
-    stopped: () => stopped,
-    remaining: () => states.length,
-  };
 }
 
 // Lets queued promise callbacks run.
@@ -279,5 +240,180 @@ describe('applying responses', () => {
 
     expect(studio.workspace).toEqual(at(5));
     expect(server.remaining()).toBe(0);
+  });
+});
+
+describe('labelling', () => {
+  it('sends a label and shows the state it returns', async () => {
+    const sent: [number, LabelInput][] = [];
+    const studio = new Studio(
+      fakeBackend([], {
+        setLabel: (rowId, input) => {
+          sent.push([rowId, input]);
+          return Promise.resolve(at(2));
+        },
+      }).backend,
+    );
+
+    await studio.label(3, 'Gentoo');
+    await studio.label(3, null);
+
+    expect(sent).toEqual([
+      [3, { label: 'Gentoo' }],
+      [3, { label: null }],
+    ]);
+    expect(studio.workspace).toEqual(at(2));
+  });
+
+  it('undoes the most recent change', async () => {
+    let undone = 0;
+    const studio = new Studio(
+      fakeBackend([], {
+        undo: () => {
+          undone += 1;
+          return Promise.resolve(at(4));
+        },
+      }).backend,
+    );
+
+    await studio.undo();
+
+    expect(undone).toBe(1);
+    expect(studio.workspace).toEqual(at(4));
+  });
+
+  it('shows a refused label as the problem and keeps the last state', async () => {
+    const studio = new Studio(
+      fakeBackend([], { setLabel: () => Promise.reject(REJECTED) }).backend,
+    );
+    await studio.apply(Promise.resolve(at(1)));
+
+    await studio.label(3, 'Gentoo');
+
+    expect(studio.workspace).toEqual(at(1));
+    expect(studio.problem).toEqual(REJECTED.body);
+  });
+});
+
+describe('proposals', () => {
+  const fitted: WorkspaceState = {
+    ...at(6, 6),
+    proposals: { '7': 'Gentoo' },
+    abstained: [8],
+  };
+
+  it('keeps the last proposals, marked stale, until the refit lands', async () => {
+    const studio = new Studio(fakeBackend([]).backend);
+
+    await studio.apply(Promise.resolve(fitted));
+    expect(studio.proposals.stale).toBe(false);
+    await studio.apply(Promise.resolve(at(7, 6)));
+
+    expect(studio.proposals).toEqual({
+      target: 'species',
+      labels: { '7': 'Gentoo' },
+      unsure: new Set([8]),
+      stale: true,
+    });
+  });
+
+  it('ignores the proposals of a state a newer one overtook', async () => {
+    const studio = new Studio(fakeBackend([]).backend);
+
+    await studio.apply(Promise.resolve(at(7)));
+    await studio.apply(Promise.resolve(fitted));
+
+    expect(studio.proposals).toEqual({ ...NO_PROPOSALS, target: 'species' });
+  });
+
+  it('announces proposals that a refit published', async () => {
+    const studio = new Studio(fakeBackend([]).backend);
+    await studio.apply(Promise.resolve(at(5, 4)));
+    expect(studio.announcement).toBeNull();
+
+    await studio.apply(Promise.resolve(fitted));
+
+    expect(studio.announcement).toEqual({ text: 'Proposals updated' });
+  });
+
+  it('announces each refit again, so a screen reader repeats the same words', async () => {
+    const studio = new Studio(fakeBackend([]).backend);
+    await studio.apply(Promise.resolve(at(5, 4)));
+    await studio.apply(Promise.resolve(fitted));
+    const first = studio.announcement;
+
+    await studio.apply(Promise.resolve(at(7, 6)));
+    expect(studio.announcement).toBe(first);
+    await studio.apply(Promise.resolve(at(7, 7)));
+
+    expect(studio.announcement).toEqual(first);
+    expect(studio.announcement).not.toBe(first);
+  });
+
+  it('does not announce the proposals already there when the page opens', async () => {
+    const studio = new Studio(fakeBackend([]).backend);
+
+    await studio.apply(Promise.resolve(fitted));
+
+    expect(studio.announcement).toBeNull();
+  });
+});
+
+describe('table pages', () => {
+  function page(index: number): TablePage {
+    return {
+      rows: [{ island: 'Biscoe', species: null }],
+      row_ids: [index * 100],
+      columns: [],
+      total: 344,
+      source_rows: 344,
+      page: index,
+      size: 100,
+    };
+  }
+
+  it('asks for 100 rows of the requested page', async () => {
+    const asked: TableQuery[] = [];
+    const studio = new Studio(
+      fakeBackend([], {
+        tablePage: (query) => {
+          asked.push(query);
+          return Promise.resolve(page(query.page));
+        },
+      }).backend,
+    );
+
+    await studio.showPage(2);
+
+    expect(asked).toEqual([{ page: 2, size: 100 }]);
+    expect(studio.page).toEqual(page(2));
+  });
+
+  it('keeps the latest requested page when an earlier one answers late', async () => {
+    const slow = pending<TablePage>();
+    const studio = new Studio(
+      fakeBackend([], {
+        tablePage: ({ page: index }) =>
+          index === 0 ? slow.promise : Promise.resolve(page(index)),
+      }).backend,
+    );
+
+    const first = studio.showPage(0);
+    await studio.showPage(1);
+    slow.resolve(page(0));
+    await first;
+
+    expect(studio.page).toEqual(page(1));
+  });
+
+  it('shows a refused page request as the problem', async () => {
+    const studio = new Studio(
+      fakeBackend([], { tablePage: () => Promise.reject(REJECTED) }).backend,
+    );
+
+    await studio.showPage(0);
+
+    expect(studio.page).toBeNull();
+    expect(studio.problem).toEqual(REJECTED.body);
   });
 });

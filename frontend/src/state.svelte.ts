@@ -1,5 +1,19 @@
 import { BackendError, type Backend } from './backend/http';
-import type { ErrorBody, ServerEvent, WorkspaceState } from './backend/types';
+import type {
+  ErrorBody,
+  ServerEvent,
+  TablePage,
+  WorkspaceState,
+} from './backend/types';
+import {
+  NO_PROPOSALS,
+  PAGE_SIZE,
+  isCurrent,
+  nextProposals,
+  type ShownProposals,
+} from './labelling';
+
+const PROPOSALS_UPDATED = 'Proposals updated';
 
 export interface RefitProgress {
   done: number;
@@ -8,6 +22,10 @@ export interface RefitProgress {
 }
 
 export type Connection = 'connecting' | 'live' | 'reconnecting';
+
+export interface Announcement {
+  text: string;
+}
 
 // Every edit raises `generation` and every published refit raises
 // `refit_generation`, so a lower pair is a response a later one overtook.
@@ -25,8 +43,13 @@ export class Studio {
   /** The last refused request or broken response; cleared by the next success. */
   problem = $state.raw<ErrorBody | null>(null);
   connection = $state.raw<Connection>('connecting');
+  page = $state.raw<TablePage | null>(null);
+  proposals = $state.raw<ShownProposals>(NO_PROPOSALS);
+  /** For the polite live region; a new object each time, so a repeat is read again. */
+  announcement = $state.raw<Announcement | null>(null);
 
   readonly #backend: Backend;
+  #requestedPage = 0;
 
   constructor(backend: Backend) {
     this.#backend = backend;
@@ -43,7 +66,7 @@ export class Studio {
   apply(request: Promise<WorkspaceState>): Promise<void> {
     return this.#settle(request, (next) => {
       const current = this.workspace;
-      return current === null || !isOlder(next, current);
+      if (current === null || !isOlder(next, current)) this.#show(next);
     });
   }
 
@@ -51,13 +74,44 @@ export class Studio {
     return this.apply(this.#backend.state());
   }
 
-  async #settle(
-    request: Promise<WorkspaceState>,
-    accept: (next: WorkspaceState) => boolean,
+  /** Set or, with `null`, clear a row's human label. */
+  label(rowId: number, label: string | null): Promise<void> {
+    return this.apply(this.#backend.setLabel(rowId, { label }));
+  }
+
+  undo(): Promise<void> {
+    return this.apply(this.#backend.undo());
+  }
+
+  showPage(page: number): Promise<void> {
+    this.#requestedPage = page;
+    return this.#settle(
+      this.#backend.tablePage({ page, size: PAGE_SIZE }),
+      (next) => {
+        if (next.page === this.#requestedPage) this.page = next;
+      },
+    );
+  }
+
+  #show(next: WorkspaceState): void {
+    const previous = this.workspace;
+    if (
+      previous !== null &&
+      isCurrent(next) &&
+      next.refit_generation !== previous.refit_generation
+    ) {
+      this.announcement = { text: PROPOSALS_UPDATED };
+    }
+    this.proposals = nextProposals(this.proposals, next);
+    this.workspace = next;
+  }
+
+  async #settle<T>(
+    request: Promise<T>,
+    take: (value: T) => void,
   ): Promise<void> {
     try {
-      const next = await request;
-      if (accept(next)) this.workspace = next;
+      take(await request);
       this.problem = null;
     } catch (error) {
       if (!(error instanceof BackendError)) throw error;
@@ -71,7 +125,9 @@ export class Studio {
         this.connection = 'live';
         // A restarted server counts generations from zero again, so the
         // state after a reconnection replaces whatever was shown.
-        void this.#settle(this.#backend.state(), () => true);
+        void this.#settle(this.#backend.state(), (next) => {
+          this.#show(next);
+        });
         break;
       case 'disconnected':
         this.connection = 'reconnecting';
