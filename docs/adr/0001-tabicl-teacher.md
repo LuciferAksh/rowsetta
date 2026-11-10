@@ -1,11 +1,20 @@
 # 0001: TabICLv2 as the teacher
 
-Status: accepted design; first-day API verification complete.
+Status: accepted.
+
+## Decision
+
+The teacher is TabICLv2 (`tabicl` 2.2.0, checkpoint
+`tabicl-classifier-v2-20260212.ckpt` under the BSD 3-Clause licence), run
+locally from a revision-pinned, checksum-verified download
+(`teachers/checkpoint.py`). It learns in context, with no gradient training, so
+the app can refit after every label. TabPFN v2 appears only as a
+baseline learner in `scripts/bench_learners.py`.
 
 ## Installed API verification
 
 On 2026-11-05, `tabicl` 2.2.0 from the locked environment exposed all constructor
-parameters required by the model runtime. The command exited 0:
+parameters the adapter in `teachers/tabicl.py` passes. The command exited 0:
 
 ```sh
 uv run python -c "import tabicl, inspect; print(inspect.signature(tabicl.TabICLClassifier))"
@@ -29,8 +38,8 @@ KV-cache performance. Those remain their own model acceptance checks.
 The baseline explicitly calls
 `TabPFNClassifier.create_default_for_version(ModelVersion.V2)` so that a changed
 default cannot silently select a gated model. It imports TabPFN only when the
-benchmark is run. The initial implementation covers only the smoke; full benchmark cells belong
-to the full benchmark.
+benchmark is run. The smoke below checks execution; the full comparison runs
+TabPFN v2 as the `tabpfn` learner in `scripts/bench_active.py`.
 
 On 2026-11-05 the locked TabPFN 9.2.0 completed local CPU inference without a
 token or login. Twenty complete penguins rows supply labels and ten disjoint

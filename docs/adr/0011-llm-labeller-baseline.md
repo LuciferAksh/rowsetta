@@ -1,13 +1,14 @@
 # 0011: Local LLM labeller baseline
 
-Status: local model and smoke verified; full benchmark remains pending.
+Status: accepted. The local model and the ten-row smoke are verified; the full
+run is the last phase of `make bench-full`.
 
 ## Model and local runtime
 
-The planned baseline is Ollama serving `qwen3.6:35b-a3b`, with no paid service,
+The baseline is Ollama serving `qwen3.6:35b-a3b`, with no paid service,
 account or user-data upload. Ollama 0.40.14 was installed and its local API
 reported the same version on 2026-11-05. `ollama pull qwen3.6:35b-a3b` was run;
-the published artifact is about 23 GB, larger than the recorded estimate.
+the published artifact is about 23 GB.
 
 The pull exited 0 with `writing manifest` and `success`. `ollama list` reports
 ID `0ce5ff81f9ff`. `/api/tags` reports the full manifest digest:
@@ -17,10 +18,11 @@ ID `0ce5ff81f9ff`. `/api/tags` reports the full manifest digest:
 ```
 
 `scripts/bench_llm.py` pins that complete digest and refuses a different local
-artifact before requesting labels. `ollama show ... --modelfile` also exited 0. `ollama show ... --license` returned the Apache License, Version 2.0 text.
+artifact before requesting labels. `ollama show ... --modelfile` also exited 0.
+`ollama show ... --license` returned the Apache License, Version 2.0 text.
 During inference, `ollama ps` reported the MLX runner, 100% GPU, 23 GB and a
-32,768-token context. No other model was loaded before this smoke. Hardware
-identity was not verified: the sandbox rejected the `sysctl` query.
+32,768-token context. No other model was loaded before this smoke. The hardware
+model was not recorded.
 
 The [Ollama model page](https://ollama.com/library/qwen3.6:35b-a3b) and
 [Qwen's model licence](https://huggingface.co/Qwen/Qwen3.6-35B-A3B/blob/main/LICENSE)
@@ -49,7 +51,7 @@ The reported arithmetic mean includes the first request's model load and
 prompt evaluation. The median and each row's client wall time are also printed.
 There is no separate warm-up, retry, parallel inference or timing subtraction.
 
-This implements the model smoke test only. The full benchmark must reuse the
+The full run must reuse the
 random-strategy label sets and held-out rows from `bench_active.py`, run all
 required datasets/budgets/seeds, cache row answers, and compare accuracy and
 balanced accuracy on identical rows. It must use this ADR's verified model
@@ -75,8 +77,8 @@ on every individual row would repeatedly count model startup. The calculation
 above still charges the full first-row time once per cell in addition to all
 steady-state requests. This is a planning extrapolation from ten penguins rows,
 not a measured full-benchmark duration. Larger prompts and different datasets
-may take longer. The full benchmark must measure the run and enforce its four-hour cap;
-lower the row count if its observed throughput exceeds this budget.
+may take longer. The full run records its wall time; lower the row count if it
+passes the four-hour cap.
 
 ## Measured smoke
 
@@ -108,8 +110,8 @@ neither slow first request was removed from the printed means.
 Penguins and Adult are famous public datasets and may have appeared in model
 training. Their results must carry "may be memorised: famous public dataset".
 The smoke accuracy cannot support a general comparison with TabICLv2.
-Dry Bean, Car Evaluation and bank are the lead benchmark datasets specified by
-the initial design; no training-data exclusion is claimed for them either.
+Dry Bean, Car Evaluation and bank are the lead benchmark datasets; no
+training-data exclusion is claimed for them either.
 
 ## Reproduction
 
@@ -125,26 +127,9 @@ If the runtime or model is unavailable on a later machine, run those commands
 locally after installing Ollama. Do not replace the model,
 invent a digest or timing, or treat a missing-model exit as a successful smoke.
 
-## Final checks
+## Smoke rerun
 
-`make check` exited 0 with `UV_CACHE_DIR=/private/tmp/tabular-t03-uv`:
-
-```text
-0 errors, 0 warnings, 0 informations
-89 passed in 1.85s
-COMPLETED 444 FILES 0 ERRORS 0 WARNINGS 0 FILES_WITH_PROBLEMS
-Test Files  1 passed (1)
-     Tests  1 passed (1)
-```
-
-The archive `--verify`, card tests, token-free TabPFN v2 smoke, and both LLM
-smokes exited 0. The dataset-card and frontend vendoring changes are complete as recorded in
-[ADR 0009](0009-third-party-browser-pieces.md#t03-completion).
-
-
-## Completion smoke rerun
-
-After the dataset-card and frontend vendoring changes on 2026-11-05, the
+A later rerun on 2026-11-05 of the
 uncached ten-row smoke exited 0 against the same full manifest digest:
 
 ```text

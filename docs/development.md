@@ -56,8 +56,9 @@ Python packages resolve in `uv.lock`; frontend direct dependencies are exact pin
 Sources: `https://pypi.org/pypi/<package>/json` and
 `https://registry.npmjs.org/<package>/latest`.
 
-- Updated pandas from the 3.1.0 to 3.1.1 and Vite from 8.3.5 to 8.3.6
-  under engineering standards section 5a. Re-confirmed both registry versions on
+- Updated pandas from 3.1.0 to 3.1.1 and Vite from 8.3.5 to 8.3.6, the newest
+  stable releases (engineering standards section 5). Re-confirmed both registry
+  versions on
   2026-11-05; `uv.lock` retains pandas 3.1.1 and the frontend retains Vite 8.3.6.
   Pyodide floors remain unchanged.
 - Pinned `@types/node` 26.6.6 as a frontend development dependency on
@@ -67,94 +68,37 @@ Sources: `https://pypi.org/pypi/<package>/json` and
   These declarations satisfy the Vite and Vitest Node types without weakening
   TypeScript, Svelte or ESLint checks.
 - TypeScript stays at 6.0.3 although 7.0.2 is available: typescript-eslint 8.72.1
-  requires a version below 6.1.0. Keep this dependency ceiling.
+  requires a version below 6.1.0.
 - Build backend: hatchling 1.33.0. Pre-commit 4.7.0 is included to make setup
-  reproducible. No product dependency outside the planned stack was added.
+  reproducible.
+- `pandas-stubs` 3.1.0.261029 is a development dependency for strict pyright;
+  its version policy matches pandas major and minor versions, and these stubs
+  target pandas 3.1.
 - Installed tools reported uv 0.13.7, Node 26.13.0 and gitleaks 8.30.1.
   pnpm 12.16.1 was installed in temporary tooling storage for verification.
 - Confirmed torch 2.15.0 in `https://download.pytorch.org/whl/cpu/torch/`.
   The Linux/Windows explicit CPU source is configured before the first lock.
 - NOTICE retains the TabICL sdist licence, including its Apache-2.0 forecast
-  attribution, and forecast-web 1.0.0's npm NOTICE. No model was downloaded.
-  Browser code review and vendoring remain pending, so forecast-web is not installed yet.
+  attribution, and forecast-web 1.0.0's npm NOTICE. forecast-web is vendored as
+  `frontend/vendor/forecast-web-1.0.0.tgz` after the source review in ADR 0009.
 
 ## Pending work
 
-- TODO: final name and accepted trademark search. See ADR 0000.
-- TODO: no remote. The workflows pin every action to a full commit SHA and pass
-  `actionlint`, but none has run on GitHub. Enable PR checks and Dependabot,
-  protect main and configure CodeQL default setup. The CPU-source
-  before/after CI measurement cannot run without a remote.
-- TODO: supply the Hugging Face token locally for the weight
-  mirror. It is unnecessary for scaffold checks.
-- TODO before public release: set private security and conduct contacts, citation
-  authorship and repository URL.
-- TODO: development-container implementation and a real Codespaces check.
+- The product name is a working title; the final name needs a trademark search
+  (ADR 0000).
+- There is no remote yet. The workflows pin every action to a full commit SHA
+  and pass `actionlint`, but none has run on GitHub. Pull request checks,
+  Dependabot, branch protection and CodeQL default setup are enabled once it
+  exists, and the CI time with and without the CPU-only torch source is
+  measured then.
+- The browser demo's weight mirror needs a Hugging Face write token, supplied
+  locally through `HF_TOKEN` and never committed.
+- Before a public release: security and conduct contacts, citation authorship
+  and the repository URL.
+- `make demo-gif` and `make browser` exit 2 with a message until the demo
+  recording and the static browser build exist, so a pipeline that calls them
+  fails instead of publishing nothing.
+- The web page is unstyled; no visual direction has been chosen.
+- The README is a development stub until the name is final.
 - Release runs on a `v*` tag; Pages and the install smoke run only when
   dispatched or called by the release.
-- `dev` starts only Vite until the API exists. The future API proxy is set to
-  127.0.0.1:8787. `bench`, `bench-full`, `golden`, `demo-gif` and `browser` fail
-  with an explicit TODO rather than reporting an unimplemented operation as passed.
-- The Svelte page is unstyled. Visual direction remains pending.
-- README contains a technical scaffold description. Final hero copy is pending.
-
-## Verification
-
-Acceptance commands and their observed results are recorded after execution.
-
-- `uv run tabular-studio --help`: exit 0; usage and working-title description printed.
-- `gitleaks git --redact`: exit 0, no leaks. The branch has no commits, so the
-  history scan covered zero bytes. A separate `gitleaks dir` scan of the
-  unignored source files also exited 0 with no leaks.
-- TOML, frontend JSON and GitHub YAML parsed successfully.
-- `uv run pre-commit validate-config`: exit 0 using a writable temporary cache.
-- `pnpm --dir frontend test`: one test passed.
-- `make build`: frontend assets, Python sdist and wheel built successfully.
-  Package inspection found that hatchling does not apply `.git/info/exclude`;
-  the sdist uses an explicit allowlist of package inputs.
-- Initial `make check` failed on absent Node declarations. Adding the pinned
-  declarations resolved the errors with the existing strict settings unchanged.
-
-### Final scaffold acceptance, 2026-11-05
-
-`pnpm --dir frontend install --frozen-lockfile` exited 0 and reported that the
-lockfile is up to date. The only new packages are `@types/node` 26.6.6 and its
-required transitive dependency, `undici-types` 8.9.0.
-
-`make check` exited 0. Python formatting and lint passed, pyright reported zero
-errors and warnings, and both CLI tests passed. Frontend formatting and ESLint
-passed. The frontend check ran both `svelte-check --tsconfig ./tsconfig.json`
-and `tsc --noEmit`; its summary was:
-
-```text
-COMPLETED 444 FILES 0 ERRORS 0 WARNINGS 0 FILES_WITH_PROBLEMS
-```
-
-The final test output was:
-
-```text
-Test Files  1 passed (1)
-     Tests  1 passed (1)
-```
-
-`uv run tabular-studio --help` exited 0 and printed:
-
-```text
-usage: tabular-studio [-h]
-
-Tabular Studio (working title): local tabular labelling and rule export.
-
-options:
-  -h, --help  show this help message and exit
-```
-
-`gitleaks git --redact` exited 0 with the following tail. This branch still has
-no commits, so this acceptance command checks no history content:
-
-```text
-INF 0 commits scanned.
-INF scanned ~0 bytes (0) in 29.4ms
-INF no leaks found
-```
-
-Scaffold acceptance passes. The pending work above remains unchanged.

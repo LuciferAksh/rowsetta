@@ -2,8 +2,9 @@
 
 Local tabular labelling and rule export.
 
-This repository is at the scaffold stage. The product name is provisional.
-Model acquisition, labelling, rule export and the application UI are not implemented yet.
+Label a few rows of a CSV, let a local model propose the rest, check it on
+random rows and export the result as a decision tree in SQL, dbt, Python or
+JSON. The product name is provisional.
 
 ## Develop
 
@@ -16,9 +17,10 @@ make check
 make dev
 ```
 
-`make dev` serves the frontend skeleton at <http://127.0.0.1:5173>.
-The API server is not implemented yet. `make build` builds the frontend and Python package
-separately; frontend wheel integration remains pending.
+`make dev` serves the frontend at <http://127.0.0.1:5173> and forwards API
+requests to a local server on port 8787, which `uv run tabular-studio demo
+--no-browser --port 8787` starts. `make build` builds a wheel with the web page
+inside it.
 
 ```sh
 uv run tabular-studio --help
@@ -31,5 +33,6 @@ See [development notes](docs/development.md),
 ## Licence
 
 Code is licensed under [Apache-2.0](LICENSE). Third-party licences and
-attributions are retained in [NOTICE](NOTICE). No model weights or datasets
-are bundled at this stage.
+attributions are retained in [NOTICE](NOTICE). The bundled datasets and their
+licences are listed in [datasets/CARDS.md](datasets/CARDS.md). Model weights are
+not bundled; the first run of `demo` or `open` downloads them.

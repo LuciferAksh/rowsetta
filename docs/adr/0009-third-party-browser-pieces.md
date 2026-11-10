@@ -1,6 +1,7 @@
 # 0009: Third-party browser pieces
 
-Status: source review complete; browser integration and weight mirror pending.
+Status: accepted. The source review is complete; the browser integration and the
+weight mirror are not built yet.
 
 Verified on 2026-11-05 against the npm tarball, not a repository checkout.
 
@@ -9,7 +10,7 @@ Verified on 2026-11-05 against the npm tarball, not a repository checkout.
 `npm pack forecast-web@1.0.0 --ignore-scripts` downloaded the published artifact.
 Both the registry metadata at
 <https://registry.npmjs.org/forecast-web/1.0.0> and the downloaded bytes match the
-integrity required by the browser dependency review:
+published integrity:
 
 ```text
 sha512-gq0XEdKIEtiBDF902lR1br3bMif0pE9q3NctjTwDqFFEsVd+PHGfzRXymiPtF1Yz0puxuvDWgD87hthgaA5uHg==
@@ -34,8 +35,8 @@ and the worker entry. This is a static review; no browser network trace was run.
 - `chunk-SPUU25AM.js` resolves the configured weights base and GETs `config.json`,
   the ONNX graph and, for fp16, its external weights. Its only explicit `fetch`
   call is `fetch(url, { signal })`, with no request body. The default source is
-  the pinned Hugging Face repository. Redirect destinations need a browser trace
-  during browser integration before finalizing CSP.
+  the pinned Hugging Face repository. Redirect destinations need a browser network
+  trace before the Content-Security-Policy is final.
 - There are requests beyond weight downloads: `chunk-YLEDJ6OR.js` sets
   `ort.env.wasm.wasmPaths` to
   `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ort.env.versions.web}/dist/`
@@ -43,12 +44,12 @@ and the worker entry. This is a static review; no browser network trace was run.
   and dynamic module imports also load application assets. Thus the answer to
   "only weight-download requests?" is no.
 - No analytics, `XMLHttpRequest`, `WebSocket` or `sendBeacon` call was found in
-  the package's shipped JavaScript. ONNX Runtime itself was not audited here;
-  the browser integration and network assertions remain required.
+  the package's shipped JavaScript. ONNX Runtime itself was not audited here,
+  so the browser build's network assertion has to cover it.
 - `https://forecast-web.invalid/sha256/...` is a Cache Storage key, never passed
   to `fetch` on this code path.
 
-## Integrity limitations for browser integration
+## Integrity limitations
 
 `resolvePin` in `chunk-A6PUF3V3.js` drops embedded file hashes when `weights`
 points at a different repository. Mirror loads then obtain hashes from
@@ -58,9 +59,8 @@ revision. `config.json` itself is not checked against an embedded digest.
 Fresh graph/weight downloads are SHA-256 checked when hash metadata exists and
 Web Crypto is available. Existing Cache Storage hits return before `verify`,
 and `verify` returns without checking when `crypto.subtle` is unavailable.
-Consequently the package alone does not satisfy the planned verification of
-cached weights on read. Browser integration and network checks must account for that requirement before
-claiming it. No adapter or core code was changed during this verification job.
+So the package alone does not verify cached weights on read; the browser build
+has to check them itself before any page claims that it does.
 
 ## Fit and predict limits
 
@@ -73,7 +73,7 @@ Object.freeze({ maxRows: 5000, maxFeatures: 100, maxCells: 20000 });
 `validate` rejects a fit if any of those caps is exceeded, using the original
 input width before constant-column filtering. Test rows have no fixed row cap;
 `validateTest` checks their width, and prediction chunks them internally.
-The planned browser check is therefore inclusive at 1,250 x 16 and rejects
+A browser fit-limit check is therefore inclusive at 1,250 x 16 and rejects
 1,251 x 16. Classification supports at most 10 classes in the reviewed model
 metadata. These are library limits, not measured latency or memory guarantees.
 
@@ -95,7 +95,7 @@ Each UCI page explicitly states CC BY 4.0, checked on 2026-11-05:
 [Car Evaluation](https://archive.ics.uci.edu/dataset/19/car+evaluation).
 No source was dropped for its licence.
 
-Source citations for the benchmark card update:
+Source citations:
 
 - Dry Bean [Dataset]. (2020). UCI Machine Learning Repository.
   <https://doi.org/10.24432/C50S4B>. Licence: CC BY 4.0.
@@ -126,18 +126,13 @@ car: 1559d51dcf327f4f8c71b711ceed7fd95a382fc8d8e1998667f4f23b82860403 (6342 byte
 Verified 3 benchmark archives in /private/tmp/tabular-t03-cache/tabular-studio/bench
 ```
 
-Sandbox execution used `UV_CACHE_DIR=/private/tmp/tabular-t03-uv` and
-`XDG_CACHE_HOME=/private/tmp/tabular-t03-cache` to avoid writes outside the job's
-writable roots. These change cache locations, not the probes or data.
-
 The six card-validation cases passed. An additional temporary corrupt-cache
 probe replaced `dry_bean.zip` with invalid bytes in a separate scratch cache.
 The fetcher exited 1 with `dataset checksum mismatch: dry_bean` and preserved
 those bytes for inspection; no benchmark cache or source archive was changed.
 
-## Browser dependency review completion
+## Vendored archive and install scripts
 
-The remaining paths were authorized and completed on 2026-11-05.
 `frontend/vendor/forecast-web-1.0.0.tgz` contains the unchanged npm archive,
 downloaded via `npm pack` with `--ignore-scripts` and independently verified
 against the complete SHA-512 integrity above and the recorded SHA-256.
@@ -154,32 +149,7 @@ its explicit permission in `frontend/pnpm-workspace.yaml`. A subsequent
 
 `datasets/CARDS.md` now indexes the three benchmark-only archives, records
 CC BY 4.0 for each, and links each UCI source and citation. The source licence
-statements were rechecked. The card test requires all six planned datasets
+statements were rechecked. The card test requires all six datasets
 and validates every indexed licence, so omitting a benchmark card fails.
 
-The archive verification, TabICL constructor inspection, token-free TabPFN v2
-smoke and ten-row LLM smoke all exited 0 again after the completion changes.
-The TabICL signature still includes `kv_cache`, `device`, `model_path` and
-`n_estimators`. Latest TabPFN output:
-
-```text
-TabPFN v2: labels=20 rows=10 accuracy=1.000000 seconds=0.259882 TABPFN_TOKEN=unset
-```
-
-The LLM result is recorded in [ADR 0011](0011-llm-labeller-baseline.md).
-Browser integration, runtime network assertions, cached-weight integrity and
-distribution attribution remain pending as described above.
-
-The full browser dependency acceptance passed. `UV_CACHE_DIR=/private/tmp/tabular-t03-uv
-make check` exited 0 with:
-
-```text
-0 errors, 0 warnings, 0 informations
-89 passed in 3.05s
-COMPLETED 444 FILES 0 ERRORS 0 WARNINGS 0 FILES_WITH_PROBLEMS
-Test Files  1 passed (1)
-     Tests  1 passed (1)
-```
-
-The focused card check exited 0 with `6 passed in 0.16s`; archive verification
-exited 0 with `Verified 3 benchmark archives` in the scratch cache.
+The LLM baseline is recorded in [ADR 0011](0011-llm-labeller-baseline.md).

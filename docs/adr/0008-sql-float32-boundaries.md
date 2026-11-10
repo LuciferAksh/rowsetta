@@ -1,6 +1,6 @@
 # 0008: SQL boundaries and supported feature types
 
-Status: accepted for SQL export implementation.
+Status: accepted.
 
 scikit-learn casts tree inputs to float32 before comparing them with a float64
 threshold. Comparing the original SQL value directly with that threshold can
@@ -22,8 +22,8 @@ type for decimal literals.
 The exporter supports numeric and one-hot categorical splits. A used datetime split
 raises `UnsupportedDatetimeSplitError`, names its column, and supplies a
 command-first recovery step to exclude the column and re-teach without it.
-Unused datetime features do not block export. Portable datetime parsing is
-not implemented in this change.
+Unused datetime features do not block export. There is no datetime parsing
+that behaves the same on DuckDB, PostgreSQL and SQLite, so none is emitted.
 
 `tree_to_sql` groups optional table naming, leaf labels and certificate facts
 in frozen `SqlOptions`. Required feature specification, target and dialect stay
@@ -32,5 +32,5 @@ keyword arguments. This signature meets the argument-count lint bar.
 The shell verifies header-less DuckDB SQL against every source row before
 returning an export in any supported dialect. A mismatch returns HTTP 500 with
 the first source row id and a recovery step, logs the failure, and withholds SQL.
-The SQL router accepts a shell-owned export context; workspace selection and
-application authentication remain integration work.
+`GET /export` exports the current workspace's rule and, like every route
+except `/health`, requires the launch session ([ADR 0010](0010-localhost-security.md)).

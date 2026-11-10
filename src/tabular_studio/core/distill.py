@@ -1,7 +1,7 @@
 """Distilled rules and coverage-aware comparisons.
 
-SQL export will wire the shared split_condition literals into tree_to_sql and verify
-SQL identity; leaf summaries expose those same literals through leaf_summary.
+split_condition supplies the split literals to both tree_to_sql and
+leaf_summary, so the rule view shows the same thresholds the SQL runs.
 """
 
 import importlib

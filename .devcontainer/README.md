@@ -1,4 +1,5 @@
 # Development container
 
-WAIT: the Codespaces fallback is not implemented yet. No container configuration
-or successful hosted session is claimed by the local scaffold.
+There is no container configuration yet. A Codespaces configuration is added
+only if the static browser demo cannot run the Python core in Pyodide; until
+then, `make setup` on the host is the supported setup.
