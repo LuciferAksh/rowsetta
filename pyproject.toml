@@ -55,8 +55,22 @@ bench = ["tabpfn==9.2.0", "orbital==0.6.0"]
 packages = ["src/tabular_studio"]
 artifacts = ["src/tabular_studio/static/**"]
 
+# hatch_build.py builds the interface into static/; editable installs skip it.
+[tool.hatch.build.targets.wheel.hooks.custom]
+
+# The sdist carries the built interface, so a wheel built from it needs no Node.
 [tool.hatch.build.targets.sdist]
-only-include = ["/src/tabular_studio", "/pyproject.toml", "/README.md", "/LICENSE", "/NOTICE"]
+only-include = [
+  "/src/tabular_studio",
+  "/hatch_build.py",
+  "/pyproject.toml",
+  "/README.md",
+  "/LICENSE",
+  "/NOTICE",
+]
+artifacts = ["src/tabular_studio/static/**"]
+
+[tool.hatch.build.targets.sdist.hooks.custom]
 
 [tool.ruff]
 line-length = 100
@@ -75,6 +89,8 @@ ignore = ["D203", "D213", "COM812", "ISC001", "CPY001", "D100", "D104", "D105", 
 typeCheckingMode = "strict"
 pythonVersion = "3.13"
 reportMissingTypeStubs = "warning"
+# hatchling is a build requirement only, so the development environment cannot resolve it.
+ignore = ["hatch_build.py"]
 
 [tool.pytest.ini_options]
 addopts = "-q --strict-markers"

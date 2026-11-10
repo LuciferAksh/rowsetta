@@ -244,6 +244,7 @@ export function distilled(value: unknown, path: string): Distilled {
   const read = reader(value, path);
   return {
     leaf_summary: read('leaf_summary', arrayOf(leafLine)),
+    disagreements: read('disagreements', arrayOf(integer)),
     generation: read('generation', integer),
   };
 }

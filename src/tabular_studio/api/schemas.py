@@ -181,9 +181,13 @@ class LeafLine(OutputModel):
 
 
 class Distilled(OutputModel):
-    """The distilled rule as display lines, for the inputs of one generation."""
+    """The distilled rule as display lines, for the inputs of one generation.
+
+    `disagreements` lists the rows where the rule and the teacher both answer, differently.
+    """
 
     leaf_summary: list[LeafLine]
+    disagreements: list[int]
     generation: int
 
 

@@ -30,7 +30,7 @@ from tabular_studio.api.schemas import (
 )
 from tabular_studio.api.sql_check import sql_check, sql_check_data
 from tabular_studio.api.upload import table_upload
-from tabular_studio.core.distill import Student, leaf_summary
+from tabular_studio.core.distill import Student, disagreements, leaf_summary
 from tabular_studio.core.errors import UserError, WorkspaceError
 from tabular_studio.core.export.dbt import to_dbt
 from tabular_studio.core.export.json import to_json
@@ -194,6 +194,7 @@ def inspection_router(runtime: WorkspaceRuntime, *, dev_states: bool) -> APIRout
         lines = leaf_summary(student, workspace.require_table().frame)
         return Distilled(
             leaf_summary=[LeafLine.model_validate(line) for line in lines],
+            disagreements=disagreements(student, workspace.require_proposals()),
             generation=workspace.generation,
         )
 

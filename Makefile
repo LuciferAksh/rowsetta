@@ -24,7 +24,6 @@ test:
 	pnpm --dir frontend test
 
 build:
-	pnpm --dir frontend build
 	uv build
 
 golden:

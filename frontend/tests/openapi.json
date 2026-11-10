@@ -129,8 +129,15 @@
         "type": "object"
       },
       "Distilled": {
-        "description": "The distilled rule as display lines, for the inputs of one generation.",
+        "description": "The distilled rule as display lines, for the inputs of one generation.\n\n`disagreements` lists the rows where the rule and the teacher both answer, differently.",
         "properties": {
+          "disagreements": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Disagreements",
+            "type": "array"
+          },
           "generation": {
             "title": "Generation",
             "type": "integer"
@@ -145,6 +152,7 @@
         },
         "required": [
           "leaf_summary",
+          "disagreements",
           "generation"
         ],
         "title": "Distilled",

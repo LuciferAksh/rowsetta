@@ -159,6 +159,8 @@ export interface LeafLine {
 
 export interface Distilled {
   leaf_summary: readonly LeafLine[];
+  /** Rows where the rule and the model both answer, differently. */
+  disagreements: readonly number[];
   generation: number;
 }
 

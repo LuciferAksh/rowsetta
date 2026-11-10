@@ -81,20 +81,17 @@ Sources: `https://pypi.org/pypi/<package>/json` and
 ## Pending work
 
 - TODO: final name and accepted trademark search. See ADR 0000.
-- TODO: no remote. Workflow files are manual placeholders that fail explicitly.
-  Resolve full action SHAs, replace the placeholders, enable
-  PR checks and Dependabot, protect main and configure CodeQL default setup.
-  No hosted workflow, Docker manifest or CI timing was verified. The initial configuration's
-  CPU-source before/after CI measurement cannot run without a remote.
+- TODO: no remote. The workflows pin every action to a full commit SHA and pass
+  `actionlint`, but none has run on GitHub. Enable PR checks and Dependabot,
+  protect main and configure CodeQL default setup. The CPU-source
+  before/after CI measurement cannot run without a remote.
 - TODO: supply the Hugging Face token locally for the weight
   mirror. It is unnecessary for scaffold checks.
 - TODO before public release: set private security and conduct contacts, citation
   authorship and repository URL.
-- TODO: `hatch_build.py` and the custom frontend wheel hook. The skeleton
-  builds frontend and Python artifacts separately, without claiming a bundled UI.
 - TODO: development-container implementation and a real Codespaces check.
-- Release, Pages, install and monthly-model workflows are reserved for their
-  implementation tasks, with no scheduled runs or publishing permissions.
+- Release runs on a `v*` tag; Pages and the install smoke run only when
+  dispatched or called by the release.
 - `dev` starts only Vite until the API exists. The future API proxy is set to
   127.0.0.1:8787. `bench`, `bench-full`, `golden`, `demo-gif` and `browser` fail
   with an explicit TODO rather than reporting an unimplemented operation as passed.

@@ -239,7 +239,7 @@ test.describe('table keys', () => {
 
 async function showRule(page: Page): Promise<Distilled> {
   const distilled = page.waitForResponse('**/distill');
-  await page.getByRole('button', { name: 'Show the rule' }).click();
+  await page.getByRole('button', { name: 'Export rule' }).click();
   // A resting pointer would filter by hovering whichever line appears under it.
   await page.mouse.move(0, 0);
   return (await (await distilled).json()) as Distilled;
@@ -255,7 +255,7 @@ test.describe('rule view', () => {
     const first = rule.leaf_summary[0];
     if (first === undefined) throw new Error('the rule has no lines');
 
-    await page.getByRole('button', { name: 'Fit the rule again' }).focus();
+    await page.getByRole('button', { name: 'Export rule' }).focus();
     await page.keyboard.press('Tab');
 
     const lineOne = page.getByRole('button', { name: /^Line 1:/ });
@@ -296,4 +296,88 @@ test.describe('rule view on a phone', () => {
     await page.getByRole('button', { name: 'Show all rows' }).tap();
     await expect.poll(() => visibleRowIds(page)).toEqual(pageBefore);
   });
+});
+
+/** Every row the table marks as disagreeing with the rule, paging through the whole table. */
+async function disagreeingRowIds(page: Page): Promise<number[]> {
+  const found: number[] = [];
+  const next = page.getByRole('button', { name: 'Next page' });
+  for (;;) {
+    const rows = page
+      .getByRole('table')
+      .locator('tbody tr')
+      .filter({ hasText: /Rule line \d+ disagrees/ });
+    found.push(
+      ...(await rows.getByRole('rowheader').allTextContents()).map(Number),
+    );
+    if (await next.isDisabled()) return found;
+    const caption = await page
+      .getByRole('table')
+      .locator('caption')
+      .textContent();
+    await next.click();
+    await expect(page.getByRole('table').locator('caption')).not.toHaveText(
+      caption ?? '',
+    );
+  }
+}
+
+test.describe('export panel', () => {
+  test.use({ permissions: ['clipboard-read', 'clipboard-write'] });
+
+  test('the copied SQL is the served export and the marked rows are the served disagreements', async ({
+    page,
+  }) => {
+    await teachPenguins(page);
+    const rule = await showRule(page);
+    const sql = page.getByRole('region', { name: 'Export' }).locator('pre');
+    await expect(sql).toContainText('rows identical');
+    await expect(page.getByRole('list', { name: 'Certificate' })).toContainText(
+      'Execution: DuckDB',
+    );
+
+    await page.getByRole('button', { name: 'Copy SQL' }).click();
+    await expect(page.getByRole('status')).toHaveText('Copied SQL');
+    const copied = await page.evaluate(() => navigator.clipboard.readText());
+    const served = await page.request.get('/export?format=sql&dialect=duckdb');
+    expect(copied).toBe(await served.text());
+
+    expect(rule.disagreements.length).toBeGreaterThan(0);
+    expect((await disagreeingRowIds(page)).sort((a, b) => a - b)).toEqual(
+      [...rule.disagreements].sort((a, b) => a - b),
+    );
+  });
+
+  test('each format and dialect copies what the server exports for it', async ({
+    page,
+  }) => {
+    await teachPenguins(page);
+    await showRule(page);
+    const shown = page.getByRole('region', { name: 'Export' }).locator('pre');
+    await expect(shown).toContainText('rows identical');
+
+    for (const [radio, format, dialect, copy] of [
+      ['PostgreSQL', 'sql', 'postgres', 'Copy SQL'],
+      ['Python', 'python', 'postgres', 'Copy Python'],
+    ] as const) {
+      const served = await (
+        await page.request.get(`/export?format=${format}&dialect=${dialect}`)
+      ).text();
+      await page.getByRole('radio', { name: radio }).check();
+      await expect(shown).toHaveText(served);
+      await page.getByRole('button', { name: copy }).click();
+      expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+        served,
+      );
+    }
+    await expect(page.getByRole('radio', { name: 'PostgreSQL' })).toBeHidden();
+  });
+});
+
+test('the confidence threshold starts at 0.60', async ({ page }) => {
+  await teachPenguins(page);
+  await expect(
+    page.getByRole('slider', { name: 'Confidence threshold' }),
+  ).toHaveValue('0.6');
+  await expect(page.getByText(/^Threshold 0\.60:/)).toBeVisible();
 });

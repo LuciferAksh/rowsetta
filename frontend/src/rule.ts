@@ -1,5 +1,8 @@
-import type { ByRow, LeafLine } from './backend/types';
-import { rowLabel, type ShownProposals } from './labelling';
+import type { Distilled, LeafLine } from './backend/types';
+
+/** Depths the rule can be fitted at; deeper trees stop reading as a few plain lines. */
+export const RULE_DEPTHS = [2, 3, 4, 5, 6] as const;
+export const DEFAULT_RULE_DEPTH = 4;
 
 /** Rows the table narrows to, and the words that say why. */
 export interface RowFilter {
@@ -28,23 +31,16 @@ export function lineFilter(line: LeafLine): RowFilter {
   };
 }
 
-/** Rows whose shown answer differs from their rule line's, mapped to that line's number. */
-export function disagreements(
-  lines: readonly LeafLine[],
-  human: ByRow<string>,
-  proposals: ShownProposals,
+/** Each row where the rule and the model answer differently, mapped to its line number. */
+export function disagreementLines(
+  rule: Distilled | null,
 ): ReadonlyMap<number, number> {
   const found = new Map<number, number>();
-  for (const line of lines) {
-    if (line.label === null) continue;
+  if (rule === null) return found;
+  const rows = new Set(rule.disagreements);
+  for (const line of rule.leaf_summary) {
     for (const rowId of line.row_ids) {
-      const shown = rowLabel(rowId, human, proposals);
-      if (
-        (shown.kind === 'human' || shown.kind === 'proposed') &&
-        shown.label !== line.label
-      ) {
-        found.set(rowId, line.line_no);
-      }
+      if (rows.has(rowId)) found.set(rowId, line.line_no);
     }
   }
   return found;

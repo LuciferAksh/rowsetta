@@ -8,7 +8,7 @@
     rowLabelText,
     tableCommand,
   } from './labelling';
-  import { disagreements } from './rule';
+  import { disagreementLines } from './rule';
   import type { Studio } from './state.svelte';
 
   let { studio }: { studio: Studio } = $props();
@@ -24,9 +24,7 @@
     page?.columns.filter((column) => column.name !== target) ?? [],
   );
   const mode = $derived(studio.mode);
-  const ruleLines = $derived(
-    disagreements(studio.rule?.leaf_summary ?? [], human, studio.proposals),
-  );
+  const ruleLines = $derived(disagreementLines(studio.rule));
 
   // Roving focus: only the active row's label cell is in the tab order.
   let active = $state(0);

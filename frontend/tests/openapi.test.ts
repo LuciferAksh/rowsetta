@@ -136,6 +136,11 @@ const responseBodies = {
   } satisfies FieldShapes<LeafLine['agree']['coverage']>,
   Distilled: {
     leaf_summary: { type: 'array<object>', nullable: false, required: true },
+    disagreements: {
+      type: 'array<integer>',
+      nullable: false,
+      required: true,
+    },
     generation: { type: 'integer', nullable: false, required: true },
   } satisfies FieldShapes<Distilled>,
   ErrorBody: {

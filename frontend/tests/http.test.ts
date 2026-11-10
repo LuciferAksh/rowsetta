@@ -196,7 +196,11 @@ describe('successful responses', () => {
       score: null,
     };
     const distilled = serving(() =>
-      Response.json({ leaf_summary: [line], generation: 4 }),
+      Response.json({
+        leaf_summary: [line],
+        disagreements: [1],
+        generation: 4,
+      }),
     );
     const audited = serving(() => Response.json({ leaks: [leak] }));
 
@@ -204,6 +208,7 @@ describe('successful responses', () => {
       await createBackend(distilled.fetch).distill({ max_depth: 2 }),
     ).toEqual({
       leaf_summary: [line],
+      disagreements: [1],
       generation: 4,
     });
     expect(await createBackend(audited.fetch).audit()).toEqual([leak]);

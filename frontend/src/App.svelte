@@ -1,9 +1,9 @@
 <script lang="ts">
   import { createBackend } from './backend/http';
   import EvalPanel from './EvalPanel.svelte';
+  import ExportPanel from './ExportPanel.svelte';
   import KeySheet from './KeySheet.svelte';
   import LeakList from './LeakList.svelte';
-  import RuleView from './RuleView.svelte';
   import { Studio } from './state.svelte';
   import TableView from './TableView.svelte';
   import TargetPicker from './TargetPicker.svelte';
@@ -38,7 +38,7 @@
     {#if studio.workspace.loaded}
       <!-- Above the table, so a filter that shortens the table never moves a
       line under a resting pointer and changes the filter again. -->
-      <RuleView {studio} />
+      <ExportPanel {studio} />
       <TableView {studio} />
       <EvalPanel {studio} />
       <LeakList {studio} />

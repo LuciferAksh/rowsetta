@@ -2,6 +2,8 @@ import { BackendError, type Backend } from './backend/http';
 import type {
   Distilled,
   ErrorBody,
+  ExportArtifact,
+  ExportQuery,
   LeakHint,
   ServerEvent,
   TablePage,
@@ -16,7 +18,8 @@ import {
   type ShownProposals,
 } from './labelling';
 import { fetchWholeTable, filteredPage, type WholeTable } from './rows';
-import type { RowFilter } from './rule';
+import { certificateFigures } from './certificate';
+import { DEFAULT_RULE_DEPTH, type RowFilter } from './rule';
 
 const PROPOSALS_UPDATED = 'Proposals updated';
 const NOTHING_TO_EVALUATE = 'Every row without a human label has been served.';
@@ -82,6 +85,11 @@ export class Studio {
   /** A row the table moves focus to once its page is shown. */
   focusRow = $state.raw<number | null>(null);
   rule = $state.raw<Distilled | null>(null);
+  /** The rule in the chosen format, as the server checked and sent it. */
+  exported = $state.raw<ExportArtifact | null>(null);
+  exportQuery = $state.raw<ExportQuery>({ format: 'sql', dialect: 'duckdb' });
+  /** The certificate lines of the last export; the same for every format. */
+  certificate = $state.raw<readonly string[]>([]);
   leaks = $state.raw<readonly LeakHint[]>([]);
   keySheetOpen = $state.raw(false);
 
@@ -152,9 +160,40 @@ export class Studio {
     return this.apply(this.#backend.setExcluded(column, { excluded }));
   }
 
-  showRule(): Promise<void> {
-    return this.#settle(this.#backend.distill({}), (rule) => {
-      this.rule = rule;
+  showRule(maxDepth: number = DEFAULT_RULE_DEPTH): Promise<void> {
+    return this.#settle(
+      this.#backend.distill({ max_depth: maxDepth }),
+      (rule) => {
+        this.rule = rule;
+      },
+    );
+  }
+
+  /** Fit the rule at a depth, then export it in the chosen format with its certificate. */
+  async exportRule(maxDepth: number): Promise<void> {
+    this.exported = null;
+    this.certificate = [];
+    await this.showRule(maxDepth);
+    if (this.problem === null) await this.showExport(this.exportQuery);
+  }
+
+  /** Show the fitted rule in another format or dialect. */
+  showExport(query: ExportQuery): Promise<void> {
+    this.exportQuery = query;
+    return this.#settle(this.#backend.exportRule(query), async (artifact) => {
+      // A slower answer for a format the user has already left is dropped.
+      if (this.exportQuery !== query) return;
+      this.exported = artifact;
+      const figures = certificateFigures(artifact);
+      if (figures.length > 0) this.certificate = figures;
+      if (this.certificate.length > 0) return;
+      // JSON carries the certificate as data; the SQL export states it as lines.
+      await this.#settle(
+        this.#backend.exportRule({ format: 'sql', dialect: 'duckdb' }),
+        (sql) => {
+          this.certificate = certificateFigures(sql);
+        },
+      );
     });
   }
 
@@ -257,6 +296,8 @@ export class Studio {
   #forgetLabels(): void {
     this.mode = { kind: 'label' };
     this.rule = null;
+    this.exported = null;
+    this.certificate = [];
     this.leaks = [];
     if (this.filter !== null) void this.filterRows(null);
   }

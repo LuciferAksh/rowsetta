@@ -32,6 +32,7 @@ from tabular_studio.core.table import MAX_FILE_BYTES, Table, load_csv
 from tabular_studio.core.teacher import MIN_LABELS_PER_CLASS, Proposals, Teacher, predict_table
 
 __all__ = [
+    "DEFAULT_THRESHOLD",
     "ExportMetadata",
     "LabelStore",
     "Proposals",
@@ -44,6 +45,9 @@ __all__ = [
     "predict_table",
     "teacher_frame",
 ]
+
+# Proposals below this confidence render as unsure until the user moves the slider.
+DEFAULT_THRESHOLD = 0.60
 
 
 @dataclass(frozen=True)
@@ -131,7 +135,14 @@ class Workspace:
 
         Values already in a column of that name never become training labels here.
         """
-        self._start(LabelStore(target=target, classes=classes, source=self._require_source()))
+        self._start(
+            LabelStore(
+                target=target,
+                classes=classes,
+                source=self._require_source(),
+                threshold=DEFAULT_THRESHOLD,
+            )
+        )
 
     def set_target_from_column(self, column: str) -> None:
         """Take classes and human labels from a column; rows missing a value stay unlabelled."""
@@ -158,7 +169,13 @@ class Workspace:
             )
         human = dict(zip(values.index.tolist(), values.tolist(), strict=True))
         self._start(
-            LabelStore(target=column, classes=classes, source=self._require_source(), human=human)
+            LabelStore(
+                target=column,
+                classes=classes,
+                source=self._require_source(),
+                human=human,
+                threshold=DEFAULT_THRESHOLD,
+            )
         )
 
     def _require_source(self) -> SourceRef:

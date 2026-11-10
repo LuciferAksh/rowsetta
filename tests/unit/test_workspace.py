@@ -2,7 +2,7 @@ import pytest
 
 from tabular_studio.core.errors import NeedLabelsError, WorkspaceError
 from tabular_studio.core.teacher import predict_table
-from tabular_studio.core.workspace import Workspace
+from tabular_studio.core.workspace import DEFAULT_THRESHOLD, Workspace
 from tabular_studio.teachers.fake import FakeTeacher
 
 
@@ -51,6 +51,12 @@ def test_a_column_target_prefills_labels_and_leaves_missing_values_unlabelled() 
     assert store.classes == ("a", "b")
     assert store.human == {0: "b", 2: "a", 3: "b"}
     assert store.undo_history == []
+
+
+def test_new_sessions_start_at_the_default_abstention_threshold(workspace: Workspace) -> None:
+    assert workspace.require_store().threshold == DEFAULT_THRESHOLD == 0.60
+    workspace.set_target_from_column("answer")
+    assert workspace.require_store().threshold == DEFAULT_THRESHOLD
 
 
 def test_last_feature_cannot_be_excluded(workspace: Workspace) -> None:

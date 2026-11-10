@@ -15,17 +15,9 @@
   }
 </script>
 
-<section aria-labelledby="rule-heading">
-  <h2 id="rule-heading">Rule</h2>
-  <button
-    type="button"
-    onclick={() => {
-      void studio.showRule();
-    }}
-  >
-    {rule === null ? 'Show the rule' : 'Fit the rule again'}
-  </button>
-  {#if rule !== null}
+{#if rule !== null}
+  <section aria-labelledby="rule-heading">
+    <h3 id="rule-heading">Rule</h3>
     {#if stale}
       <p>Labels changed since this rule was fitted.</p>
     {/if}
@@ -55,5 +47,5 @@
         </li>
       {/each}
     </ol>
-  {/if}
-</section>
+  </section>
+{/if}

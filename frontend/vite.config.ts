@@ -25,6 +25,8 @@ const API_PATHS = [
 
 export default defineConfig({
   plugins: [svelte()],
+  // The Python package serves this directory; the wheel build packs it.
+  build: { outDir: '../src/tabular_studio/static', emptyOutDir: true },
   server: {
     host: '127.0.0.1',
     port: 5173,

@@ -243,7 +243,8 @@ describe('choosing a target', () => {
         sent.push(input);
         return Promise.resolve({ ...STATE, generation: 5, target: 'urgent' });
       },
-      distill: () => Promise.resolve({ leaf_summary: [], generation: 4 }),
+      distill: () =>
+        Promise.resolve({ leaf_summary: [], disagreements: [], generation: 4 }),
     });
     await studio.showRule();
     await studio.filterRows(lineFilter(line(1, [5])));

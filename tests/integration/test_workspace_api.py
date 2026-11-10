@@ -42,6 +42,7 @@ async def penguins_flow(client: httpx.AsyncClient) -> None:
     distilled = await client.post("/distill", json={"max_depth": 3})
     assert distilled.status_code == 200, distilled.text
     assert body(distilled)["leaf_summary"]
+    assert_disagreements(body(distilled), body(await client.get("/state")))
     audit = await client.get("/audit")
     assert body(audit)["leaks"] == []
     session = body(await client.get("/session"))
@@ -69,6 +70,25 @@ async def penguins_flow(client: httpx.AsyncClient) -> None:
     abstaining = body(await client.post("/distill", json={"max_depth": 1}))
     leaves = TypeAdapter(list[dict[str, JsonValue]]).validate_python(abstaining["leaf_summary"])
     assert any(leaf["label"] is None for leaf in leaves)
+
+
+def assert_disagreements(distilled: dict[str, JsonValue], state: dict[str, JsonValue]) -> None:
+    """The rule disagrees where an answering line's label differs from the shown answer."""
+    shown = TypeAdapter(dict[int, str]).validate_python(state["human"]) | TypeAdapter(
+        dict[int, str]
+    ).validate_python(state["proposals"])
+    abstained = set(TypeAdapter(list[int]).validate_python(state["abstained"]))
+    leaves = TypeAdapter(list[dict[str, JsonValue]]).validate_python(distilled["leaf_summary"])
+    expected = {
+        row
+        for leaf in leaves
+        if leaf["label"] is not None
+        for row in TypeAdapter(list[int]).validate_python(leaf["row_ids"])
+        if row in shown and row not in abstained and shown[row] != leaf["label"]
+    }
+    found = TypeAdapter(list[int]).validate_python(distilled["disagreements"])
+    assert expected
+    assert set(found) == expected
 
 
 async def evaluate_rows(client: httpx.AsyncClient, truth: dict[int, str]) -> None:

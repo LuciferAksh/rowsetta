@@ -2,15 +2,18 @@ import { render } from 'svelte/server';
 import { describe, expect, it } from 'vitest';
 import type {
   Evaluation,
+  ExportArtifact,
+  ExportQuery,
   LeafLine,
   TablePage,
   WorkspaceState,
 } from '../src/backend/types';
 import EvalPanel from '../src/EvalPanel.svelte';
 import { evaluationText, recallText } from '../src/evaluation';
-import { NO_PROPOSALS } from '../src/labelling';
+import { certificateFigures } from '../src/certificate';
+import ExportPanel from '../src/ExportPanel.svelte';
 import LeakList from '../src/LeakList.svelte';
-import { disagreements, lineFilter, ruleLineText } from '../src/rule';
+import { disagreementLines, lineFilter, ruleLineText } from '../src/rule';
 import RuleView from '../src/RuleView.svelte';
 import { Studio } from '../src/state.svelte';
 import TableView from '../src/TableView.svelte';
@@ -80,11 +83,52 @@ const ABSTAINING: LeafLine = {
 
 const LINES = [ANSWERING, ABSTAINING];
 
-async function studioWith(state: WorkspaceState = STATE): Promise<Studio> {
+const HEADER = [
+  '-- tabular-studio 0.1.0',
+  "-- Column 'age' (int64): DuckDB BIGINT; PostgreSQL BIGINT; SQLite INTEGER",
+  '-- In-sample agreement: 2/2; coverage 2/4',
+  '-- Execution: DuckDB 1.5.0: 4/4 rows identical',
+];
+const SQL = `${HEADER.join('\n')}\nSELECT *, 'yes' AS "predicted_y" FROM "t";\n`;
+const FIGURES = [
+  'tabular-studio 0.1.0',
+  'In-sample agreement: 2/2; coverage 2/4',
+  'Execution: DuckDB 1.5.0: 4/4 rows identical',
+];
+
+// Records every distil depth and export request a test makes.
+interface Requests {
+  depths: (number | undefined)[];
+  exports: ExportQuery[];
+}
+
+async function studioWith(
+  state: WorkspaceState = STATE,
+  requests: Requests = { depths: [], exports: [] },
+): Promise<Studio> {
   const studio = new Studio(
     fakeBackend([], {
       tablePage: () => Promise.resolve(PAGE),
-      distill: () => Promise.resolve({ leaf_summary: LINES, generation: 4 }),
+      setTarget: () =>
+        Promise.resolve({ ...state, generation: state.generation + 1 }),
+      distill: ({ max_depth }) => {
+        requests.depths.push(max_depth);
+        return Promise.resolve({
+          leaf_summary: LINES,
+          disagreements: [0],
+          generation: 4,
+        });
+      },
+      exportRule: (query) => {
+        requests.exports.push(query);
+        return Promise.resolve(
+          query.format === 'dbt'
+            ? { format: 'dbt', files: { 'models/y_rule.sql': SQL } }
+            : query.format === 'json'
+              ? { format: 'json', text: '{}\n' }
+              : { format: query.format, text: SQL },
+        );
+      },
       audit: () =>
         Promise.resolve([
           {
@@ -159,14 +203,13 @@ describe('rule lines', () => {
     });
   });
 
-  it('marks rows whose shown answer differs from their line, skipping unsure and abstaining', () => {
-    const proposals = {
-      ...NO_PROPOSALS,
-      labels: { '2': 'yes', '3': 'yes' },
-      unsure: new Set([3]),
-    };
-    const found = disagreements(LINES, { '0': 'no', '1': 'no' }, proposals);
-    expect([...found]).toEqual([[0, 1]]);
+  it('maps the served disagreement rows to their line numbers', () => {
+    const rule = { leaf_summary: LINES, disagreements: [2, 1], generation: 4 };
+    expect([...disagreementLines(rule)]).toEqual([
+      [2, 1],
+      [1, 2],
+    ]);
+    expect(disagreementLines(null).size).toBe(0);
   });
 });
 
@@ -254,5 +297,118 @@ describe('table during evaluation and with a rule', () => {
     const { body } = render(TableView, { props: { studio } });
     expect(body).toContain('Showing 2 rows for rule line 1.');
     expect(body).toContain('Show all rows');
+  });
+});
+
+describe('certificate figures', () => {
+  it('reads the header of SQL, Python and the dbt model, without column types', () => {
+    expect(certificateFigures({ format: 'sql', text: SQL })).toEqual(FIGURES);
+    expect(
+      certificateFigures({
+        format: 'python',
+        text: SQL.replaceAll('-- ', '# '),
+      }),
+    ).toEqual(FIGURES);
+    expect(
+      certificateFigures({
+        format: 'dbt',
+        files: {
+          'tests/y_rule_coverage.sql': '-- NULL share limit\n',
+          'models/y_rule.sql': SQL,
+        },
+      }),
+    ).toEqual(FIGURES);
+  });
+
+  it('gives none for JSON, which carries the certificate as data', () => {
+    expect(certificateFigures({ format: 'json', text: '{}\n' })).toEqual([]);
+  });
+});
+
+describe('export panel', () => {
+  it('fits the rule at the chosen depth and shows the rule, certificate and SQL', async () => {
+    const requests: Requests = { depths: [], exports: [] };
+    const studio = await studioWith(STATE, requests);
+
+    await studio.exportRule(3);
+    const { body } = render(ExportPanel, { props: { studio } });
+
+    expect(requests).toEqual({
+      depths: [3],
+      exports: [{ format: 'sql', dialect: 'duckdb' }],
+    });
+    expect(body).toContain('Line 1:');
+    for (const figure of FIGURES) expect(body).toContain(figure);
+    expect(body).not.toContain('<li>Column ');
+    expect(body).toContain('<pre>-- tabular-studio 0.1.0');
+    expect(body).toContain('Copy SQL');
+    expect(body).toContain('PostgreSQL');
+  });
+
+  it('offers depths 2 to 6, starting at 4', async () => {
+    const { body } = render(ExportPanel, {
+      props: { studio: await studioWith() },
+    });
+    expect(body.match(/<option /g)).toHaveLength(5);
+    expect(body).toMatch(/<option value="4"[^>]* selected/);
+    expect(body).not.toContain('<pre>');
+  });
+
+  it('reads the certificate from SQL when exporting JSON', async () => {
+    const requests: Requests = { depths: [], exports: [] };
+    const studio = await studioWith(STATE, requests);
+    studio.exportQuery = { format: 'json', dialect: 'duckdb' };
+
+    await studio.exportRule(4);
+
+    expect(requests.exports).toEqual([
+      { format: 'json', dialect: 'duckdb' },
+      { format: 'sql', dialect: 'duckdb' },
+    ]);
+    expect(studio.exported).toEqual({ format: 'json', text: '{}\n' });
+    expect(studio.certificate).toEqual(FIGURES);
+  });
+
+  it('lists each dbt file with its own copy button, and no dialect for Python', async () => {
+    const studio = await studioWith();
+    await studio.exportRule(4);
+    await studio.showExport({ format: 'dbt', dialect: 'sqlite' });
+    const dbt = render(ExportPanel, { props: { studio } }).body;
+    expect(dbt).toContain('Copy models/y_rule.sql');
+    expect(dbt).toContain('Dialect');
+
+    await studio.showExport({ format: 'python', dialect: 'sqlite' });
+    const python = render(ExportPanel, { props: { studio } }).body;
+    expect(python).toContain('Copy Python');
+    expect(python).not.toContain('Dialect');
+  });
+
+  it('drops a slower answer for a format the user has already left', async () => {
+    let answerSql: (artifact: ExportArtifact) => void = () => undefined;
+    const studio = new Studio(
+      fakeBackend([], {
+        exportRule: (query) =>
+          query.format === 'sql'
+            ? new Promise((resolve) => {
+                answerSql = resolve;
+              })
+            : Promise.resolve({ format: 'python', text: '# python\n' }),
+      }).backend,
+    );
+
+    const sql = studio.showExport({ format: 'sql', dialect: 'duckdb' });
+    await studio.showExport({ format: 'python', dialect: 'duckdb' });
+    answerSql({ format: 'sql', text: SQL });
+    await sql;
+
+    expect(studio.exported).toEqual({ format: 'python', text: '# python\n' });
+  });
+
+  it('forgets the export when the target changes', async () => {
+    const studio = await studioWith();
+    await studio.exportRule(4);
+    await studio.chooseTarget({ target: 'urgent', classes: ['yes', 'no'] });
+    expect(studio.exported).toBeNull();
+    expect(studio.certificate).toEqual([]);
   });
 });
