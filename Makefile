@@ -14,6 +14,7 @@ check:
 	uv run --locked pyright
 	uv run --locked pytest -m "not model and not pg"
 	uv run --locked python scripts/export_openapi.py | diff -u frontend/tests/openapi.json -
+	uv run --locked python scripts/check_copy.py
 	pnpm --dir frontend format:check
 	pnpm --dir frontend lint
 	pnpm --dir frontend check
@@ -34,5 +35,5 @@ bench bench-full:
 	uv run --locked --group bench python -m scripts.bench_full $(BENCH_ARGS)
 
 demo-gif browser:
-	@printf '%s\n' 'TODO: $@ is not implemented; see docs/development.md.'
+	@printf '%s\n' '$@ is not implemented yet; see docs/development.md.'
 	@exit 2
