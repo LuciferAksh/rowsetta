@@ -20,6 +20,11 @@ export async function openPenguins(
   classes: readonly string[] = SPECIES,
 ): Promise<Locator> {
   await page.goto(`/?token=${E2E_TOKEN}`);
+  // An earlier test may have opened another CSV on this server.
+  const demo = await page.request.post('/table', {
+    data: { demo: 'penguins' },
+  });
+  expect(demo.ok()).toBe(true);
   const response = await page.request.post('/target', {
     data: { target: 'species', classes },
   });

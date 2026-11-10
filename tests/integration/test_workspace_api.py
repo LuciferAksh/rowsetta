@@ -124,12 +124,30 @@ def test_csv_upload_and_failed_replacement_preserves_session(tmp_path: Path) -> 
     asyncio.run(run())
 
 
+def test_target_without_classes_takes_them_and_the_labels_from_its_column(
+    tmp_path: Path,
+) -> None:
+    async def run() -> None:
+        async with api(tmp_path) as (_, client):
+            await authenticate(client)
+            truth = await load_penguins(client)
+            state = body(await client.post("/target", json={"target": "species"}))
+            assert state["classes"] == ["Adelie", "Chinstrap", "Gentoo"]
+            assert state["human"] == {str(row): label for row, label in truth.items()}
+            too_many = await client.post("/target", json={"target": "bill_length_mm"})
+            assert too_many.status_code == 422
+            assert "distinct values" in str(body(too_many)["error"])
+
+    asyncio.run(run())
+
+
 @pytest.mark.parametrize(
     ("method", "path", "payload", "status"),
     [
         ("GET", "/table", None, 409),
         ("POST", "/table", {"demo": "unknown"}, 422),
         ("POST", "/target", {"target": "species", "classes": ["a", "a"]}, 422),
+        ("POST", "/target", {"target": "species", "classes": ["a"]}, 422),
         ("PUT", "/threshold", {"threshold": 1.1}, 422),
         ("GET", "/table?page=-1", None, 422),
         ("GET", "/export?format=invalid", None, 422),

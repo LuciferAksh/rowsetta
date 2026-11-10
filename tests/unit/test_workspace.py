@@ -30,8 +30,27 @@ def test_target_values_are_not_training_labels_and_invalid_target_is_atomic(
     assert workspace.require_store().human == {0: "a", 1: "a", 38: "b", 39: "b"}
     before = workspace.require_store().to_json()
     with pytest.raises(WorkspaceError, match="does not exist"):
-        workspace.set_target("missing", ("a", "b"))
+        workspace.set_target_from_column("missing")
+    with pytest.raises(WorkspaceError, match="40 distinct values"):
+        workspace.set_target_from_column("x")
     assert workspace.require_store().to_json() == before
+
+
+def test_a_new_target_name_starts_an_empty_column(workspace: Workspace) -> None:
+    workspace.set_target("urgent", ("yes", "no"))
+    store = workspace.require_store()
+    assert (store.target, store.classes, store.human) == ("urgent", ("yes", "no"), {})
+    assert workspace.missing_labels() == {"yes": 2, "no": 2}
+
+
+def test_a_column_target_prefills_labels_and_leaves_missing_values_unlabelled() -> None:
+    workspace = Workspace()
+    workspace.load(b"x,answer\n1,b\n2,\n3,a\n4,b\n", "source.csv", max_rows=40)
+    workspace.set_target_from_column("answer")
+    store = workspace.require_store()
+    assert store.classes == ("a", "b")
+    assert store.human == {0: "b", 2: "a", 3: "b"}
+    assert store.undo_history == []
 
 
 def test_last_feature_cannot_be_excluded(workspace: Workspace) -> None:

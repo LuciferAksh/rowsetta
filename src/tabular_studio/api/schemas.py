@@ -18,14 +18,17 @@ class DemoInput(InputModel):
 
 
 class TargetInput(InputModel):
-    """Declare a target and its class vocabulary without importing source answers."""
+    """Declare a target with its classes, or omit them to take classes and labels from a column."""
 
     target: str = Field(min_length=1)
-    classes: tuple[str, ...] = Field(min_length=MIN_CLASSES, max_length=MAX_CLASSES)
+    classes: tuple[str, ...] = Field(default=(), max_length=MAX_CLASSES)
 
     @model_validator(mode="after")
     def distinct_classes(self) -> Self:
         """Reject ambiguous or empty class names before replacing the session."""
+        if self.classes and len(self.classes) < MIN_CLASSES:
+            message = f"Name at least {MIN_CLASSES} classes, or none to take them from the column."
+            raise ValueError(message)
         if len(set(self.classes)) != len(self.classes) or any(not name for name in self.classes):
             message = "Classes must be distinct, nonempty names."
             raise ValueError(message)

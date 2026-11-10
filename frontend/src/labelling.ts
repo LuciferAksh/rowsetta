@@ -104,7 +104,10 @@ export function missingText(missing: Readonly<Record<string, number>>): string {
 export type TableCommand =
   | { kind: 'label'; classIndex: number }
   | { kind: 'move'; by: 1 | -1 }
-  | { kind: 'undo' };
+  | { kind: 'undo' }
+  | { kind: 'next' }
+  | { kind: 'evaluate' }
+  | { kind: 'keys' };
 
 export type KeyPress = Pick<
   KeyboardEvent,
@@ -128,6 +131,12 @@ export function tableCommand(press: KeyPress): TableCommand | null {
       return { kind: 'move', by: -1 };
     case 'u':
       return { kind: 'undo' };
+    case 'n':
+      return { kind: 'next' };
+    case 'e':
+      return { kind: 'evaluate' };
+    case '?':
+      return { kind: 'keys' };
     default:
       return null;
   }

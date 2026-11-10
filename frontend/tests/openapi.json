@@ -552,14 +552,14 @@
       },
       "TargetInput": {
         "additionalProperties": false,
-        "description": "Declare a target and its class vocabulary without importing source answers.",
+        "description": "Declare a target with its classes, or omit them to take classes and labels from a column.",
         "properties": {
           "classes": {
+            "default": [],
             "items": {
               "type": "string"
             },
             "maxItems": 10,
-            "minItems": 2,
             "title": "Classes",
             "type": "array"
           },
@@ -570,8 +570,7 @@
           }
         },
         "required": [
-          "target",
-          "classes"
+          "target"
         ],
         "title": "TargetInput",
         "type": "object"

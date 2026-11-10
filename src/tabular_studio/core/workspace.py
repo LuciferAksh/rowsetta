@@ -27,7 +27,7 @@ from tabular_studio.core.errors import (
 from tabular_studio.core.evaluation import EvalResult, evaluate
 from tabular_studio.core.export.sql import Certificate, ColumnType, NotExecuted
 from tabular_studio.core.features import TeacherFrame, teacher_frame
-from tabular_studio.core.session import LabelStore, SourceRef
+from tabular_studio.core.session import MAX_CLASSES, MIN_CLASSES, LabelStore, SourceRef
 from tabular_studio.core.table import MAX_FILE_BYTES, Table, load_csv
 from tabular_studio.core.teacher import MIN_LABELS_PER_CLASS, Proposals, Teacher, predict_table
 
@@ -127,16 +127,49 @@ class Workspace:
         self.invalidate()
 
     def set_target(self, target: str, classes: tuple[str, ...]) -> None:
-        """Start a new label store; existing target values never become training labels."""
+        """Start an empty label store; a name that is not a column creates a new one.
+
+        Values already in a column of that name never become training labels here.
+        """
+        self._start(LabelStore(target=target, classes=classes, source=self._require_source()))
+
+    def set_target_from_column(self, column: str) -> None:
+        """Take classes and human labels from a column; rows missing a value stay unlabelled."""
         table = self.require_table()
-        if target not in table.frame:
-            msg = "The target column does not exist."
-            raise WorkspaceError(msg, status_code=422)
+        if column not in table.frame:
+            msg = f"The column `{column}` does not exist."
+            raise WorkspaceError(
+                msg,
+                "Choose one of the table's columns, or name a new target and its classes.",
+                status_code=422,
+            )
+        values = table.frame[column].dropna().astype(str)
+        classes = tuple(sorted(values.unique()))
+        if not MIN_CLASSES <= len(classes) <= MAX_CLASSES:
+            msg = (
+                f"`{column}` has {len(classes)} distinct values; "
+                f"a target needs {MIN_CLASSES} to {MAX_CLASSES}."
+            )
+            raise WorkspaceError(
+                msg,
+                f"Choose a column with {MIN_CLASSES} to {MAX_CLASSES} values, "
+                "or name a new target and its classes.",
+                status_code=422,
+            )
+        human = dict(zip(values.index.tolist(), values.tolist(), strict=True))
+        self._start(
+            LabelStore(target=column, classes=classes, source=self._require_source(), human=human)
+        )
+
+    def _require_source(self) -> SourceRef:
+        self.require_table()
         if self.source is None:
             msg = "Load a CSV before selecting a target."
             raise WorkspaceError(msg)
-        store = LabelStore(target=target, classes=classes, source=self.source)
-        self._require_features(table, store)
+        return self.source
+
+    def _start(self, store: LabelStore) -> None:
+        self._require_features(self.require_table(), store)
         self.store = store
         self.invalidate()
 

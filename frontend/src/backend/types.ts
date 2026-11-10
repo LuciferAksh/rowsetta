@@ -30,7 +30,8 @@ export interface DemoInput {
 
 export interface TargetInput {
   target: string;
-  classes: readonly string[];
+  /** Omitted, the server takes the classes and human labels from the `target` column. */
+  classes?: readonly string[];
 }
 
 export interface LabelInput {

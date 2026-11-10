@@ -8,15 +8,20 @@ from tabular_studio.core.errors import UserError
 from tabular_studio.core.session import LabelStore, SourceRef
 
 STALE_CSV_MESSAGE = "this CSV changed since the session was saved"
+SESSIONS_DIR_VARIABLE = "TABSTUDIO_SESSIONS_DIR"
+
+
+def default_data_dir() -> Path:
+    """Where uploads and bundled demos keep their sessions; tests point it at a scratch dir."""
+    configured = os.environ.get(SESSIONS_DIR_VARIABLE)
+    return Path(configured) if configured else Path.home() / ".tabular-studio/sessions"
 
 
 class SessionStorage:
     """Keep managed CSVs and atomic sidecars locally, or use an adjacent local sidecar."""
 
     def __init__(self, *, data_dir: Path | None = None, source_path: Path | None = None) -> None:
-        self.data_dir = (
-            data_dir if data_dir is not None else Path.home() / ".tabular-studio/sessions"
-        )
+        self.data_dir = data_dir if data_dir is not None else default_data_dir()
         self.source_path = source_path
 
     def open(self, data: bytes, source: SourceRef) -> tuple[LabelStore | None, str | None]:

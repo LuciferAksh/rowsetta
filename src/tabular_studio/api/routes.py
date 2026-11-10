@@ -136,7 +136,10 @@ def table_router(runtime: WorkspaceRuntime, *, max_rows: int, dev_states: bool) 
 
     @router.post("/target")
     async def target(body: TargetInput) -> WorkspaceState:
-        workspace.set_target(body.target, body.classes)
+        if body.classes:
+            workspace.set_target(body.target, body.classes)
+        else:
+            workspace.set_target_from_column(body.target)
         return mutation_result(runtime, dev_states=dev_states)
 
     return router

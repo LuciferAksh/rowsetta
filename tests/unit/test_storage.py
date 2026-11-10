@@ -151,3 +151,21 @@ def test_storage_rejects_non_basename_sources(tmp_path: Path, name: str) -> None
     with pytest.raises(UserError, match="basename is invalid"):
         workspace.load(DATA, name, max_rows=6)
     assert list(tmp_path.iterdir()) == []
+
+
+def test_sessions_dir_variable_moves_managed_sessions(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("TABSTUDIO_SESSIONS_DIR", str(tmp_path))
+    workspace = Workspace(SessionStorage())
+    workspace.load(DATA, "data.csv", max_rows=6)
+    workspace.set_target("target", ("a", "b"))
+    assert saved(tmp_path).target == "target"
+
+
+def test_sessions_default_to_the_home_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("TABSTUDIO_SESSIONS_DIR", raising=False)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    assert SessionStorage().data_dir == tmp_path / ".tabular-studio/sessions"

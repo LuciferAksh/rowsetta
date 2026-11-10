@@ -173,6 +173,12 @@ describe('table keys', () => {
     expect(tableCommand(press('u'))).toEqual({ kind: 'undo' });
   });
 
+  it('jumps to the next suggested row with n, evaluates with e and lists keys with ?', () => {
+    expect(tableCommand(press('n'))).toEqual({ kind: 'next' });
+    expect(tableCommand(press('e'))).toEqual({ kind: 'evaluate' });
+    expect(tableCommand(press('?'))).toEqual({ kind: 'keys' });
+  });
+
   it('leaves browser and system shortcuts alone', () => {
     expect(tableCommand(press('u', { ctrlKey: true }))).toBeNull();
     expect(tableCommand(press('1', { metaKey: true }))).toBeNull();
@@ -183,6 +189,7 @@ describe('table keys', () => {
     expect(tableCommand(press('Tab'))).toBeNull();
     expect(tableCommand(press('Enter'))).toBeNull();
     expect(tableCommand(press('U'))).toBeNull();
+    expect(tableCommand(press('E'))).toBeNull();
   });
 });
 

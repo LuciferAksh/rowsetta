@@ -97,7 +97,7 @@ const requestBodies = {
   } satisfies FieldShapes<LabelInput>,
   TargetInput: {
     target: { type: 'string', nullable: false, required: true },
-    classes: { type: 'array<string>', nullable: false, required: true },
+    classes: { type: 'array<string>', nullable: false, required: false },
   } satisfies FieldShapes<TargetInput>,
   ThresholdInput: {
     threshold: { type: 'number', nullable: false, required: true },

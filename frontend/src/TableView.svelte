@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick, untrack } from 'svelte';
   import type { Cell } from './backend/types';
   import LabelMenu from './LabelMenu.svelte';
   import {
@@ -7,6 +8,7 @@
     rowLabelText,
     tableCommand,
   } from './labelling';
+  import { disagreements } from './rule';
   import type { Studio } from './state.svelte';
 
   let { studio }: { studio: Studio } = $props();
@@ -21,6 +23,10 @@
   const columns = $derived(
     page?.columns.filter((column) => column.name !== target) ?? [],
   );
+  const mode = $derived(studio.mode);
+  const ruleLines = $derived(
+    disagreements(studio.rule?.leaf_summary ?? [], human, studio.proposals),
+  );
 
   // Roving focus: only the active row's label cell is in the tab order.
   let active = $state(0);
@@ -28,8 +34,24 @@
   const cells: (HTMLButtonElement | null)[] = [];
 
   $effect(() => {
-    if (loaded) void studio.showPage(0);
+    // Only a newly loaded table resets the page; filters choose their own.
+    if (loaded) void untrack(() => studio.showPage(0));
   });
+
+  $effect(() => {
+    const index = page?.row_ids.indexOf(studio.focusRow ?? -1) ?? -1;
+    if (index === -1) return;
+    studio.focusRow = null;
+    // The new page's cells are bound after this effect runs.
+    void tick().then(() => {
+      focusRow(index);
+    });
+  });
+
+  // Evaluation takes a label for the served row only; the others stay inert.
+  function inert(rowId: number): boolean {
+    return mode.kind === 'evaluate' && rowId !== mode.row;
+  }
 
   function display(value: Cell | undefined): string {
     return value === null || value === undefined ? '' : String(value);
@@ -64,6 +86,15 @@
       case 'undo':
         void studio.undo();
         break;
+      case 'next':
+        void studio.nextSuggested();
+        break;
+      case 'evaluate':
+        void studio.toggleEvaluation();
+        break;
+      case 'keys':
+        studio.keySheetOpen = true;
+        break;
     }
   }
 
@@ -92,6 +123,19 @@
         value={studio.refit.done}
       ></progress>
     {/if}
+  {/if}
+  {#if studio.filter !== null}
+    <p>
+      {studio.filter.description}.
+      <button
+        type="button"
+        onclick={() => {
+          void studio.filterRows(null);
+        }}
+      >
+        Show all rows
+      </button>
+    </p>
   {/if}
   {#if page !== null}
     {@const first = page.page * page.size}
@@ -124,13 +168,14 @@
                   type="button"
                   tabindex={index === active ? 0 : -1}
                   aria-haspopup="listbox"
+                  aria-disabled={inert(rowId) ? 'true' : undefined}
                   aria-expanded={menuRow === rowId}
                   aria-controls={menuRow === rowId ? 'label-menu' : undefined}
                   onfocus={() => {
                     active = index;
                   }}
                   onclick={() => {
-                    menuRow = rowId;
+                    if (!inert(rowId)) menuRow = rowId;
                   }}
                   onkeydown={(event) => {
                     onCellKey(event, index, rowId);
@@ -138,6 +183,12 @@
                 >
                   {rowLabelText(rowLabel(rowId, human, studio.proposals))}
                 </button>
+                {#if mode.kind === 'evaluate' && mode.row === rowId}
+                  <span>Evaluation row: label it blind</span>
+                {/if}
+                {#if ruleLines.has(rowId)}
+                  <span>Rule line {ruleLines.get(rowId)} disagrees</span>
+                {/if}
                 {#if menuRow === rowId}
                   <LabelMenu
                     id="label-menu"
