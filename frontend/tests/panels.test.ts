@@ -21,6 +21,11 @@ import TableView from '../src/TableView.svelte';
 import TargetPicker from '../src/TargetPicker.svelte';
 import { fakeBackend } from './fake-backend';
 
+/** What a reader sees: markup removed, whitespace collapsed. */
+function text(markup: string): string {
+  return markup.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ');
+}
+
 const STATE: WorkspaceState = {
   loaded: true,
   notice: null,
@@ -187,7 +192,7 @@ describe('evaluation text', () => {
 describe('rule lines', () => {
   it('reads as conditions, answer, rows and agreement', () => {
     expect(ruleLineText(ANSWERING)).toBe(
-      "duration IS NULL OR <= 524.5 and poutcome = 'success' → yes: 2 rows, 1 agree with the model",
+      'duration ≤ 524.5 · poutcome is success → yes: 2 rows, 1 agree with the model',
     );
   });
 
@@ -259,13 +264,13 @@ describe('panels', () => {
     });
     await studio.checkLeaks();
     const { body } = render(LeakList, { props: { studio } });
-    expect(body.match(/<s>y_after<\/s>/g)).toHaveLength(1);
+    expect(body.match(/<s[^>]*>y_after<\/s>/g)).toHaveLength(1);
     expect(body).toContain('alone predicts the label');
     expect(body).toContain('suggests an identifier or an outcome');
     expect(body).toContain('Include column y_after');
   });
 
-  it('lists the least plausible labels first and marks one already changed', async () => {
+  it('lists flagged labels in table order and marks one already changed', async () => {
     const studio = new Studio(
       fakeBackend([], {
         suspects: () =>
@@ -280,10 +285,8 @@ describe('panels', () => {
     expect(before).not.toContain('Row 1');
     await studio.checkLabels();
     const { body } = render(AuditList, { props: { studio } });
-    expect(body.indexOf('Row 1')).toBeLessThan(body.indexOf('Row 0'));
-    expect(body.replace(/\s+/g, ' ')).toContain(
-      'labelled no; the model gives that 4% and says yes',
-    );
+    expect(body.indexOf('Row 0')).toBeLessThan(body.indexOf('Row 1'));
+    expect(text(body)).toContain('Row 1 · no → yes (4%)');
     expect(body).toContain('(now yes)');
   });
 
@@ -291,8 +294,10 @@ describe('panels', () => {
     const studio = await studioWith();
     await studio.showRule();
     const { body } = render(RuleView, { props: { studio } });
-    expect(body.match(/<li><button type="button"/g)).toHaveLength(2);
-    expect(body).toContain('Line 2: every row → no answer (rule unsure)');
+    expect(
+      body.match(/<li[^>]*><button type="button" class="line/g),
+    ).toHaveLength(2);
+    expect(text(body)).toContain('Line 2: every row → no answer (rule unsure)');
     expect(body).not.toContain('Labels changed since this rule was fitted.');
   });
 });

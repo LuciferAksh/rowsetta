@@ -1,3 +1,4 @@
+import { SvelteSet } from 'svelte/reactivity';
 import { BackendError, type Backend } from './backend/http';
 import type {
   Distilled,
@@ -94,6 +95,14 @@ export class Studio {
   leaks = $state.raw<readonly LeakHint[]>([]);
   /** `null` until the labels are checked, and again once they change. */
   suspects = $state.raw<readonly Suspect[] | null>(null);
+  /** Suspect rows the marker pass has reached, which the margin then shows. */
+  marked = $state.raw<ReadonlySet<number>>(new SvelteSet());
+  /** Suspect rows the user chose to let stand (stet). */
+  kept = $state.raw<ReadonlySet<number>>(new SvelteSet());
+  /** The suspect row whose slip and row are joined, or `null`. */
+  selectedRow = $state.raw<number | null>(null);
+  /** The file last opened in this tab; the server does not name a table. */
+  fileName = $state.raw<string | null>(null);
   keySheetOpen = $state.raw(false);
 
   readonly #backend: Backend;
@@ -146,6 +155,7 @@ export class Studio {
   /** Replace the table; the server keeps a saved session for these exact bytes. */
   async upload(file: File): Promise<void> {
     this.#forgetTable();
+    this.fileName = file.name;
     await this.apply(this.#backend.uploadCsv(file));
     if (this.problem === null) await this.showPage(0);
   }
@@ -212,8 +222,18 @@ export class Studio {
 
   checkLabels(): Promise<void> {
     return this.#settle(this.#backend.suspects(), (ranked) => {
+      this.kept = new SvelteSet();
+      this.selectedRow = null;
+      this.marked = new SvelteSet();
       this.suspects = ranked;
     });
+  }
+
+  /** Let a flagged label stand (stet), or take that back. */
+  toggleKept(rowId: number): void {
+    const next = new SvelteSet(this.kept);
+    if (!next.delete(rowId)) next.add(rowId);
+    this.kept = next;
   }
 
   /** Enter evaluation on the next served row, or leave it. */
@@ -309,6 +329,9 @@ export class Studio {
     this.certificate = [];
     this.leaks = [];
     this.suspects = null;
+    this.marked = new SvelteSet();
+    this.kept = new SvelteSet();
+    this.selectedRow = null;
     if (this.filter !== null) void this.filterRows(null);
   }
 

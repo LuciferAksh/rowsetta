@@ -1,0 +1,57 @@
+/* Rowsetta tokens. Every text pair is checked by tests/tokens.contrast.test.ts. */
+@font-face {
+  font-family: 'TikTok Sans';
+  font-style: normal;
+  font-weight: 300 900;
+  font-display: swap;
+  src: url('../fonts/tiktok-sans-latin-wght-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Spline Sans Mono';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('../fonts/spline-sans-mono-latin-wght-normal.woff2') format('woff2');
+}
+
+:root {
+  --ground: #edeef0;
+  --sheet: #ffffff;
+  --sheet-quiet: #f6f7f8;
+  --ink: #14171c;
+  --ink-2: #4b525c;
+  --ink-3: #5c636d;
+  --line: #d3d6db;
+  /* Borders of controls and chips; at least 3:1 against both grounds. */
+  --edge: #7a818b;
+  /* The highlighter: a wash behind text, a bar at a row's edge, a ring on focus. */
+  --mark-wash: #ffd0e6;
+  --mark-fill: #ff2e93;
+  /* The marker stroke laid over a row; text stays dark on it, so it is not a text pair. */
+  --mark-stroke: #ffa9d2;
+  --mark-text: #b8005f;
+  --on-ink: #ffffff;
+  --on-ink-quiet: #a9afb8;
+  --mark-on-ink: #ff5cab;
+
+  --font-ui: 'TikTok Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-data: 'Spline Sans Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --step--1: 0.8125rem;
+  --step-0: 0.9375rem;
+  --step-1: 1.125rem;
+  --step-2: 1.5rem;
+  --step-peak: clamp(3.25rem, 2.2rem + 3.4vw, 5.25rem);
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2.25rem;
+
+  --focus: 0 0 0 2px var(--sheet), 0 0 0 4px var(--ink);
+  --sweep-ms: 420ms;
+  --lift-ms: 180ms;
+}

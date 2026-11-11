@@ -66,9 +66,16 @@
   }
 </script>
 
-<section aria-labelledby="target-heading">
+<section class="panel panel--target" aria-labelledby="target-heading">
   <h2 id="target-heading">Table and target</h2>
+  {#if workspace?.loaded !== true}
+    <p class="lede">
+      Open a CSV, label a few rows, and keep a rule that labels the rest. The
+      table stays on this machine.
+    </p>
+  {/if}
   <div
+    class="drop"
     role="group"
     aria-labelledby="drop-heading"
     ondragover={(event) => {
@@ -91,43 +98,46 @@
       />
     </label>
     {#if chosenFile === null}
-      <p>Numbers and categories are used; free-text columns are skipped.</p>
+      <p class="hint">
+        Numbers and categories are used; free-text columns are skipped.
+      </p>
     {:else}
-      <p>Opened {chosenFile}.</p>
+      <p class="hint">Opened {chosenFile}.</p>
     {/if}
   </div>
 
   {#if workspace?.loaded === true}
     {#if target !== null}
-      <p>
+      <p class="target-line">
         Target: {target} ({workspace.classes.join(', ')}). {humanCount} human labels.
       </p>
     {/if}
     {#if prefilled !== null}
-      <p>
+      <p class="hint">
         Took the labels from {prefilled.column}; {prefilled.unlabelled} rows with
         no value stay unlabelled.
       </p>
     {/if}
     {#if target !== null && humanCount > 0}
-      <button type="button" onclick={teachFromScratch}>
+      <button type="button" class="button" onclick={teachFromScratch}>
         Clear all and teach from scratch
       </button>
     {/if}
 
-    <form onsubmit={useColumn}>
+    <form class="stack" onsubmit={useColumn}>
       <label>
         Existing column
         <select bind:value={column}>
+          <option value={undefined} disabled>Choose a column</option>
           {#each columns as option (option.name)}
             <option value={option.name}>{option.name} ({option.kind})</option>
           {/each}
         </select>
       </label>
-      <button type="submit">Use its values as labels</button>
+      <button type="submit" class="button">Use its values as labels</button>
     </form>
 
-    <form onsubmit={createTarget}>
+    <form class="stack" onsubmit={createTarget}>
       <label>
         New target name
         <input type="text" required bind:value={newName} />
@@ -142,9 +152,55 @@
         />
       </label>
       {#if classProblem !== null}
-        <p id="class-problem">{classProblem}</p>
+        <p id="class-problem" class="field-error">{classProblem}</p>
       {/if}
-      <button type="submit">Create target</button>
+      <button type="submit" class="button button-solid">Create target</button>
     </form>
   {/if}
 </section>
+
+<style>
+  .drop {
+    display: grid;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border: 2px dashed var(--edge);
+    background: var(--sheet-quiet);
+  }
+  .drop:hover,
+  .drop:focus-within {
+    border-color: var(--ink);
+  }
+  .drop h3 {
+    font-size: var(--step-0);
+  }
+  .stack {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: var(--space-2) var(--space-3);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--line);
+  }
+  .stack > :global(p) {
+    grid-column: 1 / -1;
+  }
+  .stack:has(input[type='text']) label:first-of-type,
+  .stack:has(input[type='text']) .field-error {
+    grid-column: 1 / -1;
+  }
+  .target-line {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  .field-error {
+    color: var(--ink);
+    font-weight: 600;
+    font-size: var(--step--1);
+  }
+  .lede {
+    color: var(--ink-2);
+    font-size: var(--step-1);
+    line-height: 1.4;
+  }
+</style>

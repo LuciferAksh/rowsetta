@@ -48,35 +48,38 @@
   }
 </script>
 
-<section aria-labelledby="export-heading">
+<section class="panel panel--export" aria-labelledby="export-heading">
   <h2 id="export-heading">Export</h2>
-  <label>
-    Tree depth
-    <select bind:value={depth}>
-      {#each RULE_DEPTHS as option (option)}
-        <option value={option}>{option}</option>
-      {/each}
-    </select>
-  </label>
-  <button
-    type="button"
-    onclick={() => {
-      void studio.exportRule(depth);
-    }}
-  >
-    Export rule
-  </button>
+  <div class="controls">
+    <label>
+      Tree depth
+      <select bind:value={depth}>
+        {#each RULE_DEPTHS as option (option)}
+          <option value={option}>{option}</option>
+        {/each}
+      </select>
+    </label>
+    <button
+      type="button"
+      class="button button-solid"
+      onclick={() => {
+        void studio.exportRule(depth);
+      }}
+    >
+      Export rule
+    </button>
+  </div>
   <RuleView {studio} />
   {#if studio.certificate.length > 0}
     <h3>Certificate</h3>
-    <ul aria-label="Certificate">
+    <ul class="certificate" aria-label="Certificate">
       {#each studio.certificate as figure, index (index)}
         <li>{figure}</li>
       {/each}
     </ul>
   {/if}
   {#if exported !== null}
-    <fieldset>
+    <fieldset class="segments">
       <legend>Format</legend>
       {#each EXPORT_FORMATS as format (format)}
         <label>
@@ -94,7 +97,7 @@
       {/each}
     </fieldset>
     {#if query.format === 'sql' || query.format === 'dbt'}
-      <fieldset>
+      <fieldset class="segments">
         <legend>Dialect</legend>
         {#each SQL_DIALECTS as dialect (dialect)}
           <label>
@@ -117,6 +120,7 @@
       <pre>{text}</pre>
       <button
         type="button"
+        class="button"
         onclick={() => {
           void copy(name, text);
         }}
@@ -126,3 +130,61 @@
     {/each}
   {/if}
 </section>
+
+<style>
+  .controls {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--space-3);
+  }
+  .controls label {
+    flex: 0 0 7rem;
+  }
+  .certificate {
+    display: grid;
+    gap: 2px;
+    border: 2px solid var(--ink);
+    background: var(--sheet-quiet);
+    padding: var(--space-3);
+    font-family: var(--font-data);
+    font-size: var(--step--1);
+    overflow-wrap: anywhere;
+  }
+  .segments {
+    flex-wrap: nowrap;
+    gap: var(--space-2);
+  }
+  .segments legend {
+    float: none;
+    width: 100%;
+    margin-bottom: var(--space-1);
+  }
+  .segments {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .segments label {
+    position: relative;
+    border: 1.5px solid var(--edge);
+    border-radius: 6px;
+    padding: 0.35rem 0.75rem;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .segments label:has(:checked) {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--on-ink);
+  }
+  .segments label:has(:focus-visible) {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+  .segments input {
+    position: absolute;
+    opacity: 0;
+    inset: 0;
+    margin: 0;
+    cursor: pointer;
+  }
+</style>

@@ -5,61 +5,103 @@
   import ExportPanel from './ExportPanel.svelte';
   import KeySheet from './KeySheet.svelte';
   import LeakList from './LeakList.svelte';
+  import Leaders from './Leaders.svelte';
   import { Studio } from './state.svelte';
   import TableView from './TableView.svelte';
   import TargetPicker from './TargetPicker.svelte';
+  import './styles/base.css';
 
   const studio = new Studio(createBackend());
   const failure = $derived(studio.problem ?? studio.workspace?.failure ?? null);
+  const workspace = $derived(studio.workspace);
+  const loaded = $derived(workspace?.loaded ?? false);
+  const refitting = $derived(
+    studio.refit !== null ||
+      (workspace !== null &&
+        workspace.target !== null &&
+        workspace.refit_generation !== workspace.generation &&
+        Object.keys(workspace.missing).length === 0),
+  );
+  // Fixed states for design review exist only in the dev server.
+  const fixture =
+    import.meta.env.DEV && typeof location !== 'undefined'
+      ? new URLSearchParams(location.search).get('state')
+      : null;
 
-  $effect(() => studio.start());
+  $effect(() => {
+    if (fixture !== null) {
+      void import('./fixtures').then((module) => {
+        module.applyFixture(studio, fixture);
+      });
+      return;
+    }
+    return studio.start();
+  });
 </script>
 
-<main>
-  <h1>Tabular Studio (working title)</h1>
-  {#if failure !== null}
-    <div role="alert">
-      <p>{failure.error}</p>
-      <p>{failure.next_step}</p>
-    </div>
-  {/if}
-  {#if studio.workspace === null}
-    <p>Connecting to the local server.</p>
+<header class="appbar">
+  <h1 class="wordmark">Rowsetta</h1>
+  {#if workspace !== null && loaded}
+    <p class="facts">
+      <span class="file">{studio.fileName ?? 'demo table'}</span>
+      {#if workspace.target !== null}
+        <span>target: {workspace.target}</span>
+      {/if}
+      {#if studio.rowCount !== null}
+        <span class="quiet">{studio.rowCount} rows</span>
+      {/if}
+      {#if workspace.target !== null}
+        <span class="state quiet" class:state--busy={refitting}>
+          model {refitting ? 'updating' : 'up to date'}
+        </span>
+      {/if}
+    </p>
   {:else}
+    <p class="facts"></p>
+  {/if}
+  {#if workspace !== null}
     <button
       type="button"
+      class="pill-button"
       aria-keyshortcuts="?"
       onclick={() => {
         studio.keySheetOpen = true;
       }}
     >
-      Keyboard shortcuts (?)
+      <span class="pill-long">Keyboard shortcuts&nbsp;</span><span
+        class="pill-key">(?)</span
+      >
     </button>
+  {/if}
+</header>
+
+<main class="shell" class:shell--bare={workspace !== null && !loaded}>
+  {#if failure !== null}
+    <div role="alert" class="alert">
+      <p class="what">{failure.error}</p>
+      <p class="next">{failure.next_step}</p>
+    </div>
+  {/if}
+  {#if workspace === null}
+    <div class="stage">
+      <progress class="runner" aria-label="Connecting"></progress>
+      <p>Connecting to the local server.</p>
+    </div>
+  {:else}
     <TargetPicker {studio} />
-    {#if studio.workspace.loaded}
-      <!-- Above the table, so a filter that shortens the table never moves a
-      line under a resting pointer and changes the filter again. -->
+    {#if loaded}
+      <!-- Above the table in reading order, so a filter that shortens the table
+      never moves a line under a resting pointer and changes the filter again. -->
       <ExportPanel {studio} />
       <TableView {studio} />
+      <AuditList {studio} />
       <EvalPanel {studio} />
       <LeakList {studio} />
-      <AuditList {studio} />
     {/if}
     <KeySheet {studio} />
   {/if}
   <p role="status" class="visually-hidden">
     {#key studio.announcement}{studio.announcement?.text ?? ''}{/key}
   </p>
+  <Leaders {studio} />
 </main>
-
-<style>
-  /* Read by screen readers without taking space on screen. */
-  .visually-hidden {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-</style>

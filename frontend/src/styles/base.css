@@ -1,0 +1,540 @@
+@import './tokens.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 100%;
+  font-optical-sizing: auto;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-size: var(--step-0);
+  line-height: 1.5;
+  min-width: 320px;
+}
+
+h1,
+h2,
+h3,
+p,
+ul,
+ol,
+dl,
+dd,
+fieldset {
+  margin: 0;
+  padding: 0;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--sheet);
+}
+
+/* App bar: what is open, what is being labelled, and the model's state. */
+.appbar {
+  background: var(--ink);
+  color: var(--on-ink);
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 0 var(--space-5);
+  font-size: var(--step--1);
+}
+
+.appbar :focus-visible {
+  outline-color: var(--on-ink);
+  box-shadow: none;
+}
+
+.wordmark {
+  font-size: var(--step-1);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  padding-right: var(--space-4);
+  margin-right: var(--space-1);
+  border-right: 1px solid #3a4049;
+}
+
+.facts {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-right: auto;
+  font-family: var(--font-data);
+  min-width: 0;
+}
+
+.facts > * {
+  white-space: nowrap;
+}
+
+.facts .file {
+  color: var(--on-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 22ch;
+}
+
+.facts .quiet {
+  color: var(--on-ink-quiet);
+}
+
+.facts .state::before {
+  content: '';
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin-right: 0.5rem;
+  border: 1.5px solid var(--on-ink);
+  background: var(--on-ink);
+}
+
+.facts .state--busy::before {
+  background: transparent;
+}
+
+.appbar .pill-button {
+  background: transparent;
+  color: var(--on-ink);
+  border-color: #6b727c;
+}
+
+.appbar .pill-button:hover {
+  background: #2a2f37;
+  border-color: var(--on-ink);
+}
+
+.pill-button,
+.button {
+  appearance: none;
+  background: var(--sheet);
+  border: 1.5px solid var(--edge);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: var(--step--1);
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 0.5rem 0.8rem;
+  transition:
+    background var(--lift-ms),
+    border-color var(--lift-ms);
+}
+
+.pill-button:hover,
+.button:hover {
+  border-color: var(--ink);
+  background: var(--sheet-quiet);
+}
+
+.button[disabled],
+button:disabled {
+  color: var(--ink-3);
+  border-color: var(--line);
+  cursor: not-allowed;
+  background: transparent;
+}
+
+.button-solid {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--on-ink);
+}
+
+.button-solid:hover {
+  background: #2a2f37;
+  border-color: #2a2f37;
+}
+
+kbd {
+  font-family: var(--font-data);
+  font-size: var(--step--1);
+  background: var(--sheet-quiet);
+  border: 1px solid var(--edge);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 0.05rem 0.4rem;
+}
+
+/* The sheet is the table and its proofreader's margin; tools sit below it. */
+.shell {
+  --sheet-height: clamp(26rem, calc(100dvh - 8.5rem), 46rem);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 22rem;
+  grid-template-rows: auto var(--sheet-height) auto auto;
+  grid-template-areas:
+    'alert alert'
+    'table margin'
+    'export eval'
+    'target leak';
+  gap: 0;
+  max-width: 100rem;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-5) var(--space-6);
+}
+
+.shell > .panel--target,
+.shell > .panel--eval,
+.shell > .panel--export,
+.shell > .panel--leak {
+  margin-top: var(--space-5);
+}
+
+.shell--bare {
+  grid-template-columns: minmax(0, 40rem);
+  grid-template-rows: auto auto;
+  grid-template-areas: 'alert' 'target';
+  justify-content: center;
+  padding-top: var(--space-6);
+}
+
+/* Panels beneath the sheet: plain sections, one hairline, no stripes. */
+.panel {
+  background: var(--sheet);
+  border: 1px solid var(--line);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.panel > h2,
+.margin h2 {
+  font-size: var(--step-1);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.panel h3 {
+  font-size: var(--step-0);
+  font-weight: 700;
+}
+
+.panel p,
+.panel li {
+  max-width: 62ch;
+}
+
+.hint {
+  color: var(--ink-2);
+  font-size: var(--step--1);
+}
+
+.panel--target {
+  grid-area: target;
+  border-right: 0;
+}
+.panel--eval {
+  grid-area: eval;
+}
+.panel--leak {
+  grid-area: leak;
+}
+.panel--export {
+  grid-area: export;
+  border-right: 0;
+}
+
+.shell--bare .panel--target {
+  border-right: 1px solid var(--line);
+  margin-top: 0;
+  padding: var(--space-6);
+  gap: var(--space-4);
+  border: 2px solid var(--ink);
+}
+
+.shell--bare .panel--target > h2 {
+  font-size: var(--step-2);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--step--1);
+  font-weight: 600;
+}
+
+input[type='text'],
+select {
+  background: var(--sheet);
+  border: 1.5px solid var(--edge);
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+  font-weight: 400;
+  font-size: var(--step-0);
+  min-width: 0;
+}
+
+input[type='file'] {
+  font-size: var(--step--1);
+}
+
+input[type='file']::file-selector-button {
+  font: inherit;
+  font-weight: 600;
+  background: var(--ink);
+  color: var(--on-ink);
+  border: 0;
+  border-radius: 6px;
+  padding: 0.5rem 0.8rem;
+  margin-right: var(--space-3);
+  cursor: pointer;
+}
+
+fieldset {
+  border: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  min-width: 0;
+}
+
+legend {
+  float: left;
+  font-size: var(--step--1);
+  font-weight: 700;
+  margin-right: var(--space-3);
+  padding: 0;
+}
+
+fieldset label {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 500;
+}
+
+input[type='radio'],
+input[type='range'] {
+  accent-color: var(--ink);
+}
+
+input[type='range'] {
+  width: 100%;
+}
+
+pre {
+  margin: 0;
+  background: var(--ink);
+  color: var(--on-ink);
+  font-family: var(--font-data);
+  font-size: var(--step--1);
+  line-height: 1.55;
+  padding: var(--space-4);
+  overflow: auto;
+  max-height: 22rem;
+  tab-size: 2;
+}
+
+dialog {
+  background: var(--sheet);
+  border: 2px solid var(--ink);
+  border-radius: 0;
+  padding: var(--space-5);
+  max-width: min(34rem, calc(100vw - 2rem));
+  color: var(--ink);
+}
+
+dialog::backdrop {
+  background: rgb(20 23 28 / 0.55);
+}
+
+dialog dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-2) var(--space-4);
+  margin: var(--space-4) 0;
+  align-items: baseline;
+}
+
+dialog h2 {
+  font-size: var(--step-1);
+  margin-bottom: var(--space-2);
+}
+
+progress {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 3px;
+  border: 0;
+  background: var(--line);
+  overflow: hidden;
+  color: var(--ink);
+}
+
+progress::-webkit-progress-bar {
+  background: var(--line);
+}
+
+progress::-webkit-progress-value {
+  background: var(--ink);
+}
+
+progress::-moz-progress-bar {
+  background: var(--ink);
+}
+
+progress:indeterminate {
+  background: linear-gradient(
+    90deg,
+    var(--line) 0 30%,
+    var(--ink) 30% 60%,
+    var(--line) 60%
+  );
+  background-size: 200% 100%;
+  animation: line-run 1.1s linear infinite;
+}
+
+@keyframes line-run {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* A failure: what happened, then the one thing to do. Not a doubt, so no pink. */
+.alert {
+  grid-area: alert;
+  background: var(--sheet);
+  border: 2px solid var(--ink);
+  padding: var(--space-3) var(--space-4);
+  display: grid;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+}
+
+.alert .what {
+  font-weight: 700;
+}
+
+.alert .next {
+  color: var(--ink-2);
+}
+
+.alert .next::before {
+  content: 'Next:';
+  font-family: var(--font-data);
+  font-size: var(--step--1);
+  font-weight: 600;
+  color: var(--ink);
+  margin-right: 0.75ch;
+}
+
+.stage {
+  min-height: 50dvh;
+  display: grid;
+  place-content: center;
+  gap: var(--space-4);
+  text-align: center;
+  color: var(--ink-2);
+}
+
+.stage .runner {
+  width: min(18rem, 70vw);
+  justify-self: center;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (max-width: 62rem) {
+  .appbar {
+    padding: 0 var(--space-4);
+    gap: var(--space-3);
+  }
+  .facts .quiet,
+  .facts .state,
+  .facts .file {
+    display: none;
+  }
+  /* Shortened to "(?)" on a phone; the full name stays for screen readers. */
+  .appbar .pill-long {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-template-areas:
+      'alert'
+      'target'
+      'table'
+      'margin'
+      'export'
+      'eval'
+      'leak';
+    padding: var(--space-3) var(--space-4) var(--space-5);
+    row-gap: var(--space-4);
+  }
+  .alert {
+    margin-bottom: 0;
+  }
+  .shell--bare .panel--target {
+    padding: var(--space-4);
+  }
+  .shell > .panel--target,
+  .shell > .panel--eval,
+  .shell > .panel--export,
+  .shell > .panel--leak {
+    margin-top: 0;
+  }
+  .panel--target,
+  .panel--export {
+    border-right: 1px solid var(--line);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+  progress:indeterminate {
+    background: var(--ink);
+  }
+}

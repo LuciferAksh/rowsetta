@@ -88,14 +88,16 @@ describe('table view', () => {
 
     expect(body).toContain('<table aria-rowcount="345"');
     expect(body).toContain('Rows 101 to 104 of 344');
-    expect(body).toMatch(/<tr aria-rowindex="1"/);
-    expect(body).toMatch(/<tr aria-rowindex="102"[^>]*><th scope="row">100</);
-    expect(body).toMatch(/<tr aria-rowindex="105"/);
+    expect(body).toMatch(/<tr [^>]*aria-rowindex="1"/);
+    expect(body).toMatch(
+      /<tr [^>]*aria-rowindex="102"[^>]*><th scope="row"[^>]*>100</,
+    );
+    expect(body).toMatch(/<tr [^>]*aria-rowindex="105"/);
   });
 
   it('puts the target in the last column, as label cells, not as data', async () => {
     const body = show(await studioWith([STATE]));
-    const headers = [...body.matchAll(/<th scope="col">([^<]*)</g)].map(
+    const headers = [...body.matchAll(/<th scope="col"[^>]*>([^<]*)</g)].map(
       (match) => match[1],
     );
 
@@ -105,7 +107,7 @@ describe('table view', () => {
   it('leaves a missing value empty', async () => {
     const body = show(await studioWith([STATE]));
 
-    expect(body).toMatch(/<td>Dream<\/td>\s*<td><\/td>/);
+    expect(body).toMatch(/<td[^>]*>Dream<\/td>\s*<td[^>]*><\/td>/);
   });
 
   it('tells all four label states apart in text', async () => {
@@ -129,7 +131,7 @@ describe('table view', () => {
 
   it('makes only the first label cell a tab stop', async () => {
     const body = show(await studioWith([STATE]));
-    const stops = [...body.matchAll(/tabindex="(-?\d)"/g)].map(
+    const stops = [...body.matchAll(/<button[^>]*tabindex="(-?\d)"/g)].map(
       (match) => match[1],
     );
 
@@ -151,8 +153,8 @@ describe('table view', () => {
     const body = show(await studioWith([{ ...STATE, target: null }]));
 
     expect(body).toContain('Choose a target column to start labelling.');
-    expect(body).toContain('<th scope="col">species</th>');
-    expect(body).not.toContain('<button type="button" tabindex');
+    expect(body).toMatch(/<th scope="col"[^>]*>species<\/th>/);
+    expect(body).not.toMatch(/<button[^>]*tabindex/);
   });
 
   it('shows refit progress, indeterminate until the row count is known', async () => {
@@ -170,13 +172,9 @@ describe('table view', () => {
     const firstPage = show(await studioWith([STATE], { ...PAGE, page: 0 }));
     const lastPage = show(await studioWith([STATE], { ...PAGE, page: 3 }));
 
-    expect(firstPage).toMatch(
-      /<button type="button" disabled[^>]*>\s*Previous page/,
-    );
+    expect(firstPage).toMatch(/<button[^>]*disabled[^>]*>\s*Previous page/);
     expect(firstPage).not.toMatch(/disabled[^>]*>\s*Next page/);
-    expect(lastPage).toMatch(
-      /<button type="button" disabled[^>]*>\s*Next page/,
-    );
+    expect(lastPage).toMatch(/<button[^>]*disabled[^>]*>\s*Next page/);
   });
 
   it('renders no table until a page arrives', async () => {
