@@ -80,6 +80,7 @@ describe('evaluation mode', () => {
     const sent: [number, LabelInput][] = [];
     const studio = await studioOn({
       nextEvalRow: () => Promise.resolve(served.shift() ?? null),
+      state: () => Promise.resolve({ ...STATE, eval_count: sent.length }),
       setLabel: (rowId, input) => {
         sent.push([rowId, input]);
         return Promise.resolve({ ...STATE, eval_count: sent.length });

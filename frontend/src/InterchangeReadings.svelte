@@ -12,7 +12,6 @@
     table,
     rule,
     classes,
-    decimals,
     listed,
     thin,
     sparse,
@@ -28,7 +27,6 @@
     table: WholeTable | null;
     rule: Distilled | null;
     classes: readonly string[];
-    decimals: ReadonlyMap<string, number>;
     listed: ShownSuspect[];
     thin: ShownSuspect[];
     sparse: ReadonlyMap<number, string>;
@@ -76,7 +74,7 @@
       {@const doubt = doubts.find((d) => d.row === s.row_id)}
       {@const route =
         phone && rule !== null
-          ? routeOf(rule.leaf_summary, s.row_id, decimals)
+          ? routeOf(rule.leaf_summary, s.row_id, studio.ruleDecimals)
           : null}
       <li
         class="doubt"

@@ -87,6 +87,10 @@ select {
   white-space: nowrap;
 }
 
+.runtime-short {
+  display: none;
+}
+
 .facts {
   display: flex;
   align-items: center;
@@ -559,6 +563,18 @@ progress:indeterminate {
   .appbar {
     padding: 0 var(--space-4);
     gap: var(--space-3);
+  }
+  .runtime-name {
+    flex: 0 1 auto;
+  }
+  .runtime-full {
+    display: none;
+  }
+  .runtime-short {
+    display: inline;
+  }
+  .facts {
+    flex: 1 1 auto;
   }
   .facts .quiet,
   .facts .state,

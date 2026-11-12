@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { optionAfter, tableCommand } from './labelling';
 
   interface Props {
@@ -34,6 +34,15 @@
   onMount(() => {
     active = Math.max(current === null ? 0 : classes.indexOf(current), 0);
     list?.focus();
+  });
+
+  $effect(() => {
+    const index = active;
+    void tick().then(() => {
+      list
+        ?.querySelector(`[data-index="${String(index)}"]`)
+        ?.scrollIntoView({ block: 'nearest' });
+    });
   });
 
   function pick(index: number): void {
@@ -101,3 +110,13 @@
     </li>
   {/each}
 </ul>
+
+<style>
+  li[aria-selected='true'] {
+    background: var(--ink);
+    color: var(--on-ink);
+    outline: 2px solid var(--ink);
+    outline-offset: -2px;
+    font-weight: 700;
+  }
+</style>
