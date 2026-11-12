@@ -2,6 +2,20 @@ import type { ByRow, Suspect } from './backend/types';
 
 /** A short list to work through; the rest are more plausible than these. */
 export const SUSPECTS_SHOWN = 10;
+// Each held-out fold needs every class; mirrors core/audit.py AUDIT_FOLDS.
+export const AUDIT_FOLDS = 5;
+
+export function missingAuditLabels(
+  classes: readonly string[],
+  human: ByRow<string>,
+): [string, number][] {
+  const labels = Object.values(human);
+  return classes.flatMap((label) => {
+    const missing =
+      AUDIT_FOLDS - labels.filter((value) => value === label).length;
+    return missing > 0 ? [[label, missing] as [string, number]] : [];
+  });
+}
 
 /** `open` still carries the flagged label; `stet` was let stand; `fixed` was relabelled. */
 export type SuspectState = 'open' | 'stet' | 'fixed';

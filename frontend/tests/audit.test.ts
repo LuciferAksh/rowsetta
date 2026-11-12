@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { shownSuspects } from '../src/audit';
+import { missingAuditLabels, shownSuspects } from '../src/audit';
 import type { Suspect } from '../src/backend/types';
 
 const SUSPECTS: readonly Suspect[] = [
@@ -7,6 +7,30 @@ const SUSPECTS: readonly Suspect[] = [
   { row_id: 3, given: 'a', given_probability: 0.05, likely: 'b' },
   { row_id: 9, given: 'b', given_probability: 0.2, likely: 'a' },
 ];
+
+it('requires five human labels per class rather than ten total', () => {
+  const human = Object.fromEntries(
+    ['a', 'a', 'a', 'a', 'b', 'b', 'b', 'c', 'c', 'c'].map((label, row) => [
+      row,
+      label,
+    ]),
+  );
+  expect(missingAuditLabels(['a', 'b', 'c'], human)).toEqual([
+    ['a', 1],
+    ['b', 2],
+    ['c', 2],
+  ]);
+  expect(
+    missingAuditLabels(['a', 'b', 'c'], {
+      ...human,
+      '10': 'a',
+      '11': 'b',
+      '12': 'b',
+      '13': 'c',
+      '14': 'c',
+    }),
+  ).toEqual([]);
+});
 
 describe('shown suspects', () => {
   it('ranks by plausibility and reads each row as open, stet or fixed', () => {

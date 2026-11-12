@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { E2E_TOKEN } from './session';
+import { E2E_TOKEN, openSetup } from './session';
 
 test('long target headers wrap and do not cover the submit button', async ({
   page,
@@ -24,6 +24,8 @@ test('long target headers wrap and do not cover the submit button', async ({
     ).toBeVisible();
   }
   await page.getByRole('button', { name: 'Use its values as labels' }).click();
+  await expect(page.locator('details.setup')).not.toHaveAttribute('open');
+  await openSetup(page);
   await expect(
     page.getByRole('main').getByText(`Target: ${header}`, { exact: false }),
   ).toBeVisible();

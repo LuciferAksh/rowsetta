@@ -6,6 +6,7 @@ import {
   labelByKeyboard,
   labelCells,
   openPenguins,
+  openSetup,
 } from './session';
 
 const BANK_LEAK = fileURLToPath(
@@ -35,6 +36,7 @@ test.describe('table and target', () => {
     page,
   }) => {
     await openPenguins(page);
+    await openSetup(page);
 
     await expect(
       page.getByText(
@@ -47,6 +49,7 @@ test.describe('table and target', () => {
     page,
   }) => {
     await openPenguins(page);
+    await openSetup(page);
     await page.getByLabel('Choose or drop a CSV file').setInputFiles(BANK_LEAK);
     await expect(page.getByText('Opened bank_leak.csv.')).toBeVisible();
     await expect(page.getByRole('table')).toContainText('of 5000');
@@ -76,10 +79,13 @@ test.describe('table and target', () => {
     page,
   }) => {
     const cells = await openPenguins(page);
+    await openSetup(page);
 
     await page.getByLabel('New target name').fill('urgent');
     await page.getByLabel('Classes, separated by commas').fill('yes, no');
     await page.getByRole('button', { name: 'Create target' }).click();
+    await expect(page.locator('details.setup')).not.toHaveAttribute('open');
+    await openSetup(page);
 
     await expect(
       page.getByText('Target: urgent (yes, no). 0 human labels.'),
@@ -97,12 +103,15 @@ test.describe('table and target', () => {
     page,
   }) => {
     const cells = await openPenguins(page);
+    await openSetup(page);
 
     await page.getByRole('radio', { name: /^species\b/ }).check();
     await page
       .getByRole('button', { name: 'Use its values as labels' })
       .click();
 
+    await expect(page.locator('details.setup')).not.toHaveAttribute('open');
+    await openSetup(page);
     await expect(
       page.getByText(
         'Took the labels from species; 0 rows with no value stay unlabelled.',
@@ -115,6 +124,8 @@ test.describe('table and target', () => {
       .getByRole('button', { name: 'Clear all and teach from scratch' })
       .click();
 
+    await expect(page.locator('details.setup')).not.toHaveAttribute('open');
+    await openSetup(page);
     await expect(cells.first()).toHaveText('Unlabelled');
     await expect(page.getByText('0 human labels.')).toBeVisible();
   });

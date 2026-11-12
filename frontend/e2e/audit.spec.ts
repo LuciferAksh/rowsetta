@@ -1,8 +1,9 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { openPenguins } from './session';
+import { openPenguins, openSetup } from './session';
 
 async function labelSpeciesWithOneWrong(page: Page): Promise<Locator> {
   const cells = await openPenguins(page);
+  await openSetup(page);
   await page.getByRole('radio', { name: /^species\b/ }).check();
   await page.getByRole('button', { name: 'Use its values as labels' }).click();
   await expect(cells.first()).toHaveText('Labelled Adelie');
