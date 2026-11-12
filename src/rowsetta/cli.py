@@ -24,6 +24,7 @@ from rowsetta.headless import export_session
 
 DATASETS = Path(__file__).parent / "datasets"
 DEMOS = ("penguins", "bank", "adult")
+MAX_PORT = 65535
 
 
 def main() -> None:
@@ -44,6 +45,17 @@ def main() -> None:
     except UserError as error:
         sys.stderr.write(f"error: {error.what}\nNext: {error.next_step}\n")
         raise SystemExit(1) from error
+
+
+def _port(value: str) -> int:
+    message = "must be an integer in 1..65535"
+    try:
+        port = int(value)
+    except ValueError as error:
+        raise ArgumentTypeError(message) from error
+    if not 1 <= port <= MAX_PORT:
+        raise ArgumentTypeError(message)
+    return port
 
 
 def _parser() -> ArgumentParser:
@@ -67,7 +79,7 @@ def _parser() -> ArgumentParser:
     demo.add_argument("name", nargs="?", choices=DEMOS, default="penguins")
     for command in (open_csv, demo):
         command.add_argument("--host", default="127.0.0.1")
-        command.add_argument("--port", type=int, default=8787)
+        command.add_argument("--port", type=_port, default=8787)
         command.add_argument("--no-browser", action="store_true")
         command.add_argument(
             "--offline",

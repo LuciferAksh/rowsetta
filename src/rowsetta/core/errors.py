@@ -100,11 +100,25 @@ class BadCsvError(UserError):
         self.reason = reason
         self.line_number = line_number
         self.file_name = file_name
+        if reason == "Invalid UTF-8 encoding":
+            next_step = (
+                f"{shlex.join(['iconv', '-f', 'WINDOWS-1252', '-t', 'UTF-8', file_name])} "
+                f"> {shlex.quote(file_name + '.utf8.csv')} && "
+                f"{shlex.join(['rowsetta', 'open', file_name + '.utf8.csv'])}"
+            )
+        else:
+            repair = (
+                "Add at least one data row beneath the header"
+                if reason == "A CSV needs a header and at least one data row"
+                else f"Fix the fields or quoting near line {line_number}"
+            )
+            next_step = (
+                f"{repair}, re-export as CSV, then run "
+                f"{shlex.join(['rowsetta', 'open', file_name])}."
+            )
         super().__init__(
             f"Could not read `{file_name}`: {reason} (line {line_number}).",
-            f"{shlex.join(['iconv', '-f', 'WINDOWS-1252', '-t', 'UTF-8', file_name])} "
-            f"> {shlex.quote(file_name + '.utf8.csv')} && "
-            f"{shlex.join(['rowsetta', 'open', file_name + '.utf8.csv'])}",
+            next_step,
         )
 
 

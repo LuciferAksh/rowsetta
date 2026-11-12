@@ -67,6 +67,9 @@ def test_cli_recovery_starts_with_a_named_command(error: UserError) -> None:
     if isinstance(error, NotServed):
         assert error.next_step == "Press e and label the row shown"
         return
+    if isinstance(error, BadCsvError):
+        assert "re-export" in error.next_step
+        return
     assert error.next_step.startswith(("rowsetta ", "uvx ", "make ", "iconv "))
 
 
@@ -116,3 +119,17 @@ def test_bad_csv_recovery_opens_the_converted_file() -> None:
         file_name + ".utf8.csv",
     ]
     assert shlex.split(reopen) == ["rowsetta", "open", file_name + ".utf8.csv"]
+
+
+@pytest.mark.parametrize(
+    ("reason", "advice"),
+    [
+        ("A CSV needs a header and at least one data row", "Add at least one data row"),
+        ("Data rows have more fields than the header", "Fix the fields or quoting"),
+    ],
+)
+def test_non_encoding_csv_errors_offer_data_repairs(reason: str, advice: str) -> None:
+    error = BadCsvError(reason, 1)
+    assert advice in error.next_step
+    assert "rowsetta open data.csv" in error.next_step
+    assert "iconv" not in error.next_step

@@ -2,6 +2,7 @@ import errno
 import hashlib
 import io
 import shutil
+import socket
 import subprocess
 import sys
 from functools import partial
@@ -201,7 +202,9 @@ def launch_demo(hub: FakeHub, monkeypatch: pytest.MonkeyPatch, home: Path) -> li
     served: list[object] = []
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.delenv("ROWSETTA_TEACHER", raising=False)
-    monkeypatch.setattr(sys, "argv", ["rowsetta", *RETRY.split()[1:], "--port", "0"])
+    with socket.create_server(("127.0.0.1", 0)) as available:
+        port = available.getsockname()[1]
+    monkeypatch.setattr(sys, "argv", ["rowsetta", *RETRY.split()[1:], "--port", str(port)])
     monkeypatch.setattr(cli, "fetch_checkpoint", partial(fetch_checkpoint, hub=hub))
     monkeypatch.setattr(cli, "local_teacher", FakeTeacher)
 

@@ -3,6 +3,7 @@ import os
 import socket
 import subprocess
 import sys
+from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
 import pytest
@@ -92,6 +93,32 @@ def test_invalid_options_are_usage_errors(args: tuple[str, ...]) -> None:
 
     assert result.returncode == 2
     assert "usage: rowsetta" in result.stderr
+
+
+@pytest.mark.parametrize("port", ["0", "-1", "65536", "not-a-port"])
+@pytest.mark.parametrize("command", [("demo",), ("open", "data.csv")])
+def test_invalid_ports_fail_during_argument_parsing(port: str, command: tuple[str, ...]) -> None:
+    result = run_cli(*command, "--port", port)
+
+    assert result.returncode == 2
+    assert result.stdout == ""
+    assert result.stderr.splitlines()[-1].endswith(
+        "argument --port: must be an integer in 1..65535"
+    )
+    assert "Traceback" not in result.stderr
+
+
+@pytest.mark.parametrize("port", ["1", "65535"])
+def test_port_bounds_are_accepted(port: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, "argv", ["rowsetta", "demo", "--port", port])
+    seen: list[int] = []
+
+    def serve(_parser: ArgumentParser, args: Namespace) -> None:
+        seen.append(args.port)
+
+    monkeypatch.setattr(cli, "_serve", serve)
+    cli.main()
+    assert seen == [int(port)]
 
 
 def test_export_writes_verified_sql_for_the_saved_session() -> None:
