@@ -236,8 +236,8 @@ def run_browser(url: str, *, no_budget: bool, runs: int = 5, path: str = "both")
             "download_mbit_s": 50,
             "latency_ms": 40,
             "dirty_tree": bool(
-                subprocess.check_output(
-                    ["/usr/bin/git", "status", "--porcelain"], cwd=ROOT, text=True
+                subprocess.check_output(  # noqa: S603 -- Fixed local command.
+                    [shutil.which("git") or "git", "status", "--porcelain"], cwd=ROOT, text=True
                 ).strip()
             ),
             "browser_harness_sha256": hashlib.sha256(

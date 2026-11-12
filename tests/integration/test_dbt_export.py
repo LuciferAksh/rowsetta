@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import subprocess
 from dataclasses import replace
 from pathlib import Path
@@ -112,8 +113,7 @@ def test_dbt_build_penguins_and_coverage_drift(tmp_path: Path, *, quoted_labels:
 def dbt_build(project: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [
-            "/usr/bin/env",
-            "uv",
+            shutil.which("uv") or "uv",
             "run",
             "--locked",
             "dbt",

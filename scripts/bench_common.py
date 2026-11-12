@@ -6,6 +6,7 @@ import io
 import json
 import os
 import platform
+import shutil
 import subprocess
 from collections.abc import Mapping
 from dataclasses import asdict
@@ -118,8 +119,8 @@ def publish(name: str, section: Section, **extra: JsonValue) -> None:
 
 def provenance(script: str, seconds: float, settings: Mapping[str, object]) -> Section:
     """Record executable, revision, runtime and settings alongside measurements."""
-    revision = subprocess.check_output(
-        ["/usr/bin/git", "rev-parse", "HEAD"], cwd=ROOT, text=True
+    revision = subprocess.check_output(  # noqa: S603 -- Fixed local command.
+        [shutil.which("git") or "git", "rev-parse", "HEAD"], cwd=ROOT, text=True
     ).strip()
     return Section(
         script=script,
