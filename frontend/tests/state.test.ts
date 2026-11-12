@@ -417,3 +417,117 @@ describe('table pages', () => {
     expect(studio.problem).toEqual(REJECTED.body);
   });
 });
+
+describe('workspace request isolation', () => {
+  const page: TablePage = {
+    rows: [{ x: 1 }],
+    row_ids: [0],
+    columns: [],
+    total: 1,
+    source_rows: 1,
+    page: 0,
+    size: 100,
+  };
+
+  it('keeps the entire previous view after a rejected upload or target', async () => {
+    const studio = new Studio(
+      fakeBackend([], {
+        uploadCsv: () => Promise.reject(REJECTED),
+        setTarget: () => Promise.reject(REJECTED),
+      }).backend,
+    );
+    await studio.apply(Promise.resolve(at(2)));
+    studio.fileName = 'previous.csv';
+    studio.page = page;
+    studio.rowCount = 1;
+    studio.suspects = [];
+    studio.kept = new Set([0]);
+    await studio.upload(new File(['x\n'], 'invalid.csv'));
+    expect(studio.fileName).toBe('previous.csv');
+    expect(studio.page).toBe(page);
+    expect(studio.rowCount).toBe(1);
+    expect(studio.suspects).toEqual([]);
+    expect(studio.kept.has(0)).toBe(true);
+    await studio.chooseTarget({ target: 'invalid', classes: ['a', 'b'] });
+    expect(studio.kept.has(0)).toBe(true);
+    expect(studio.workspace).toEqual(at(2));
+  });
+
+  it.each(['upload', 'target', 'generation'] as const)(
+    'discards late audit, rule, export and page results after %s',
+    async (change) => {
+      const suspects = pending<import('../src/backend/types').Suspect[]>();
+      const leaks = pending<import('../src/backend/types').LeakHint[]>();
+      const rule = pending<import('../src/backend/types').Distilled>();
+      const artifact = pending<import('../src/backend/types').ExportArtifact>();
+      const oldPage = pending<TablePage>();
+      let pages = 0;
+      const studio = new Studio(
+        fakeBackend([], {
+          suspects: () => suspects.promise,
+          audit: () => leaks.promise,
+          distill: () => rule.promise,
+          exportRule: () => artifact.promise,
+          tablePage: () =>
+            ++pages === 1 ? oldPage.promise : Promise.resolve(page),
+          uploadCsv: () => Promise.resolve({ ...at(3), target: null }),
+          setTarget: () => Promise.resolve({ ...at(3), target: 'new' }),
+        }).backend,
+      );
+      await studio.apply(Promise.resolve(at(2)));
+      const requests = [
+        studio.checkLabels(),
+        studio.checkLeaks(),
+        studio.showRule(),
+        studio.showExport({ format: 'sql', dialect: 'duckdb' }),
+        studio.showPage(0),
+      ];
+      if (change === 'upload')
+        await studio.upload(new File(['x\n1\n'], 'new.csv'));
+      else if (change === 'target')
+        await studio.chooseTarget({ target: 'new', classes: ['a', 'b'] });
+      else await studio.apply(Promise.resolve(at(3)));
+      suspects.resolve([
+        { row_id: 271, given: 'a', likely: 'b', given_probability: 0 },
+      ]);
+      leaks.resolve([]);
+      rule.resolve({ generation: 2, leaf_summary: [], disagreements: [271] });
+      artifact.resolve({ format: 'sql', text: '-- old dataset\nSELECT 1;' });
+      oldPage.resolve({ ...page, row_ids: [271] });
+      await Promise.all(requests);
+      expect(studio.suspects).toBeNull();
+      expect(studio.rule).toBeNull();
+      expect(studio.exported).toBeNull();
+      expect(studio.certificate).toEqual([]);
+      expect(studio.page?.row_ids ?? []).not.toContain(271);
+    },
+  );
+});
+
+it('replaces an in-flight whole-table read after a successful upload', async () => {
+  const old = pending<TablePage>();
+  let reads = 0;
+  const newPage: TablePage = {
+    rows: [{ x: 12 }],
+    row_ids: [0],
+    columns: [],
+    total: 1,
+    source_rows: 1,
+    page: 0,
+    size: 100,
+  };
+  const studio = new Studio(
+    fakeBackend([], {
+      tablePage: () => (++reads === 1 ? old.promise : Promise.resolve(newPage)),
+      uploadCsv: () => Promise.resolve({ ...at(3), target: null }),
+    }).backend,
+  );
+  await studio.apply(Promise.resolve(at(2)));
+  const whole = studio.wholeTable();
+  await studio.upload(new File(['x\n12\n'], 'new.csv'));
+  old.resolve({ ...newPage, row_ids: [271], rows: [{ x: 999 }] });
+  const result = await whole;
+  expect(result.rowIds).toEqual([0]);
+  expect(result.rows.get(0)).toEqual({ x: 12 });
+  expect(await studio.wholeTable()).toBe(result);
+});

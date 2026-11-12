@@ -65,17 +65,7 @@ def load_csv(
     if max_rows <= 0:
         message = "max_rows must be positive."
         raise ValueError(message)
-    try:
-        separator = _sniff_separator(data)
-        frame = pd.read_csv(io.BytesIO(data), sep=separator, encoding="utf-8-sig")
-    except UnicodeDecodeError as error:
-        line_number = error.object[: error.start].count(b"\n") + 1
-        reason = "Invalid UTF-8 encoding"
-        raise BadCsvError(reason, line_number) from error
-    except (pd.errors.ParserError, pd.errors.EmptyDataError) as error:
-        reason = str(error).strip()
-        raise BadCsvError(reason, _parser_line_number(reason)) from error
-
+    frame = _read_csv(data)
     if keep_columns is not None:
         unknown = tuple(name for name in keep_columns if name not in frame.columns)
         if unknown:
@@ -83,6 +73,9 @@ def load_csv(
         frame = frame.loc[:, list(dict.fromkeys(keep_columns))]
     if len(frame.columns) > MAX_COLS:
         raise TooManyColumnsError(tuple(frame.columns), MAX_COLS)
+    if frame.empty:
+        reason = "A CSV needs a header and at least one data row"
+        raise BadCsvError(reason, 1)
     # pandas otherwise interprets surplus fields on the first data row as an index.
     if not isinstance(frame.index, pd.RangeIndex):
         reason = "Data rows have more fields than the header"
@@ -92,6 +85,24 @@ def load_csv(
         frame = frame.sample(n=max_rows, random_state=SAMPLE_SEED).sort_index()
     columns = tuple(_infer_column(frame, name) for name in frame.columns)
     return Table(frame=frame, columns=columns, source_rows=source_rows)
+
+
+def _read_csv(data: bytes) -> pd.DataFrame:
+    try:
+        separator = _sniff_separator(data)
+        frame = pd.read_csv(io.BytesIO(data), sep=separator, encoding="utf-8-sig")
+    except UnicodeDecodeError as error:
+        line_number = error.object[: error.start].count(b"\n") + 1
+        reason = "Invalid UTF-8 encoding"
+        raise BadCsvError(reason, line_number) from error
+    except pd.errors.EmptyDataError as error:
+        reason = "A CSV needs a header and at least one data row"
+        raise BadCsvError(reason, 1) from error
+    except pd.errors.ParserError as error:
+        reason = str(error).strip()
+        raise BadCsvError(reason, _parser_line_number(reason)) from error
+
+    return frame
 
 
 def _sniff_separator(data: bytes) -> str:

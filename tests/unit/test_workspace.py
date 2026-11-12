@@ -1,6 +1,6 @@
 import pytest
 
-from rowsetta.core.errors import NeedLabelsError, WorkspaceError
+from rowsetta.core.errors import BadCsvError, NeedLabelsError, WorkspaceError
 from rowsetta.core.session import LabelStore
 from rowsetta.core.teacher import predict_table
 from rowsetta.core.workspace import DEFAULT_THRESHOLD, Workspace
@@ -120,3 +120,19 @@ def test_raw_evaluation_is_independent_of_abstention(workspace: Workspace) -> No
     assert workspace.evaluation() == original
     proposals = workspace.require_proposals()
     assert proposals.abstained
+
+
+@pytest.mark.parametrize("data", [b"", b"x,answer\n", b"\n\n"])
+def test_empty_upload_keeps_the_previous_workspace(workspace: Workspace, data: bytes) -> None:
+    table, store, source, generation = (
+        workspace.table,
+        workspace.store,
+        workspace.source,
+        workspace.generation,
+    )
+    with pytest.raises(BadCsvError, match="at least one data row"):
+        workspace.load(data, "empty.csv", max_rows=40)
+    assert workspace.table is table
+    assert workspace.store is store
+    assert workspace.source is source
+    assert workspace.generation == generation

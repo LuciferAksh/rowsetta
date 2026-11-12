@@ -28,8 +28,8 @@ class FrontendMissingError(ApiError):
 
     def __init__(self) -> None:
         super().__init__(
-            "frontend not built; run make build",
-            "make build",
+            "frontend not built; run make setup",
+            "make setup",
             status_code=503,
         )
 

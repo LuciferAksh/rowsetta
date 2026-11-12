@@ -190,12 +190,10 @@ def test_fifty_distinct_values_are_categorical_even_when_they_are_dates() -> Non
 
 
 def test_header_only_and_single_column_files() -> None:
-    empty = load_csv(b"a,b\n")
+    with pytest.raises(BadCsvError, match="at least one data row"):
+        load_csv(b"a,b\n")
     single = load_csv(b'value\n"a,b"\n"c;d"\n')
 
-    assert empty.frame.shape == (0, 2)
-    assert empty.source_rows == 0
-    assert all(info.distinct_ratio == info.missing_ratio == 0 for info in empty.columns)
     assert single.frame["value"].tolist() == ["a,b", "c;d"]
 
 
@@ -252,6 +250,10 @@ def mixed_frames(draw: st.DrawFn) -> pd.DataFrame:
 @settings(derandomize=True)
 @given(frame=mixed_frames())
 def test_mixed_dataframe_csv_round_trip_preserves_shape(frame: pd.DataFrame) -> None:
+    if frame.empty:
+        with pytest.raises(BadCsvError, match="at least one data row"):
+            load_csv(frame.to_csv(index=False).encode())
+        return
     table = load_csv(frame.to_csv(index=False).encode())
 
     assert table.frame.shape == frame.shape

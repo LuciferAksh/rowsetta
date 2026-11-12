@@ -22,7 +22,7 @@ async def penguins_flow(client: httpx.AsyncClient) -> None:
     await authenticate(client)
     missing_frontend = await client.get("/")
     assert missing_frontend.status_code == 503
-    assert body(missing_frontend)["next_step"] == "make build"
+    assert body(missing_frontend)["next_step"] == "make setup"
     truth = await load_penguins(client)
     need_labels = await client.post("/distill", json={"max_depth": 4})
     assert need_labels.status_code == 409
@@ -249,3 +249,36 @@ def test_suspects_rank_an_existing_label_column_out_of_fold(tmp_path: Path) -> N
             assert suspects[0] == suspects[0] | {"row_id": 0, "given": "Gentoo", "likely": "Adelie"}
 
     asyncio.run(run())
+
+
+@pytest.mark.parametrize("data", [b"", b"x,answer\n"])
+def test_empty_upload_does_not_replace_the_session(tmp_path: Path, data: bytes) -> None:
+    async def flow() -> None:
+        async with api(tmp_path) as (_, client):
+            await authenticate(client)
+            await load_penguins(client)
+            await client.put("/labels/0", json={"label": "Adelie"})
+            before = body(await client.get("/state"))
+            response = await client.post("/table", files={"file": ("empty.csv", data, "text/csv")})
+            assert response.status_code == 400
+            assert "at least one data row" in str(body(response)["error"])
+            assert body(await client.get("/state")) == before
+            assert body(await client.get("/table"))["total"] == 344
+
+    asyncio.run(flow())
+
+
+def test_dbt_target_validation_precedes_missing_fit(tmp_path: Path) -> None:
+    async def flow() -> None:
+        async with api(tmp_path) as (_, client):
+            await authenticate(client)
+            await load_penguins(client)
+            await client.post("/target", json={"target": "Risk category", "classes": ["a", "b"]})
+            before = body(await client.get("/state"))
+            response = await client.get("/export?format=dbt")
+            assert response.status_code == 422
+            assert "dbt identifier" in str(body(response)["error"])
+            assert "SQL, Python or JSON" in str(body(response)["next_step"])
+            assert body(await client.get("/state")) == before
+
+    asyncio.run(flow())

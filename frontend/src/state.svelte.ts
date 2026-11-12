@@ -106,6 +106,7 @@ export class Studio {
   ruleDepth = $state.raw(DEFAULT_RULE_DEPTH);
 
   readonly #backend: Backend;
+  #context = 0;
   #requestedPage = 0;
   #unfilteredPage = 0;
   #wholeTable: Promise<WholeTable> | null = null;
@@ -123,10 +124,14 @@ export class Studio {
 
   /** Show the state a request returns, unless a newer one has already arrived. */
   apply(request: Promise<WorkspaceState>): Promise<void> {
-    return this.#settle(request, (next) => {
-      const current = this.workspace;
-      if (current === null || !isOlder(next, current)) this.#show(next);
-    });
+    return this.#settle(
+      request,
+      (next) => {
+        const current = this.workspace;
+        if (current === null || !isOlder(next, current)) this.#show(next);
+      },
+      false,
+    );
   }
 
   refresh(): Promise<void> {
@@ -144,8 +149,9 @@ export class Studio {
       return;
     }
     if (rowId !== mode.row || label === null) return;
+    const context = this.#context;
     await this.apply(this.#backend.setLabel(rowId, { label, mode: 'eval' }));
-    if (this.problem === null) await this.#serve();
+    if (context === this.#context && this.problem === null) await this.#serve();
   }
 
   undo(): Promise<void> {
@@ -154,15 +160,34 @@ export class Studio {
 
   /** Replace the table; the server keeps a saved session for these exact bytes. */
   async upload(file: File): Promise<void> {
-    this.#forgetTable();
-    this.fileName = file.name;
-    await this.apply(this.#backend.uploadCsv(file));
-    if (this.problem === null) await this.showPage(0);
+    const context = ++this.#context;
+    await this.#settle(
+      this.#backend.uploadCsv(file),
+      (next) => {
+        this.#forgetTable();
+        this.page = null;
+        this.proposals = NO_PROPOSALS;
+        this.fileName = file.name;
+        this.#show(next);
+      },
+      false,
+    );
+    if (context === this.#context && this.problem === null)
+      await this.showPage(0);
   }
 
   async chooseTarget(input: TargetInput): Promise<void> {
-    this.#forgetLabels();
-    await this.apply(this.#backend.setTarget(input));
+    ++this.#context;
+    await this.#settle(
+      this.#backend.setTarget(input),
+      (next) => {
+        this.#wholeTable = null;
+        this.proposals = NO_PROPOSALS;
+        this.#show(next);
+        this.#forgetLabels();
+      },
+      false,
+    );
   }
 
   setThreshold(threshold: number): Promise<void> {
@@ -185,10 +210,19 @@ export class Studio {
 
   /** Fit the rule at a depth, then export it in the chosen format with its certificate. */
   async exportRule(maxDepth: number): Promise<void> {
+    const context = this.#context;
+    const workspace = this.workspace;
     this.exported = null;
     this.certificate = [];
     await this.showRule(maxDepth);
-    if (this.problem === null) await this.showExport(this.exportQuery);
+    if (
+      context === this.#context &&
+      workspace?.target === this.workspace?.target &&
+      workspace?.generation === this.workspace?.generation &&
+      this.problem === null
+    ) {
+      await this.showExport(this.exportQuery);
+    }
   }
 
   /** Show the fitted rule in another format or dialect. */
@@ -318,13 +352,15 @@ export class Studio {
   }
 
   #table(): Promise<WholeTable> {
-    this.#wholeTable ??= fetchWholeTable(this.#backend).catch(
-      (error: unknown) => {
-        this.#wholeTable = null;
+    if (this.#wholeTable !== null) return this.#wholeTable;
+    const request: Promise<WholeTable> = fetchWholeTable(this.#backend)
+      .then((table) => (this.#wholeTable === request ? table : this.#table()))
+      .catch((error: unknown) => {
+        if (this.#wholeTable === request) this.#wholeTable = null;
         throw error;
-      },
-    );
-    return this.#wholeTable;
+      });
+    this.#wholeTable = request;
+    return request;
   }
 
   #forgetLabels(): void {
@@ -361,14 +397,24 @@ export class Studio {
   async #settle<T>(
     request: Promise<T>,
     take: (value: T) => void | Promise<void>,
+    checkInputs = true,
   ): Promise<void> {
+    const context = this.#context;
+    const target = this.workspace?.target;
+    const generation = this.workspace?.generation;
+    const current = (): boolean =>
+      context === this.#context &&
+      (!checkInputs ||
+        (target === this.workspace?.target &&
+          generation === this.workspace?.generation));
     try {
       const value = await request;
+      if (!current()) return;
       this.problem = null;
       await take(value);
     } catch (error) {
       if (!(error instanceof BackendError)) throw error;
-      this.problem = error.body;
+      if (current()) this.problem = error.body;
     }
   }
 
@@ -376,6 +422,7 @@ export class Studio {
     switch (event.kind) {
       case 'connected':
         this.connection = 'live';
+        ++this.#context;
         this.#wholeTable = null;
         // A restarted server counts generations from zero again, so the
         // state after a reconnection replaces whatever was shown.
