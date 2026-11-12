@@ -169,3 +169,22 @@ def test_sessions_default_to_the_home_directory(
     monkeypatch.delenv("ROWSETTA_SESSIONS_DIR", raising=False)
     monkeypatch.setenv("HOME", str(tmp_path))
     assert SessionStorage().data_dir == tmp_path / ".rowsetta/sessions"
+
+
+@pytest.mark.parametrize("local", [False, True])
+def test_non_utf8_sidecar_preserves_bytes_and_names_recovery(
+    tmp_path: Path, *, local: bool
+) -> None:
+    path = tmp_path / "local.csv" if local else None
+    if path is not None:
+        path.write_bytes(DATA)
+    workspace = open_workspace(tmp_path, local_path=path)
+    workspace.set_target("target", ("a", "b"))
+    adjacent = path.with_suffix(".rowsetta.json") if path is not None else sidecar(tmp_path)
+    adjacent.write_bytes(b"\xff\xfe")
+    with pytest.raises(UserError) as caught:
+        open_workspace(tmp_path, local_path=path)
+    assert str(adjacent) in caught.value.what
+    assert "UTF-8" in caught.value.next_step
+    assert "rename" in caught.value.next_step.lower()
+    assert adjacent.read_bytes() == b"\xff\xfe"

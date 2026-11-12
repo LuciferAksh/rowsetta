@@ -33,6 +33,13 @@ class SessionStorage:
                 path.parent.mkdir(parents=True, exist_ok=True)
                 _atomic_write(path, data)
             store, notice = self._restore(sidecar, source)
+        except UnicodeDecodeError as error:
+            message = f"Could not read the session JSON at {sidecar}: invalid UTF-8."
+            raise UserError(
+                message,
+                "Restore a UTF-8 copy of the sidecar, or rename it to keep it "
+                "and reopen the CSV without saved labels.",
+            ) from error
         except (OSError, ValidationError) as error:
             message = f"Could not open the session beside {path}: {error}"
             raise UserError(
