@@ -38,6 +38,7 @@ def workspace_state(runtime: WorkspaceRuntime, *, dev_states: bool) -> Workspace
     evaluation = workspace.evaluation()
     return WorkspaceState(
         loaded=workspace.table is not None,
+        file_name=workspace.source.file_name if workspace.source is not None else None,
         notice=workspace.notice,
         target=store.target if store is not None else None,
         classes=list(store.classes) if store is not None else [],

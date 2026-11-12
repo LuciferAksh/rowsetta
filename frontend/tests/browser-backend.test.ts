@@ -6,6 +6,7 @@ import type { WorkspaceState } from '../src/backend/types';
 
 const initial: WorkspaceState = {
   loaded: true,
+  file_name: 'table.csv',
   notice: null,
   target: 'species',
   classes: ['a', 'b'],

@@ -12,6 +12,9 @@
   const target = $derived(workspace?.target ?? null);
   const humanCount = $derived(Object.keys(workspace?.human ?? {}).length);
   const columns = $derived(studio.page?.columns ?? []);
+  const validColumn = $derived(
+    columns.some((option) => option.name === column),
+  );
 
   let chosenFile = $state<string | null>(null);
   let column = $state<string | undefined>(undefined);
@@ -24,15 +27,18 @@
   async function open(files: FileList | null | undefined): Promise<void> {
     const file = files?.[0];
     if (file === undefined) return;
-    prefilled = null;
     await studio.upload(file);
-    if (studio.problem === null) chosenFile = file.name;
+    if (studio.problem === null) {
+      chosenFile = file.name;
+      column = undefined;
+      prefilled = null;
+    }
   }
 
   async function useColumn(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    const chosen = column ?? columns[0]?.name;
-    if (chosen === undefined) return;
+    const chosen = column;
+    if (chosen === undefined || !validColumn) return;
     await studio.chooseTarget({ target: chosen });
     const total = studio.rowCount;
     prefilled =
@@ -172,7 +178,9 @@
             </label>
           {/each}
         </fieldset>
-        <button type="submit" class="button">Use its values as labels</button>
+        <button type="submit" class="button" disabled={!validColumn}
+          >Use its values as labels</button
+        >
       </form>{/if}
 
     <form class="stack" onsubmit={createTarget}>

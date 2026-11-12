@@ -105,6 +105,7 @@ class WorkspaceState(OutputModel):
     """Labels, proposals and measurements, with reserved evaluation predictions removed."""
 
     loaded: bool
+    file_name: str | None = None
     notice: str | None
     target: str | None
     classes: list[str]

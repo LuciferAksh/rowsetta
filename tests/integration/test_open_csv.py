@@ -59,6 +59,7 @@ def test_open_loads_the_csv_and_keeps_only_the_selected_columns(tmp_path: Path) 
 
     async def run() -> None:
         async with opened(csv) as client:
+            assert body(await client.get("/state"))["file_name"] == "penguins.csv"
             table = body(await client.get("/table?size=1"))
             assert column_names(table) == ["species", "island", "sex"]
             assert table["source_rows"] == 344

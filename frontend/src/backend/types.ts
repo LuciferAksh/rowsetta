@@ -100,6 +100,7 @@ export interface Evaluation {
 
 export interface WorkspaceState {
   loaded: boolean;
+  file_name?: string | null;
   notice: string | null;
   target: string | null;
   classes: readonly string[];

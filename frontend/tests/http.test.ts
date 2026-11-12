@@ -7,6 +7,7 @@ import type {
 } from '../src/backend/types';
 
 const STATE: WorkspaceState = {
+  file_name: 'penguins.csv',
   loaded: true,
   notice: null,
   target: 'species',
@@ -92,6 +93,7 @@ describe('successful responses', () => {
     const empty: WorkspaceState = {
       ...STATE,
       loaded: false,
+      file_name: null,
       target: null,
       classes: [],
       human: {},

@@ -156,6 +156,9 @@ export function workspaceState(value: unknown, path: string): WorkspaceState {
   const read = reader(value, path);
   return {
     loaded: read('loaded', boolean),
+    file_name: read('file_name', (raw, at) =>
+      raw === undefined ? null : nullable(string)(raw, at),
+    ),
     notice: read('notice', nullable(string)),
     target: read('target', nullable(string)),
     classes: read('classes', arrayOf(string)),

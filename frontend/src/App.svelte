@@ -43,7 +43,9 @@
   {#if BROWSER}<span class="runtime-name">{runtimeLoading.model}</span>{/if}
   {#if workspace !== null && loaded}
     <p class="facts">
-      <span class="file">{studio.fileName ?? 'demo table'}</span>
+      <span class="file"
+        >{workspace.file_name ?? studio.fileName ?? 'loaded table'}</span
+      >
       {#if workspace.target !== null}
         <span>target: {workspace.target}</span>
       {/if}

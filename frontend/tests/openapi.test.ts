@@ -218,6 +218,7 @@ const responseBodies = {
   } satisfies FieldShapes<TablePage>,
   WorkspaceState: {
     loaded: { type: 'boolean', nullable: false, required: true },
+    file_name: { type: 'string', nullable: true, required: false },
     notice: { type: 'string', nullable: true, required: true },
     target: { type: 'string', nullable: true, required: true },
     classes: { type: 'array<string>', nullable: false, required: true },

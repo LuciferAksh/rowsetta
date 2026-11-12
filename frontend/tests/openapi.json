@@ -745,6 +745,17 @@
               }
             ]
           },
+          "file_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Name"
+          },
           "generation": {
             "title": "Generation",
             "type": "integer"

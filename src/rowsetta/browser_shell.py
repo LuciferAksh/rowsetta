@@ -90,6 +90,7 @@ class BrowserShell:
         evaluation = w.evaluation()
         return {
             "loaded": w.table is not None,
+            "file_name": w.source.file_name if w.source is not None else None,
             "notice": w.notice
             or "Browser labels live in memory and are lost when you reload or close this tab.",
             "target": store.target if store else None,
