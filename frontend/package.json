@@ -20,13 +20,15 @@
   },
   "dependencies": {
     "forecast-web": "file:vendor/forecast-web-1.0.0.tgz",
-    "svelte": "5.57.3"
+    "svelte": "5.57.3",
+    "three": "0.187.0"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",
     "@playwright/test": "1.64.1",
     "@sveltejs/vite-plugin-svelte": "7.3.1",
     "@types/node": "26.6.6",
+    "@types/three": "0.187.0",
     "eslint": "10.14.0",
     "eslint-plugin-svelte": "3.24.0",
     "markdownlint-cli2": "0.24.0",
