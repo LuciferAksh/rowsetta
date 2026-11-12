@@ -368,7 +368,7 @@ describe('export panel', () => {
     expect(body).toContain('Line 1:');
     for (const figure of FIGURES) expect(body).toContain(figure);
     expect(body).not.toContain('<li>Column ');
-    expect(body).toContain('<pre>-- rowsetta 0.1.0');
+    expect(body).toMatch(/<pre[^>]*>-- rowsetta 0\.1\.0/);
     expect(body).toContain('Copy SQL');
     expect(body).toContain('PostgreSQL');
   });

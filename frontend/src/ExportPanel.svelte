@@ -138,6 +138,10 @@
 </section>
 
 <style>
+  pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
   .controls {
     display: flex;
     flex-wrap: wrap;
