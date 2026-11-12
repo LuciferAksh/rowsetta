@@ -7,6 +7,8 @@ from pathlib import Path
 from urllib.request import urlopen
 from zipfile import ZIP_DEFLATED, ZipFile
 
+from mirror_onnx import stage
+
 from rowsetta.browser_shell import BrowserShell, browser_metadata
 from rowsetta.core.lite_teacher import LiteTeacher
 
@@ -41,10 +43,24 @@ def package_core() -> None:
         wheel.writestr(f"{metadata}/RECORD", "")
 
 
+def stage_teacher() -> None:
+    """Serve verified weights and ONNX Runtime from the same static origin."""
+    stage(PUBLIC / "weights")
+    ort = next(
+        (ROOT / "frontend/node_modules/.pnpm").glob(
+            "onnxruntime-web@*/node_modules/onnxruntime-web/dist"
+        )
+    )
+    (PUBLIC / "ort").mkdir(exist_ok=True)
+    for name in ("ort-wasm-simd-threaded.jsep.mjs", "ort-wasm-simd-threaded.jsep.wasm"):
+        shutil.copyfile(ort / name, PUBLIC / "ort" / name)
+
+
 def main() -> None:
     """Stage a self-contained runtime so visitor data never needs a remote service."""
     PUBLIC.mkdir(parents=True, exist_ok=True)
     package_core()
+    stage_teacher()
     runtime = ROOT / "frontend/node_modules/pyodide"
     lock = json.loads((runtime / "pyodide-lock.json").read_text())
     selected: set[str] = set()

@@ -15,24 +15,27 @@ FILES = {
     "onnx/model_fp16w.f16": "3378b112ed579a28c2b7d40991c7bfb5fecfab2e126e7c2edfe47799863173c4",
 }
 
+FP32 = {"onnx/model.onnx": "bbe7e2d3023f94fd4546545e57dac77bc2853b38de4f87638fc3d040d7833be0"}
 
-def stage(folder: Path) -> None:
+
+def stage(folder: Path, *, fp32: bool = False) -> None:
     """Verify cached and newly downloaded files against the reviewed archive pins."""
-    for name in ("config.json", "README.md", *FILES):
+    files = FILES | FP32 if fp32 else FILES
+    for name in ("config.json", "README.md", *files):
         path = folder / name
         path.parent.mkdir(parents=True, exist_ok=True)
         if not path.exists():
             with urlopen(f"https://huggingface.co/{REPO}/resolve/{REVISION}/{name}") as response:
                 data = response.read()
-            if name in FILES and hashlib.sha256(data).hexdigest() != FILES[name]:
+            if name in files and hashlib.sha256(data).hexdigest() != files[name]:
                 msg = f"Checksum mismatch: {name}"
                 raise ValueError(msg)
             path.write_bytes(data)
-        if name in FILES and hashlib.sha256(path.read_bytes()).hexdigest() != FILES[name]:
+        if name in files and hashlib.sha256(path.read_bytes()).hexdigest() != files[name]:
             msg = f"Checksum mismatch: {path}"
             raise ValueError(msg)
     config = json.loads((folder / "config.json").read_text())
-    for name, digest in FILES.items():
+    for name, digest in files.items():
         if config["files"][name]["sha256"] != digest:
             msg = f"Config does not preserve pin: {name}"
             raise ValueError(msg)
@@ -44,8 +47,11 @@ def main() -> None:
     cli = argparse.ArgumentParser(description=__doc__)
     cli.add_argument("--local", type=Path, required=True, help="local staging directory")
     cli.add_argument("--upload", metavar="OWNER/REPO", help="explicit owner-only mirror upload")
+    cli.add_argument(
+        "--fp32", action="store_true", help="also stage the pinned diagnostic fp32 graph"
+    )
     args = cli.parse_args()
-    stage(args.local)
+    stage(args.local, fp32=args.fp32)
     if args.upload:
         api = HfApi()
         api.create_repo(args.upload, exist_ok=True)

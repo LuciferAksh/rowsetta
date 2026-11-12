@@ -4,17 +4,14 @@ import argparse
 import importlib
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import numpy as np
+from parity_tensors import ParityClassifier, tensor_trace
 
 from rowsetta.core.features import teacher_frame
 from rowsetta.core.session import LabelStore, SourceRef
 from rowsetta.core.table import load_csv
 from rowsetta.teachers.checkpoint import checkpoint_path
-
-if TYPE_CHECKING:
-    from rowsetta.teachers.tabicl import Classifier
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -24,7 +21,11 @@ def main() -> None:
     cli = argparse.ArgumentParser(description=__doc__)
     cli.add_argument("--estimators", type=int, default=4)
     cli.add_argument("--output", type=Path, default=ROOT / "frontend/public/spike/golden.json")
+    cli.add_argument(
+        "--trace", action="store_true", help="write native tensor boundaries beside the golden"
+    )
     args = cli.parse_args()
+    traces: list[dict[str, object]] = []
     results: list[dict[str, object]] = []
     for name, target, count in (
         ("penguins", "species", 20),
@@ -54,7 +55,7 @@ def main() -> None:
                     y.index.difference(chosen).to_numpy(dtype=np.int64), remaining, replace=False
                 )
             )
-        model: Classifier = importlib.import_module("tabicl").TabICLClassifier(
+        model: ParityClassifier = importlib.import_module("tabicl").TabICLClassifier(
             n_estimators=args.estimators,
             kv_cache=True,
             device="cpu",
@@ -65,6 +66,8 @@ def main() -> None:
         )
         model.fit(x.loc[chosen], y.loc[chosen])
         probabilities = np.asarray(model.predict_proba(x))
+        if args.trace:
+            traces.append({"name": name, "traces": tensor_trace(model, x.loc[chosen], x)})
         # JSON null is the browser API's missing value; use pandas' JSON conversion.
         rows = json.loads(x.to_json(orient="values"))
         results.append(
@@ -79,6 +82,8 @@ def main() -> None:
         )
         print(f"{name}: {len(chosen)} labels, {len(x)} rows", flush=True)
     args.output.parent.mkdir(parents=True, exist_ok=True)
+    if args.trace:
+        args.output.with_name("native-tensors.json").write_text(json.dumps(traces))
     args.output.write_text(json.dumps({"estimators": args.estimators, "datasets": results}))
 
 

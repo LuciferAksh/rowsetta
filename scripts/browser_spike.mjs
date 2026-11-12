@@ -14,7 +14,9 @@ const browser = await chromium.launch({
 try {
   const page = await browser.newPage();
   page.on("pageerror", (error) => console.error(error.message));
-  await page.goto("http://127.0.0.1:5173/parity.html");
+  await page.goto(
+    `${process.env.PARITY_URL ?? "http://127.0.0.1:5173"}/parity.html`,
+  );
   await page.waitForFunction(() => typeof window.loadTeacher === "function");
   const result = await page.evaluate(async () => {
     const adapter = await navigator.gpu?.requestAdapter();
@@ -43,6 +45,15 @@ try {
         );
       };
       const probabilities = await predict(); // Warm-up is also the parity run.
+      if (
+        probabilities.length !== dataset.probabilities.length ||
+        probabilities.some(
+          (row) =>
+            row.length !== dataset.classes.length ||
+            !row.every(Number.isFinite),
+        )
+      )
+        throw new Error("Invalid probability shape or value");
       let maxDifference = 0,
         stableFlips = 0,
         nearTies = 0;
@@ -89,11 +100,17 @@ try {
       results,
     };
   });
+  result.browserVersion = browser.version();
   await writeFile(
     process.argv[2] ?? "/tmp/rowsetta-browser-spike.json",
     JSON.stringify(result, null, 2),
   );
   console.log(JSON.stringify(result, null, 2));
+  if (
+    process.argv.includes("--assert") &&
+    result.results.some((r) => r.maxDifference > 0.002 || r.stableFlips !== 0)
+  )
+    throw new Error("Browser parity gate failed");
 } finally {
   await browser.close();
 }
