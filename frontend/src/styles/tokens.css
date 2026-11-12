@@ -1,10 +1,26 @@
 /* Rowsetta tokens. Every text pair is checked by tests/tokens.contrast.test.ts. */
 @font-face {
-  font-family: 'TikTok Sans';
+  font-family: Ronzino;
   font-style: normal;
-  font-weight: 300 900;
+  font-weight: 400;
   font-display: swap;
-  src: url('../fonts/tiktok-sans-latin-wght-normal.woff2') format('woff2');
+  src: url('../fonts/Ronzino-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: Ronzino;
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../fonts/Ronzino-Medium.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: Ronzino;
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../fonts/Ronzino-Bold.woff2') format('woff2');
 }
 
 @font-face {
@@ -16,33 +32,27 @@
 }
 
 :root {
-  --ground: #edeef0;
+  /* A transit map's sheet: white, black type, one grey for what is said second. */
+  --ground: #ffffff;
   --sheet: #ffffff;
-  --sheet-quiet: #f6f7f8;
-  --ink: #14171c;
-  --ink-2: #4b525c;
-  --ink-3: #5c636d;
-  --line: #d3d6db;
-  /* Borders of controls and chips; at least 3:1 against both grounds. */
-  --edge: #7a818b;
-  /* The highlighter: a wash behind text, a bar at a row's edge, a ring on focus. */
-  --mark-wash: #ffd0e6;
-  --mark-fill: #ff2e93;
-  /* The marker stroke laid over a row; text stays dark on it, so it is not a text pair. */
-  --mark-stroke: #ffa9d2;
-  --mark-text: #b8005f;
+  --sheet-quiet: #f3f4f5;
+  --ink: #0d0d0d;
+  --ink-2: #4f5257;
+  --ink-3: #5d6066;
+  --line: #d6d8db;
+  /* Borders of controls; at least 3:1 against both grounds. */
+  --edge: #7a7d83;
   --on-ink: #ffffff;
-  --on-ink-quiet: #a9afb8;
-  --mark-on-ink: #ff5cab;
+  --on-ink-quiet: #b5b8bd;
 
-  --font-ui: 'TikTok Sans', ui-sans-serif, system-ui, sans-serif;
-  --font-data: 'Spline Sans Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-ui: Ronzino, 'Helvetica Neue', Arial, sans-serif;
+  --font-code: 'Spline Sans Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
   --step--1: 0.8125rem;
   --step-0: 0.9375rem;
   --step-1: 1.125rem;
   --step-2: 1.5rem;
-  --step-peak: clamp(3.25rem, 2.2rem + 3.4vw, 5.25rem);
+  --step-peak: clamp(2.25rem, 1.6rem + 1.9vw, 3.25rem);
 
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -51,7 +61,8 @@
   --space-5: 1.5rem;
   --space-6: 2.25rem;
 
-  --focus: 0 0 0 2px var(--sheet), 0 0 0 4px var(--ink);
-  --sweep-ms: 420ms;
-  --lift-ms: 180ms;
+  --rule: 3px solid var(--ink);
+  --ease-move: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --lift-ms: 160ms;
 }
