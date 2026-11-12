@@ -5,6 +5,7 @@ if __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import argparse
+import hashlib
 import json
 import os
 import platform
@@ -16,6 +17,7 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from http import HTTPStatus
 from http.cookiejar import CookieJar
+from statistics import median
 from time import perf_counter, sleep
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPCookieProcessor, ProxyHandler, Request, build_opener
@@ -34,6 +36,7 @@ BROWSER_COLD_BUDGET_SECONDS = 30
 BROWSER_WARM_BUDGET_SECONDS = 6
 PORT = 8787
 POLL_SECONDS = 0.2
+BROWSER_RUNS_JSON = ROOT / "docs/bench-data/browser-startup-runs.json"
 PENGUINS = ROOT / "src/rowsetta/datasets/penguins.csv"
 LABELS_PER_SPECIES = 2  # The fewest that start proposals.
 
@@ -136,9 +139,13 @@ def main() -> None:
     mode.add_argument("--local", metavar="SPEC", help="for example rowsetta@0.1.0")
     mode.add_argument("--browser", metavar="URL", help="built static demo URL")
     cli.add_argument("--no-budget", action="store_true", help="measure without asserting budgets")
+    cli.add_argument("--browser-runs", type=int, default=5, help="clean profiles per path")
+    cli.add_argument("--browser-path", choices=("both", "auto", "lite"), default="both")
     args = cli.parse_args()
     if args.browser:
-        run_browser(args.browser, no_budget=args.no_budget)
+        run_browser(
+            args.browser, no_budget=args.no_budget, runs=args.browser_runs, path=args.browser_path
+        )
         return
     with tempfile.TemporaryDirectory(prefix="rowsetta-cold-") as folder:
         caches = Path(folder)
@@ -169,7 +176,39 @@ def main() -> None:
         sys.exit(f"Over budget: cold {COLD_BUDGET_SECONDS} s, warm {WARM_BUDGET_SECONDS} s")
 
 
-def run_browser(url: str, *, no_budget: bool) -> None:
+def browser_summaries(values: list[dict[str, JsonValue]]) -> list[dict[str, JsonValue]]:
+    """Report each teacher and visit separately; budgets apply to the medians."""
+    summaries: list[dict[str, JsonValue]] = []
+    paths = sorted({(str(value["requested_path"]), str(value["path"])) for value in values})
+    for requested_path, path in paths:
+        for visit in ("cold", "warm"):
+            group = [
+                value
+                for value in values
+                if value["requested_path"] == requested_path
+                and value["path"] == path
+                and value["visit"] == visit
+            ]
+            if not group:
+                continue
+            summary: dict[str, JsonValue] = {
+                "requested_path": requested_path,
+                "path": path,
+                "visit": visit,
+                "runs": len(group),
+            }
+            for metric in ("table_seconds", "first_proposals_seconds"):
+                numbers = [value[metric] for value in group]
+                numeric = [value for value in numbers if isinstance(value, (int, float))]
+                if len(numeric) != len(numbers):
+                    msg = f"Invalid browser metric: {metric}"
+                    raise TypeError(msg)
+                summary[metric] = median(numeric)
+            summaries.append(summary)
+    return summaries
+
+
+def run_browser(url: str, *, no_budget: bool, runs: int = 5, path: str = "both") -> None:
     """Measure real browser milestones and transferred bytes in a clean profile."""
     started = perf_counter()
     with tempfile.TemporaryDirectory(prefix="rowsetta-browser-result-") as folder:
@@ -177,26 +216,58 @@ def run_browser(url: str, *, no_budget: bool) -> None:
         command = [
             shutil.which("node") or "node",
             "scripts/browser_cold_start.mjs",
+            "--runs",
+            str(runs),
+            "--path",
+            path,
             url,
             str(result),
         ]
         subprocess.run(command, cwd=ROOT, check=True)  # noqa: S603 -- Fixed local harness.
         values = JSON.validate_json(result.read_text())
     section = provenance(
-        "scripts/cold_start.py", perf_counter() - started, {"url": url, "teacher": "lite model"}
+        "scripts/cold_start.py",
+        perf_counter() - started,
+        {
+            "url": url,
+            "runs_per_path": runs,
+            "requested_path": path,
+            "max_one_minute_load": 8,
+            "download_mbit_s": 50,
+            "latency_ms": 40,
+            "dirty_tree": bool(
+                subprocess.check_output(
+                    ["/usr/bin/git", "status", "--porcelain"], cwd=ROOT, text=True
+                ).strip()
+            ),
+            "browser_harness_sha256": hashlib.sha256(
+                (ROOT / "scripts/browser_cold_start.mjs").read_bytes()
+            ).hexdigest(),
+        },
     )
-    section.results = TypeAdapter(list[dict[str, JsonValue]]).validate_python(values)
+    measurements = TypeAdapter(list[dict[str, JsonValue]]).validate_python(values)
+    summaries = browser_summaries(measurements)
+    requested_paths = {"auto", "lite"} if path == "both" else {path}
+    reported_paths = {
+        name for value in summaries if isinstance(name := value["requested_path"], str)
+    }
+    if (
+        reported_paths != requested_paths
+        or len(summaries) != 2 * len(requested_paths)
+        or any(value["runs"] != runs for value in summaries)
+    ):
+        sys.exit(f"Browser timing requires {runs} complete cold/warm pairs per requested path")
+    section.results = summaries
+    atomic_json(BROWSER_RUNS_JSON, {"runs": measurements})
     document = DOCUMENT.validate_json(BENCH_JSON.read_text()) if BENCH_JSON.exists() else {}
     existing = document.get("cold_start")
     cold_start = existing if isinstance(existing, dict) else {}
     cold_start["browser"] = JSON.validate_python(section.model_dump(mode="json"))
     document["cold_start"] = cold_start
     atomic_json(BENCH_JSON, document)
-    if not no_budget and isinstance(values, list):
-        for value in values:
-            if not isinstance(value, dict):
-                msg = "Invalid browser timing"
-                raise TypeError(msg)
+    print(json.dumps(summaries, indent=2), flush=True)
+    if not no_budget:
+        for value in summaries:
             seconds = value.get("first_proposals_seconds")
             table_seconds = value.get("table_seconds")
             budget = (
