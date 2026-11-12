@@ -118,8 +118,8 @@ def check(root: Path) -> list[str]:
         github / "PULL_REQUEST_TEMPLATE.md",
     ]
     results = [
-        (root / "README.md", check_readme((root / "README.md").read_text(), bench)),
-        *((path, check_prose(path.read_text())) for path in paths if path.exists()),
+        (root / "README.md", check_readme((root / "README.md").read_text(encoding="utf-8"), bench)),
+        *((path, check_prose(path.read_text(encoding="utf-8"))) for path in paths if path.exists()),
     ]
     return [
         f"{path.relative_to(root)}:{finding.line}: {finding.message}"

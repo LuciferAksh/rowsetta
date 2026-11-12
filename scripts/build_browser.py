@@ -33,7 +33,10 @@ def package_core(dependencies: tuple[Path, ...]) -> None:
         package / "browser_shell.py",
         *sorted((package / "core").rglob("*.py")),
     ]
-    sources = {str(path.relative_to(ROOT / "src")): path.read_text() for path in files}
+    sources = {
+        path.relative_to(ROOT / "src").as_posix(): path.read_text(encoding="utf-8")
+        for path in files
+    }
     for dependency in dependencies:
         with ZipFile(dependency) as archive:
             for name in archive.namelist():
