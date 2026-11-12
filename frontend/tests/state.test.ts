@@ -67,6 +67,28 @@ function settled(): Promise<void> {
 }
 
 describe('following the server', () => {
+  it.each(['labels', 'threshold', 'target'])(
+    'invalidates an export and its certificate after changing %s',
+    async (change) => {
+      const studio = new Studio(fakeBackend([]).backend);
+      await studio.apply(Promise.resolve(at(2, 2)));
+      studio.exported = { format: 'sql', text: '-- old rule' };
+      studio.certificate = ['old certificate'];
+      await studio.apply(
+        Promise.resolve({
+          ...at(3, 2),
+          ...(change === 'threshold' ? { threshold: 1 } : {}),
+          ...(change === 'target' ? { target: 'answer' } : {}),
+        }),
+      );
+      expect(studio.exported).toBeNull();
+      expect(studio.certificate).toEqual([]);
+      await studio.apply(Promise.resolve(at(3, 3)));
+      expect(studio.exported).toBeNull();
+      expect(studio.certificate).toEqual([]);
+    },
+  );
+
   it('keeps dbt operation errors separate from model health and recovers with SQL', async () => {
     const error = {
       error: 'Invalid dbt identifier: Risk category',

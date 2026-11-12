@@ -39,6 +39,7 @@
   );
 
   async function copy(name: string, text: string): Promise<void> {
+    if (studio.refitting || studio.exportStale) return;
     try {
       await navigator.clipboard.writeText(text);
       studio.announcement = { text: `Copied ${name}` };
@@ -79,6 +80,12 @@
   {#if studio.refitting}<p role="status">
       Wait for the model update before exporting.
     </p>{/if}
+  {#if studio.exportStale}
+    <p role="status" class="alert">
+      The previous export and certificate are stale because the inputs changed.
+      Export the rule again to regenerate them.
+    </p>
+  {/if}
   <RuleView {studio} />
   {#if studio.certificate.length > 0}
     <h3>Certificate</h3>
@@ -140,6 +147,7 @@
       <button
         type="button"
         class="button"
+        disabled={studio.refitting || studio.exportStale}
         onclick={() => {
           void copy(name, text);
         }}

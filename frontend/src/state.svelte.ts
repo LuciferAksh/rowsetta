@@ -93,6 +93,7 @@ export class Studio {
   rule = $state.raw<Distilled | null>(null);
   /** The rule in the chosen format, as the server checked and sent it. */
   exported = $state.raw<ExportArtifact | null>(null);
+  exportStale = $state(false);
   exportQuery = $state.raw<ExportQuery>({ format: 'sql', dialect: 'duckdb' });
   /** The certificate lines of the last export; the same for every format. */
   certificate = $state.raw<readonly string[]>([]);
@@ -103,7 +104,7 @@ export class Studio {
   kept = $state.raw<ReadonlySet<number>>(new SvelteSet());
   /** The doubted row the map's lens is reading, or `null`. */
   selectedRow = $state.raw<number | null>(null);
-  /** The file last opened in this tab; the server does not name a table. */
+  /** The file last uploaded in this tab, for backends without a source name. */
   fileName = $state.raw<string | null>(null);
   keySheetOpen = $state.raw(false);
   /** The depth the shown rule was fitted at, so a redraw keeps it. */
@@ -273,6 +274,7 @@ export class Studio {
         // A slower answer for a format the user has already left is dropped.
         if (this.exportQuery !== query) return;
         this.exported = artifact;
+        this.exportStale = false;
         const figures = certificateFigures(artifact);
         if (figures.length > 0) this.certificate = figures;
         if (this.certificate.length > 0) return;
@@ -410,6 +412,7 @@ export class Studio {
   }
 
   #forgetLabels(): void {
+    this.exportStale ||= this.exported !== null || this.certificate.length > 0;
     this.mode = { kind: 'label' };
     this.rule = null;
     this.exported = null;
@@ -430,6 +433,17 @@ export class Studio {
 
   #show(next: WorkspaceState): void {
     const previous = this.workspace;
+    if (
+      previous !== null &&
+      (next.generation !== previous.generation ||
+        next.target !== previous.target)
+    ) {
+      this.exportStale ||=
+        this.exported !== null || this.certificate.length > 0;
+      this.exported = null;
+      this.certificate = [];
+      this.exportProblem = null;
+    }
     if (
       previous !== null &&
       isCurrent(next) &&
