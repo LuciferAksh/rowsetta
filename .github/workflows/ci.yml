@@ -55,9 +55,12 @@ jobs:
       - run: >-
           uv pip install --python .venv-floor
           "pandas==3.0.2" "scikit-learn==1.8.0" "numpy==2.4.6" "scipy==1.18.0" "duckdb>=2.0.0"
-          pytest==9.2.0 hypothesis==6.170.14
+          "pydantic==2.12.5" pytest==9.2.0 hypothesis==6.170.14 jsonschema
       - run: uv pip install --python .venv-floor --no-deps -e .
-      - run: .venv-floor/bin/python -m pytest tests/unit
+      # Server, CLI and build-script tests need packages Pyodide does not ship; conftest skips them here.
+      - run: .venv-floor/bin/python -m pytest tests/unit -m "not native"
+        env:
+          ROWSETTA_PYODIDE_FLOOR: "1"
 
   dbt:
     runs-on: ubuntu-latest
