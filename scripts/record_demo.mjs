@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtemp, readFile, rm, statfs } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createRequire } from "node:module";
@@ -7,14 +7,9 @@ import { createRequire } from "node:module";
 const require = createRequire(resolve("frontend/package.json"));
 const { chromium } = require("@playwright/test");
 const root = resolve(".");
-const disk = await statfs(tmpdir());
-const reserveBytes = 25 * 1024 ** 3 + 110_368_038;
-if (disk.bavail * disk.bsize < reserveBytes)
-  throw new Error("Keep at least 25 GiB free after the model download.");
 const scratch = await mkdtemp(join(tmpdir(), "rowsetta-demo-"));
 const port = 18873;
 const origin = `http://${"127.0.0.1"}:${port}`;
-const publicOrigin = "https://intesarjawad.github.io";
 const token = "recording-session";
 const csv = join(scratch, "penguins-mislabelled.csv");
 const run = (command, args) => {
@@ -94,7 +89,7 @@ try {
     viewport: { width: 1280, height: 720 },
   });
   await context.addCookies([
-    { name: "rowsetta_session", value: token, url: publicOrigin },
+    { name: "rowsetta_session", value: token, url: origin },
   ]);
   const page = await context.newPage();
   let holdState = false;
@@ -108,14 +103,9 @@ try {
   });
   await page.route("**/*", async (route) => {
     const url = new URL(route.request().url());
-    if (url.origin !== publicOrigin) return route.abort();
-    if (url.pathname === "/events")
-      return route.fulfill({
-        status: 200,
-        contentType: "text/event-stream",
-        body: ": connected\n\n",
-      });
-    const path = url.pathname === "/rowsetta/" ? "/" : url.pathname;
+    if (url.origin !== origin) return route.abort();
+    if (url.pathname === "/events") return route.continue();
+    const path = url.pathname;
     if (path === "/state" && holdState) {
       stateRequested();
       await stateGate;
@@ -140,7 +130,7 @@ try {
     return latest;
   }
   async function openPage() {
-    await page.goto(`${publicOrigin}/rowsetta/`, {
+    await page.goto(`${origin}/`, {
       waitUntil: "domcontentloaded",
     });
     await page.evaluate(() => {
@@ -257,8 +247,7 @@ try {
       })
       .getByRole("button");
     await cell.waitFor({ state: "visible", timeout: 60_000 });
-    await cell.focus();
-    await page.keyboard.press(String(key));
+    await cell.press(String(key));
     await page.waitForFunction(
       (previous) => {
         const text =
@@ -335,23 +324,21 @@ try {
     .locator("pre")
     .first()
     .evaluate((el) => {
-      el.style.whiteSpace = "pre-wrap";
-      el.style.overflowWrap = "anywhere";
-      el.style.maxHeight = "none";
-      const text = el.firstChild;
-      const offset = text?.textContent?.indexOf("SELECT") ?? -1;
-      if (text === null || offset < 0) throw new Error("SQL SELECT is missing");
-      const range = document.createRange();
-      range.setStart(text, offset);
-      range.setEnd(text, offset + 6);
-      el.scrollTop +=
-        range.getBoundingClientRect().top - el.getBoundingClientRect().top - 24;
-      el.scrollIntoView({ block: "start" });
+      // Frame the exported query; its certificate remains in the caption.
+      const sql = el.textContent;
+      const offset = sql.indexOf("SELECT");
+      if (offset < 0) throw new Error("SQL SELECT is missing");
+      el.textContent = sql.slice(offset);
+      el.style.cssText +=
+        "position:fixed;inset:64px 24px 112px;z-index:9998;margin:0;max-height:none;font-size:18px;line-height:1.35;white-space:pre-wrap;overflow-wrap:anywhere;overflow:auto";
+      el.scrollTop = 0;
+      if (el.scrollWidth > el.clientWidth || el.scrollHeight > el.clientHeight)
+        throw new Error("Closing SQL does not fit the frame");
     });
   await frames(38);
   await context.close();
   const filter =
-    "fps=15,scale=1280:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=96[p];[s1][p]paletteuse=dither=bayer";
+    "fps=15,scale=960:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=96[p];[s1][p]paletteuse=dither=bayer";
   run("ffmpeg", [
     "-hide_banner",
     "-loglevel",
@@ -365,7 +352,26 @@ try {
     filter,
     "docs/demo.gif",
   ]);
-  console.log("Recorded docs/demo.gif");
+  const bytes = (await stat("docs/demo.gif")).size;
+  const probe = spawnSync(
+    "ffprobe",
+    [
+      "-v",
+      "error",
+      "-show_entries",
+      "format=duration",
+      "-of",
+      "csv=p=0",
+      "docs/demo.gif",
+    ],
+    { encoding: "utf8" },
+  );
+  if (probe.status !== 0) throw new Error("Could not read GIF duration");
+  const duration = Number(probe.stdout.trim());
+  if (bytes >= 8_000_000) throw new Error(`GIF exceeds 8 MB: ${bytes} bytes`);
+  console.log(
+    `Recorded docs/demo.gif: ${bytes} bytes, 960 px, ${duration.toFixed(2)} seconds`,
+  );
 } finally {
   if (browser) await browser.close();
   server.kill("SIGTERM");

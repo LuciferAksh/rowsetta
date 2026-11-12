@@ -42,6 +42,9 @@ test('static demo queues labels, predicts and exports SQL without data egress', 
     errors.push(error.message);
     console.error(error.message);
   });
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text());
+  });
   // Hold the runtime while exercising the labelable static table.
   let release: () => void = () => {};
   const held = new Promise<void>((resolve) => {
@@ -131,4 +134,123 @@ test('static demo queues labels, predicts and exports SQL without data egress', 
     expect(new URL(request.url).search).toBe('');
     expect(request.url).not.toMatch(/huggingface|hf\.co|spike/);
   }
+});
+
+test.describe('saved browser labels', () => {
+  // Exercise the WASM/lite path without downloading the WebGPU teacher.
+  test.use({ userAgent: 'Rowsetta label recovery test' });
+  test('restores labels after reload and reopening the same file and target', async ({
+    page,
+  }, testInfo) => {
+    const errors: string[] = [];
+    page.on('console', (message) => {
+      if (message.type() === 'error') errors.push(message.text());
+    });
+    page.on('pageerror', (error) => errors.push(error.message));
+    const file = {
+      name: 'labels.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from('x,y\n1,\n2,\n3,\n4,\n'),
+    };
+    async function open() {
+      await page.locator('input[type=file]').setInputFiles(file);
+      await expect(
+        page.getByText('Opened labels.csv.', { exact: true }),
+      ).toBeVisible();
+      await page.getByLabel('New target name', { exact: true }).fill('y');
+      await page
+        .getByLabel('Classes, separated by commas', { exact: true })
+        .fill('yes, no');
+      await page
+        .getByRole('button', { name: 'Create target', exact: true })
+        .click();
+      await expect(page.getByText(/^Target: y/)).toBeVisible();
+    }
+    await page.goto('/');
+    await expect(
+      page.getByText('Browser runtime ready.', { exact: true }),
+    ).toBeVisible();
+    await open();
+    const first = page
+      .getByRole('table')
+      .locator('tbody')
+      .getByRole('button')
+      .first();
+    await first.focus();
+    await page.keyboard.press('1');
+    await expect(first).toHaveText('Labelled yes');
+    await page.reload();
+    await expect(
+      page.getByText('Browser runtime ready.', { exact: true }),
+    ).toBeVisible();
+    await open();
+    const saved = page.getByRole('region', { name: 'Saved labels' });
+    await expect(saved).toContainText('1 saved label');
+    await saved.scrollIntoViewIfNeeded();
+    await expect(
+      saved.getByRole('button', { name: 'Restore labels', exact: true }),
+    ).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath('restore-desktop.png') });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await saved.scrollIntoViewIfNeeded();
+    await expect(
+      saved.getByRole('button', { name: 'Discard saved labels', exact: true }),
+    ).toBeVisible();
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(390);
+    await page.screenshot({ path: testInfo.outputPath('restore-mobile.png') });
+    await testInfo.attach('restore-controls', {
+      body: await saved.ariaSnapshot(),
+      contentType: 'text/plain',
+    });
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await expect(first).toHaveText('Unlabelled');
+    await saved
+      .getByRole('button', { name: 'Restore labels', exact: true })
+      .click();
+    await expect(first).toHaveText('Labelled yes');
+    await expect(saved).toHaveCount(0);
+    await expect(page.getByText(/^Target: y/)).toContainText('1 human labels');
+    await page.screenshot({
+      path: testInfo.outputPath('labels-restored.png'),
+      fullPage: true,
+    });
+    await page.reload();
+    await expect(
+      page.getByText('Browser runtime ready.', { exact: true }),
+    ).toBeVisible();
+    await open();
+    await saved
+      .getByRole('button', { name: 'Discard saved labels', exact: true })
+      .click();
+    await expect(first).toHaveText('Unlabelled');
+    await expect(saved).toHaveCount(0);
+    await page.reload();
+    await expect(
+      page.getByText('Browser runtime ready.', { exact: true }),
+    ).toBeVisible();
+    await open();
+    await expect(saved).toHaveCount(0);
+    expect(errors).toEqual([]);
+  });
+});
+
+test('successful runtime startup emits no console errors', async ({
+  page,
+}, testInfo) => {
+  const errors: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text());
+  });
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto('/');
+  await expect(
+    page.getByText('Browser runtime ready.', { exact: true }),
+  ).toBeVisible();
+  if (testInfo.project.name === 'chromium') {
+    await expect(page.locator('.appbar')).toContainText('TabICLv2 (WebGPU)');
+  }
+  expect(errors).toEqual([]);
 });
