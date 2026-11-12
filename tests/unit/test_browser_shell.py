@@ -144,3 +144,24 @@ for name in ('rowsetta.core.export.dbt', 'rowsetta.core.export.json',
     assert name not in sys.modules, name
 """
     subprocess.run([sys.executable, "-c", code], check=True)
+
+
+def test_invalid_dbt_target_returns_recovery_before_fitting(shell: BrowserShell) -> None:
+    shell.workspace.set_target("Risk category", ("a", "b"))
+    before = shell.workspace.require_store().to_json()
+    response = json.loads(shell.call('{"action":"export","format":"dbt"}'))
+    assert response["ok"] is False
+    assert "dbt identifier" in response["error"]["error"]
+    assert "SQL, Python or JSON" in response["error"]["next_step"]
+    assert "Traceback" not in json.dumps(response)
+    assert shell.workspace.require_store().to_json() == before
+
+
+@pytest.mark.parametrize("csv", ["", "x,answer\n"])
+def test_browser_rejected_empty_load_preserves_labels(shell: BrowserShell, csv: str) -> None:
+    shell.workspace.set_label(0, "Adelie", "human")
+    before = shell.workspace.require_store().to_json()
+    response = json.loads(shell.call(json.dumps({"action": "load", "csv": csv})))
+    assert response["ok"] is False
+    assert "at least one data row" in response["error"]["error"]
+    assert shell.workspace.require_store().to_json() == before

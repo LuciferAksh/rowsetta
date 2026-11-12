@@ -201,14 +201,14 @@ def launch_demo(hub: FakeHub, monkeypatch: pytest.MonkeyPatch, home: Path) -> li
     served: list[object] = []
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.delenv("ROWSETTA_TEACHER", raising=False)
-    monkeypatch.setattr(sys, "argv", ["rowsetta", *RETRY.split()[1:]])
+    monkeypatch.setattr(sys, "argv", ["rowsetta", *RETRY.split()[1:], "--port", "0"])
     monkeypatch.setattr(cli, "fetch_checkpoint", partial(fetch_checkpoint, hub=hub))
     monkeypatch.setattr(cli, "local_teacher", FakeTeacher)
 
-    def serve(app: object, **_options: object) -> None:
-        served.append(app)
+    def serve(server: uvicorn.Server, **_options: object) -> None:
+        served.append(server.config.app)
 
-    monkeypatch.setattr(uvicorn, "run", serve)
+    monkeypatch.setattr(uvicorn.Server, "run", serve)
     cli.main()
     return served
 

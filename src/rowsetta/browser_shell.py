@@ -90,7 +90,8 @@ class BrowserShell:
         evaluation = w.evaluation()
         return {
             "loaded": w.table is not None,
-            "notice": w.notice,
+            "notice": w.notice
+            or "Browser labels live in memory and are lost when you reload or close this tab.",
             "target": store.target if store else None,
             "classes": store.classes if store else (),
             "human": store.human if store else {},
@@ -241,6 +242,10 @@ class BrowserShell:
     def export(self, request: BrowserRequest) -> object:
         """Export shared rules with an honest browser execution certificate."""
         w = self.workspace
+        if request.format == "dbt":
+            from rowsetta.core.export.dbt import validate_names  # noqa: PLC0415 -- Optional route.
+
+            validate_names("source_data", w.require_store().target)
         facts = replace(w.certificate(self.metadata), execution=NotExecuted("browser demo"))
         student = w.student
         if student is None:

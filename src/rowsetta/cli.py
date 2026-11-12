@@ -1,5 +1,6 @@
 import os
 import shlex
+import socket
 import sys
 import webbrowser
 from argparse import ArgumentParser, ArgumentTypeError, Namespace
@@ -104,14 +105,37 @@ def _serve(parser: ArgumentParser, args: Namespace) -> None:
         csv = LaunchCsv(DATASETS / f"{args.name}.csv", session_beside=False)
         app = create_app(teacher=_teacher(offline=args.offline), security=security, csv=csv)
         loaded = csv.path.name
-    browser_host = "127.0.0.1" if args.host == str(IPv4Address(0)) else args.host
-    url = f"http://{browser_host}:{args.port}/?{urlencode({'token': security.token})}"
-    # Flushed before the server blocks, so a pipe sees the address immediately.
-    sys.stdout.write(f"Loaded {loaded}\nOpen {url}\nPress Ctrl+C to stop.\n")
-    sys.stdout.flush()
-    if not args.no_browser:
-        webbrowser.open(url)
-    uvicorn.run(app, host=args.host, port=args.port, access_log=False)
+    with _listen(args) as listener:
+        browser_host = "127.0.0.1" if args.host == str(IPv4Address(0)) else args.host
+        url = f"http://{browser_host}:{args.port}/?{urlencode({'token': security.token})}"
+        # Flushed before the server blocks, so a pipe sees the address immediately.
+        sys.stdout.write(f"Loaded {loaded}\nOpen {url}\nPress Ctrl+C to stop.\n")
+        sys.stdout.flush()
+        if not args.no_browser:
+            webbrowser.open(url)
+        server = uvicorn.Server(
+            uvicorn.Config(app, host=args.host, port=args.port, access_log=False)
+        )
+        try:
+            server.run(sockets=[listener])
+        except KeyboardInterrupt:
+            return
+
+
+def _listen(args: Namespace) -> socket.socket:
+    try:
+        return socket.create_server((args.host, args.port))
+    except OSError as error:
+        with socket.create_server((args.host, 0)) as alternative:
+            port = alternative.getsockname()[1]
+        retry = ["rowsetta", *sys.argv[1:]]
+        if "--port" in retry:
+            retry[retry.index("--port") + 1] = str(port)
+        else:
+            retry = [part for part in retry if not part.startswith("--port=")]
+            retry.extend(["--port", str(port)])
+        message = f"Could not bind {args.host}:{args.port}: {error.strerror}."
+        raise UserError(message, shlex.join(retry)) from error
 
 
 def _open(csv: LaunchCsv, security: SessionSecurity, *, offline: bool) -> FastAPI:

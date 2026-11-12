@@ -1,10 +1,14 @@
 import json
 import os
+import socket
 import subprocess
 import sys
 from pathlib import Path
 
 import pytest
+import uvicorn
+
+from rowsetta import cli
 
 pytestmark = pytest.mark.native
 
@@ -205,3 +209,72 @@ def test_open_rejects_unknown_columns_with_a_runnable_selection(tmp_path: Path) 
         what="`isle`",
         next_step="open data.csv --columns species,island",
     )
+
+
+@pytest.mark.parametrize("port_style", ["separate", "equals"])
+def test_busy_port_does_not_open_the_browser_and_prints_a_retry(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], port_style: str
+) -> None:
+    opened: list[str] = []
+    monkeypatch.setenv("ROWSETTA_TEACHER", "fake")
+    monkeypatch.setattr(cli.webbrowser, "open", opened.append)
+    with socket.create_server(("127.0.0.1", 0)) as occupied:
+        port = occupied.getsockname()[1]
+        options = ["--port", str(port)] if port_style == "separate" else [f"--port={port}"]
+        monkeypatch.setattr(sys, "argv", ["rowsetta", "demo", "penguins", *options])
+        with pytest.raises(SystemExit, match="1"):
+            cli.main()
+    output = capsys.readouterr()
+    assert output.out == ""
+    assert opened == []
+    assert "Could not bind" in output.err
+    assert "Next: rowsetta demo penguins --port " in output.err
+    assert str(port) not in output.err.split("Next: ")[1]
+
+
+def test_browser_opens_only_after_the_port_is_bound(monkeypatch: pytest.MonkeyPatch) -> None:
+    with socket.create_server(("127.0.0.1", 0)) as available:
+        port = available.getsockname()[1]
+    opened: list[str] = []
+
+    def open_browser(url: str) -> bool:
+        with socket.socket() as probe, pytest.raises(OSError, match="Address already in use"):
+            probe.bind(("127.0.0.1", port))
+        opened.append(url)
+        return True
+
+    monkeypatch.setenv("ROWSETTA_TEACHER", "fake")
+    monkeypatch.setattr(sys, "argv", ["rowsetta", "demo", "--port", str(port)])
+    monkeypatch.setattr(cli.webbrowser, "open", open_browser)
+
+    def serve(_server: uvicorn.Server, **_options: object) -> None:
+        return
+
+    monkeypatch.setattr(uvicorn.Server, "run", serve)
+    cli.main()
+    assert len(opened) == 1
+
+
+def test_dbt_invalid_target_is_actionable_before_refitting(tmp_path: Path) -> None:
+    session = write_session(tmp_path, DATASET.read_bytes())
+    saved = json.loads(session.read_text())
+    saved["target"] = "Risk category"
+    session.write_text(json.dumps(saved))
+    result = run_cli("export", str(session), "--format", "dbt")
+    assert result.returncode == 1
+    assert "dbt identifier" in result.stderr
+    assert "SQL, Python or JSON" in result.stderr
+    assert "Traceback" not in result.stderr
+    assert result.stdout == ""
+
+
+def test_ctrl_c_stops_without_a_traceback(monkeypatch: pytest.MonkeyPatch) -> None:
+    def interrupt(_server: uvicorn.Server, **_options: object) -> None:
+        raise KeyboardInterrupt
+
+    with socket.create_server(("127.0.0.1", 0)) as available:
+        port = available.getsockname()[1]
+    monkeypatch.setenv("ROWSETTA_TEACHER", "fake")
+    monkeypatch.setattr(sys, "argv", ["rowsetta", "demo", "--no-browser", "--port", str(port)])
+    monkeypatch.setattr(uvicorn.Server, "run", interrupt)
+    cli.main()
