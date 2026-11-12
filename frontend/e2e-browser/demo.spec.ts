@@ -1,4 +1,21 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+
+// Hosted runners only offer a software adapter, which cannot finish the TabICLv2 session in time.
+async function hasHardwareGpu(page: Page): Promise<boolean> {
+  const probe = await page.context().newPage();
+  await probe.goto('/favicon.svg');
+  // The first request after browser start can come back empty.
+  const hardware = await probe.evaluate(async () => {
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const adapter = await navigator.gpu.requestAdapter();
+      if (adapter) return !adapter.info.isFallbackAdapter;
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    return false;
+  });
+  await probe.close();
+  return hardware;
+}
 
 test('a runtime download failure preserves early labels and offers recovery', async ({
   page,
@@ -29,6 +46,10 @@ test('a runtime download failure preserves early labels and offers recovery', as
 test('static demo queues labels, predicts and exports SQL without data egress', async ({
   page,
 }, testInfo) => {
+  test.skip(
+    testInfo.project.name === 'chromium' && !(await hasHardwareGpu(page)),
+    'TabICLv2 needs a hardware WebGPU adapter',
+  );
   const requests: { method: string; url: string; data: string | null }[] = [];
   const errors: string[] = [];
   page.on('request', (request) =>
@@ -338,7 +359,8 @@ test.describe('browser export health', () => {
     ).toBeEnabled();
     await panel.getByRole('button', { name: 'Export rule' }).click();
     await expect(panel.locator('pre')).toContainText('SELECT');
-    await panel.getByRole('radio', { name: 'dbt', exact: true }).check();
+    // The radio is a 1px hidden input; Firefox cannot scroll it into view, so use its visible label.
+    await panel.getByText('dbt', { exact: true }).click();
     await expect(panel.getByRole('alert')).toContainText('dbt identifier');
     await expect(
       page.getByRole('complementary', { name: 'Browser runtime' }),
@@ -347,7 +369,7 @@ test.describe('browser export health', () => {
     await expect(
       page.getByRole('button', { name: 'Retry by reloading' }),
     ).toHaveCount(0);
-    await panel.getByRole('radio', { name: 'SQL', exact: true }).check();
+    await panel.getByText('SQL', { exact: true }).click();
     await expect(panel.getByRole('alert')).toHaveCount(0);
     await expect(panel.locator('pre')).toContainText('SELECT');
   });
