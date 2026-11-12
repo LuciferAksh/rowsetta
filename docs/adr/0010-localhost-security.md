@@ -21,7 +21,7 @@ interface.
   `Referrer-Policy: no-referrer`, so the token leaves the address bar. Every
   route except `/health` requires the cookie; tokens are compared in constant
   time.
-- **Test token on loopback only.** `TABSTUDIO_SESSION_TOKEN` fixes the token
+- **Test token on loopback only.** `ROWSETTA_SESSION_TOKEN` fixes the token
   for end-to-end tests and is refused unless the bind address is `127.0.0.1`.
 - **No egress.** The app sets `HF_HUB_DISABLE_TELEMETRY=1` and
   `HF_HUB_OFFLINE=1` before the Hugging Face client is imported; the model is

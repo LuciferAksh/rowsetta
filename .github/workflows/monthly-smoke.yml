@@ -24,7 +24,7 @@ jobs:
       - run: uv run --locked python scripts/fetch_model.py
       - run: uv run --locked pytest -m model
         env:
-          TABSTUDIO_RUN_MODEL: "1"
+          ROWSETTA_RUN_MODEL: "1"
       - run: uv run --locked python scripts/bench_teacher.py --device cpu --dataset penguins
       # Exits 1 when penguins accuracy moves more than 0.02 from docs/bench.json.
       - run: uv run --locked python scripts/check_drift.py

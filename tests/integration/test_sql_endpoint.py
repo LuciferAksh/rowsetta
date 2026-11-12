@@ -5,10 +5,10 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from tabular_studio.api import routes
-from tabular_studio.api.routes import SqlExportContext, sql_export_router
-from tabular_studio.core.distill import Feature, FeatureSpec, Student, fit_student
-from tabular_studio.core.export.sql import Certificate, Dialect
+from rowsetta.api import routes
+from rowsetta.api.routes import SqlExportContext, sql_export_router
+from rowsetta.core.distill import Feature, FeatureSpec, Student, fit_student
+from rowsetta.core.export.sql import Certificate, Dialect
 from tests.sql_support import certificate
 from tests.unit.test_distill import ten_rows
 

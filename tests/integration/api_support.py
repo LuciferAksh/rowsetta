@@ -7,12 +7,12 @@ import httpx
 from fastapi import FastAPI
 from pydantic import JsonValue, TypeAdapter
 
-from tabular_studio.api.security import SessionSecurity
-from tabular_studio.app import create_app
-from tabular_studio.teachers.fake import FakeTeacher
+from rowsetta.api.security import SessionSecurity
+from rowsetta.app import create_app
+from rowsetta.teachers.fake import FakeTeacher
 
 LAUNCH_CODE = "integration-launch-token"
-DATASET = Path(__file__).parents[2] / "src/tabular_studio/datasets/penguins.csv"
+DATASET = Path(__file__).parents[2] / "src/rowsetta/datasets/penguins.csv"
 CLASSES = ("Adelie", "Chinstrap", "Gentoo")
 POLL_SECONDS = 0.01
 REFIT_TIMEOUT_SECONDS = 10

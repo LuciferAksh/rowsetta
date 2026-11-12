@@ -847,7 +847,7 @@
             },
             "postgres": {
               "rows_checked": 0,
-              "status": "not executed: set TABSTUDIO_PG_DSN"
+              "status": "not executed: set ROWSETTA_PG_DSN"
             },
             "sqlite": {
               "identical": 344,
@@ -1098,7 +1098,7 @@
             },
             "postgres": {
               "rows_checked": 0,
-              "status": "not executed: set TABSTUDIO_PG_DSN"
+              "status": "not executed: set ROWSETTA_PG_DSN"
             },
             "sqlite": {
               "identical": 344,

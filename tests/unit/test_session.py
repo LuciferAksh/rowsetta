@@ -8,9 +8,9 @@ import numpy as np
 import pytest
 from pydantic import ValidationError
 
-from tabular_studio.core.errors import NotServed
-from tabular_studio.core.session import LabelStore, SourceRef
-from tabular_studio.core.table import load_csv
+from rowsetta.core.errors import NotServed
+from rowsetta.core.session import LabelStore, SourceRef
+from rowsetta.core.table import load_csv
 
 
 class SchemaValidator(Protocol):

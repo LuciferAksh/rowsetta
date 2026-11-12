@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
+from rowsetta.core.features import teacher_frame
 from scripts.bench_teacher import BENCH_JSON, ROOT, penguins_protocol, write_drift
-from tabular_studio.core.features import teacher_frame
 
 
 def test_drift_protocol_is_seeded_complete_and_balanced() -> None:

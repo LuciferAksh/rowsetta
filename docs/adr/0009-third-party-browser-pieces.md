@@ -105,7 +105,7 @@ Source citations:
   <https://doi.org/10.24432/C5JP48>. Licence: CC BY 4.0.
 
 The fetcher stores the source ZIPs under
-`~/.cache/tabular-studio/bench/`, or beneath `XDG_CACHE_HOME` when set. It checks
+`~/.cache/rowsetta/bench/`, or beneath `XDG_CACHE_HOME` when set. It checks
 before writing or consuming a cache entry. Both normal mode and `--verify`
 download missing archives and verify all three. A mismatch exits nonzero and
 leaves the existing file available for inspection and explicit removal.
@@ -123,7 +123,7 @@ The archive command exited 0 with:
 dry_bean: 0a64eff5be87f48c3dbbfc0a12a56c5d5b5167ef8e61cd45d69b3e7c7130c06f (4738776 bytes)
 mushroom: face32f32647e0d939f6233f36dd30dd5d619ae9f3f9b8e10bea4ac7e1f60b1a (141318 bytes)
 car: 1559d51dcf327f4f8c71b711ceed7fd95a382fc8d8e1998667f4f23b82860403 (6342 bytes)
-Verified 3 benchmark archives in /private/tmp/tabular-t03-cache/tabular-studio/bench
+Verified 3 benchmark archives in /private/tmp/tabular-t03-cache/rowsetta/bench
 ```
 
 The six card-validation cases passed. An additional temporary corrupt-cache

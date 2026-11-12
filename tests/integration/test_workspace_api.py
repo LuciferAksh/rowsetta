@@ -114,7 +114,7 @@ async def evaluate_rows(client: httpx.AsyncClient, truth: dict[int, str]) -> Non
 
 
 def test_penguins_flow(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("TABSTUDIO_TEACHER", "fake")
+    monkeypatch.setenv("ROWSETTA_TEACHER", "fake")
 
     async def run() -> None:
         async with api(tmp_path) as (_, client):
@@ -219,7 +219,7 @@ def test_upload_limits_have_recovery(tmp_path: Path, monkeypatch: pytest.MonkeyP
             assert response.status_code == 413
             assert "--columns" in str(body(response)["next_step"])
             assert "wide.csv" in str(body(response)["next_step"])
-            monkeypatch.setattr("tabular_studio.api.upload.MAX_FILE_BYTES", 1)
+            monkeypatch.setattr("rowsetta.api.upload.MAX_FILE_BYTES", 1)
             response = await client.post(
                 "/table",
                 content=b"x" * 65_538,

@@ -4,8 +4,8 @@ from dataclasses import replace
 import pandas as pd
 import pytest
 
-from tabular_studio.core.distill import Count, Coverage, fit_student
-from tabular_studio.core.export.dbt import COVERAGE_DRIFT_MARGIN, to_dbt
+from rowsetta.core.distill import Count, Coverage, fit_student
+from rowsetta.core.export.dbt import COVERAGE_DRIFT_MARGIN, to_dbt
 from tests.sql_support import certificate, engine
 from tests.unit.test_distill import ten_rows
 

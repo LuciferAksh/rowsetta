@@ -9,14 +9,14 @@ import pytest
 pytestmark = pytest.mark.native
 
 ROOT = Path(__file__).resolve().parents[2]
-SESSION = Path("tests/fixtures/penguins.tabstudio.json")
-DATASET = ROOT / "src/tabular_studio/datasets/penguins.csv"
+SESSION = Path("tests/fixtures/penguins.rowsetta.json")
+DATASET = ROOT / "src/rowsetta/datasets/penguins.csv"
 
 
 def run_cli(*args: str, cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:
-    environment = {**os.environ, "TABSTUDIO_TEACHER": "fake", "NO_COLOR": "1"}
+    environment = {**os.environ, "ROWSETTA_TEACHER": "fake", "NO_COLOR": "1"}
     return subprocess.run(
-        [sys.executable, "-m", "tabular_studio", *args],
+        [sys.executable, "-m", "rowsetta", *args],
         capture_output=True,
         text=True,
         check=False,
@@ -40,7 +40,7 @@ def assert_user_error(
 def test_help_requires_no_credentials() -> None:
     environment = {key: value for key, value in os.environ.items() if key != "HF_TOKEN"}
     result = subprocess.run(
-        [sys.executable, "-m", "tabular_studio", "--help"],
+        [sys.executable, "-m", "rowsetta", "--help"],
         capture_output=True,
         text=True,
         check=True,
@@ -61,7 +61,7 @@ def test_help_lists_the_four_commands() -> None:
 
 def test_unknown_option_fails_with_usage() -> None:
     result = subprocess.run(
-        [sys.executable, "-m", "tabular_studio", "--unknown"],
+        [sys.executable, "-m", "rowsetta", "--unknown"],
         capture_output=True,
         text=True,
         check=False,
@@ -126,7 +126,7 @@ def write_session(directory: Path, source: bytes) -> Path:
     (directory / "penguins.csv").write_bytes(source)
     session = json.loads((ROOT / SESSION).read_text())
     session["source"]["file_name"] = "penguins.csv"
-    path = directory / "penguins.tabstudio.json"
+    path = directory / "penguins.rowsetta.json"
     path.write_text(json.dumps(session))
     return path
 
@@ -162,18 +162,18 @@ def test_export_names_a_missing_csv(tmp_path: Path) -> None:
 
 
 def test_export_rejects_an_invalid_session(tmp_path: Path) -> None:
-    session = tmp_path / "broken.tabstudio.json"
+    session = tmp_path / "broken.rowsetta.json"
     session.write_text('{"human": {}}')
 
     assert_user_error(
-        run_cli("export", str(session)), what="broken.tabstudio.json", next_step="open"
+        run_cli("export", str(session)), what="broken.rowsetta.json", next_step="open"
     )
 
 
 def test_export_names_a_missing_session(tmp_path: Path) -> None:
     assert_user_error(
-        run_cli("export", "absent.tabstudio.json", cwd=tmp_path),
-        what="absent.tabstudio.json",
+        run_cli("export", "absent.rowsetta.json", cwd=tmp_path),
+        what="absent.rowsetta.json",
         next_step="export",
     )
 

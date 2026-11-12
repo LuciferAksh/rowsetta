@@ -1,10 +1,10 @@
 import pytest
 
-from tabular_studio.core.errors import NeedLabelsError, WorkspaceError
-from tabular_studio.core.session import LabelStore
-from tabular_studio.core.teacher import predict_table
-from tabular_studio.core.workspace import DEFAULT_THRESHOLD, Workspace
-from tabular_studio.teachers.fake import FakeTeacher
+from rowsetta.core.errors import NeedLabelsError, WorkspaceError
+from rowsetta.core.session import LabelStore
+from rowsetta.core.teacher import predict_table
+from rowsetta.core.workspace import DEFAULT_THRESHOLD, Workspace
+from rowsetta.teachers.fake import FakeTeacher
 
 
 @pytest.fixture

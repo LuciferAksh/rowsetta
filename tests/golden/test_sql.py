@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from tabular_studio.core.distill import leaf_summary
-from tabular_studio.core.export.sql import Dialect, SqlOptions, tree_to_sql
+from rowsetta.core.distill import leaf_summary
+from rowsetta.core.export.sql import Dialect, SqlOptions, tree_to_sql
 from tests.integration.test_sql_export import DEMO_TARGETS, demo_student
 from tests.sql_support import engine, predictions
 
@@ -26,7 +26,7 @@ def test_sql_golden(dataset: str, target: str, dialect: Dialect) -> None:
         ),
     )
     path = GOLDENS / f"{dataset}.{dialect}.sql"
-    if os.environ.get("TABSTUDIO_UPDATE_SQL_GOLDENS") == "1":
+    if os.environ.get("ROWSETTA_UPDATE_SQL_GOLDENS") == "1":
         GOLDENS.mkdir(exist_ok=True)
         path.write_text(exported)
     assert path.read_text() == exported, "Regenerate SQL fixtures with make golden."

@@ -65,7 +65,7 @@ def main() -> None:
     )
     parser.parse_args()
     cache_root = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
-    cache = cache_root / "tabular-studio" / "bench"
+    cache = cache_root / "rowsetta" / "bench"
     cache.mkdir(parents=True, exist_ok=True)
     for dataset in DATASETS:
         path = cache / f"{dataset.name}.zip"

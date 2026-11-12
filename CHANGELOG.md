@@ -6,6 +6,10 @@ All notable changes are documented here following Keep a Changelog.
 
 ## [0.1.0] - Unreleased
 
+### Changed
+
+- Renamed the Python package and environment-variable prefix to Rowsetta.
+
 ### Added
 
 - Local CSV labelling, model proposals and label audit.

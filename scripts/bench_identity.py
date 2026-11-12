@@ -6,8 +6,8 @@ import duckdb
 import pandas as pd
 from pydantic import JsonValue
 
-from tabular_studio.core.distill import Student, leaf_summary
-from tabular_studio.core.export.sql import SqlOptions, tree_to_sql
+from rowsetta.core.distill import Student, leaf_summary
+from rowsetta.core.export.sql import SqlOptions, tree_to_sql
 
 
 def identity(student: Student, target: str) -> dict[str, JsonValue]:
@@ -39,10 +39,10 @@ def identity(student: Student, target: str) -> dict[str, JsonValue]:
         index = [column[0] for column in cursor.description].index(f"predicted_{target}")
         actual = [row[index] for row in cursor.fetchall()]
         results["sqlite"] = match_counts(expected, actual, require_exact=True)
-    if os.environ.get("TABSTUDIO_PG_DSN"):
+    if os.environ.get("ROWSETTA_PG_DSN"):
         results["postgres"] = postgres_identity(student, target, expected, labels)
     else:
-        results["postgres"] = {"status": "not executed: set TABSTUDIO_PG_DSN", "rows_checked": 0}
+        results["postgres"] = {"status": "not executed: set ROWSETTA_PG_DSN", "rows_checked": 0}
     results["orbital"] = orbital_identity(student)
     return results
 
@@ -77,7 +77,7 @@ def postgres_identity(
         "DOUBLE PRECISION" if pd.api.types.is_numeric_dtype(student.frame[column]) else "TEXT"
         for column in columns
     ]
-    with psycopg.connect(os.environ["TABSTUDIO_PG_DSN"]) as connection:
+    with psycopg.connect(os.environ["ROWSETTA_PG_DSN"]) as connection:
         definitions = sql_module.SQL(", ").join(
             sql_module.SQL("{} {}").format(sql_module.Identifier(column), sql_module.SQL(kind))
             for column, kind in zip(columns, types, strict=True)

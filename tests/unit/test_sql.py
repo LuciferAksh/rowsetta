@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from tabular_studio.core.distill import (
+from rowsetta.core.distill import (
     Feature,
     FeatureSpec,
     OtherBetter,
@@ -14,8 +14,8 @@ from tabular_studio.core.distill import (
     fit_student,
     leaf_summary,
 )
-from tabular_studio.core.export import sql
-from tabular_studio.core.export.sql import Dialect, Executed, SqlOptions, to_sql, tree_to_sql
+from rowsetta.core.export import sql
+from rowsetta.core.export.sql import Dialect, Executed, SqlOptions, to_sql, tree_to_sql
 from tests.sql_support import certificate, engine, predictions
 from tests.unit.test_distill import FourLeafTree, labelled, ten_rows
 

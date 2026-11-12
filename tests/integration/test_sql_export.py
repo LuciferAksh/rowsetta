@@ -5,12 +5,12 @@ import pandas as pd
 import pytest
 from fastapi import HTTPException
 
-from tabular_studio.api.sql_check import sql_check
-from tabular_studio.core.distill import Student, fit_student, leaf_summary
-from tabular_studio.core.export.sql import Dialect, SqlOptions, tree_to_sql
-from tabular_studio.core.session import LabelStore, SourceRef
-from tabular_studio.core.table import load_csv
-from tabular_studio.core.teacher import Proposals
+from rowsetta.api.sql_check import sql_check
+from rowsetta.core.distill import Student, fit_student, leaf_summary
+from rowsetta.core.export.sql import Dialect, SqlOptions, tree_to_sql
+from rowsetta.core.session import LabelStore, SourceRef
+from rowsetta.core.table import load_csv
+from rowsetta.core.teacher import Proposals
 from tests.sql_support import engine, predictions
 from tests.unit.test_distill import DATASETS, ten_rows
 

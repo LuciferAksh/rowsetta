@@ -222,10 +222,10 @@ lens to it.
   210, 231, 264, 285, 304 and 317, seed 7). Open it with
   `uv run rowsetta open OUT.csv` and pick `species`.
 - Doubted labels, their ranks and percentages: the server's label audit
-  (`GET /suspects`, `src/tabular_studio/core/audit.py`), each label scored by
+  (`GET /suspects`, `src/rowsetta/core/audit.py`), each label scored by
   the pinned TabICL model with its own row held out.
 - Interchanges, termini, their tests and row counts: the distilled rule
-  (`POST /distill`, `src/tabular_studio/core/distill.py`), depth 4 by default,
+  (`POST /distill`, `src/rowsetta/core/distill.py`), depth 4 by default,
   at most 16 leaves.
 - Band widths and the "1 px for every N rows" caption: `layoutMap` in
   `frontend/src/transit.ts`, from those counts.

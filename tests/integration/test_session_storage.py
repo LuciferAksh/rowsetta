@@ -37,7 +37,7 @@ def test_sessions_resume_across_app_restarts(tmp_path: Path, *, demo: bool) -> N
         name = "penguins.csv" if demo else "birds.csv"
         assert (folder / name).read_bytes() == DATASET.read_bytes()
         assert previous["source"]["file_name"] == name
-        assert (folder / Path(name).with_suffix(".tabstudio.json")).is_file()
+        assert (folder / Path(name).with_suffix(".rowsetta.json")).is_file()
         async with api(tmp_path) as (_, client):
             await authenticate(client)
             response = await load(client)

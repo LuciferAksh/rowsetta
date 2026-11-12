@@ -28,8 +28,8 @@ build:
 	uv build
 
 golden:
-	TABSTUDIO_UPDATE_SQL_GOLDENS=1 uv run --locked pytest tests/golden/test_sql.py
-	TABSTUDIO_UPDATE_CLI_GOLDENS=1 uv run --locked pytest tests/integration/test_cli_output.py
+	ROWSETTA_UPDATE_SQL_GOLDENS=1 uv run --locked pytest tests/golden/test_sql.py
+	ROWSETTA_UPDATE_CLI_GOLDENS=1 uv run --locked pytest tests/integration/test_cli_output.py
 
 bench bench-full:
 	uv run --locked --group bench python -m scripts.bench_full $(BENCH_ARGS)

@@ -4,10 +4,10 @@ from pathlib import Path
 
 import pytest
 
-from tabular_studio.core.errors import UserError
-from tabular_studio.core.session import LabelStore
-from tabular_studio.core.workspace import Workspace
-from tabular_studio.storage import STALE_CSV_MESSAGE, SessionStorage
+from rowsetta.core.errors import UserError
+from rowsetta.core.session import LabelStore
+from rowsetta.core.workspace import Workspace
+from rowsetta.storage import STALE_CSV_MESSAGE, SessionStorage
 
 DATA = b"x,z,target\n1,2,a\n2,3,b\n3,4,a\n4,5,b\n5,6,a\n6,7,b\n"
 
@@ -20,7 +20,7 @@ def open_workspace(directory: Path, *, local_path: Path | None = None) -> Worksp
 
 
 def sidecar(directory: Path) -> Path:
-    return directory / sha256(DATA).hexdigest() / "data.tabstudio.json"
+    return directory / sha256(DATA).hexdigest() / "data.rowsetta.json"
 
 
 def saved(directory: Path) -> LabelStore:
@@ -68,7 +68,7 @@ def test_crash_before_replace_reloads_last_good_sidecar(
     original_replace = Path.replace
 
     def crash(path: Path, target: str | Path) -> Path:
-        if path.name == "data.tabstudio.json.tmp":
+        if path.name == "data.rowsetta.json.tmp":
             message = "simulated crash before replace"
             raise OSError(message)
         return original_replace(path, target)
@@ -78,7 +78,7 @@ def test_crash_before_replace_reloads_last_good_sidecar(
         with pytest.raises(UserError, match="simulated crash"):
             workspace.set_label(1, "b", "human")
     assert sidecar(tmp_path).read_bytes() == last_good
-    temporary = sidecar(tmp_path).with_name("data.tabstudio.json.tmp")
+    temporary = sidecar(tmp_path).with_name("data.rowsetta.json.tmp")
     assert LabelStore.from_json(temporary.read_text()).human == {0: "a", 1: "b"}
     assert open_workspace(tmp_path).require_store().human == {0: "a"}
 
@@ -89,14 +89,14 @@ def test_changed_local_csv_archives_sidecar_without_applying_labels(tmp_path: Pa
     workspace = open_workspace(tmp_path / "managed", local_path=path)
     workspace.set_target("target", ("a", "b"))
     workspace.set_label(0, "a", "human")
-    adjacent = path.with_suffix(".tabstudio.json")
+    adjacent = path.with_suffix(".rowsetta.json")
     previous = adjacent.read_bytes()
     path.write_bytes(DATA.replace(b"1,2,a", b"9,2,a"))
     restored = open_workspace(tmp_path / "managed", local_path=path)
     assert restored.store is None
     assert restored.notice == STALE_CSV_MESSAGE
     stamp = datetime.now(UTC).date().isoformat()
-    archive = tmp_path / f"local.tabstudio.{stamp}.json"
+    archive = tmp_path / f"local.rowsetta.{stamp}.json"
     assert archive.read_bytes() == previous
     assert not adjacent.exists()
     assert not (tmp_path / "managed").exists()
@@ -105,7 +105,7 @@ def test_changed_local_csv_archives_sidecar_without_applying_labels(tmp_path: Pa
     path.write_bytes(DATA)
     assert open_workspace(tmp_path, local_path=path).store is None
     assert archive.read_bytes() == previous
-    assert (tmp_path / f"local.tabstudio.{stamp}.1.json").exists()
+    assert (tmp_path / f"local.rowsetta.{stamp}.1.json").exists()
 
 
 def test_same_basename_different_bytes_are_isolated(tmp_path: Path) -> None:
@@ -136,7 +136,7 @@ def test_invalid_sidecar_does_not_replace_active_session(tmp_path: Path) -> None
     changed = DATA.replace(b"1,2,a", b"9,2,a")
     directory = tmp_path / sha256(changed).hexdigest()
     directory.mkdir()
-    invalid = directory / "other.tabstudio.json"
+    invalid = directory / "other.rowsetta.json"
     invalid.write_text("{}")
     with pytest.raises(UserError, match="Could not open the session"):
         workspace.load(changed, "other.csv", max_rows=6)
@@ -156,7 +156,7 @@ def test_storage_rejects_non_basename_sources(tmp_path: Path, name: str) -> None
 def test_sessions_dir_variable_moves_managed_sessions(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("TABSTUDIO_SESSIONS_DIR", str(tmp_path))
+    monkeypatch.setenv("ROWSETTA_SESSIONS_DIR", str(tmp_path))
     workspace = Workspace(SessionStorage())
     workspace.load(DATA, "data.csv", max_rows=6)
     workspace.set_target("target", ("a", "b"))
@@ -166,6 +166,6 @@ def test_sessions_dir_variable_moves_managed_sessions(
 def test_sessions_default_to_the_home_directory(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.delenv("TABSTUDIO_SESSIONS_DIR", raising=False)
+    monkeypatch.delenv("ROWSETTA_SESSIONS_DIR", raising=False)
     monkeypatch.setenv("HOME", str(tmp_path))
-    assert SessionStorage().data_dir == tmp_path / ".tabular-studio/sessions"
+    assert SessionStorage().data_dir == tmp_path / ".rowsetta/sessions"

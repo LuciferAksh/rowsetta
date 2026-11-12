@@ -6,9 +6,9 @@ import shlex
 
 import pytest
 
-from tabular_studio.api.errors import ApiError, FrontendMissingError, ModelUnavailableError
-from tabular_studio.core.audit import NeedAuditLabelsError
-from tabular_studio.core.errors import (
+from rowsetta.api.errors import ApiError, FrontendMissingError, ModelUnavailableError
+from rowsetta.core.audit import NeedAuditLabelsError
+from rowsetta.core.errors import (
     BadCsvError,
     FileTooLargeError,
     NeedLabelsError,
@@ -18,7 +18,7 @@ from tabular_studio.core.errors import (
     UserError,
     WorkspaceError,
 )
-from tabular_studio.core.export.sql import UnsupportedDatetimeSplitError
+from rowsetta.core.export.sql import UnsupportedDatetimeSplitError
 
 ERROR_EXAMPLES: tuple[UserError, ...] = (
     FileTooLargeError(200_000_001, 200_000_000),
@@ -38,7 +38,7 @@ ERROR_EXAMPLES: tuple[UserError, ...] = (
 
 def _discover_user_errors() -> set[type[UserError]]:
     error_types: set[type[UserError]] = set()
-    for package_name in ("tabular_studio.core", "tabular_studio.api"):
+    for package_name in ("rowsetta.core", "rowsetta.api"):
         if importlib.util.find_spec(package_name) is None:
             continue
         package = importlib.import_module(package_name)

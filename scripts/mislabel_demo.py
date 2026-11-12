@@ -11,9 +11,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-DATASET = (
-    Path(__file__).resolve().parents[1] / "src" / "tabular_studio" / "datasets" / "penguins.csv"
-)
+DATASET = Path(__file__).resolve().parents[1] / "src" / "rowsetta" / "datasets" / "penguins.csv"
 TARGET = "species"
 CHANGED = 9
 SEED = 7

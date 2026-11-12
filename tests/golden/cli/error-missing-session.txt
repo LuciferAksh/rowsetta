@@ -1,4 +1,4 @@
-$ rowsetta export absent.tabstudio.json
-error: Could not read `absent.tabstudio.json`: No such file or directory.
-Next: rowsetta export <a saved .tabstudio.json>
+$ rowsetta export absent.rowsetta.json
+error: Could not read `absent.rowsetta.json`: No such file or directory.
+Next: rowsetta export <a saved .rowsetta.json>
 [exit 1]

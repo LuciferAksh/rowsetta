@@ -12,6 +12,9 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import JsonValue
 
+from rowsetta.core.active import Predictions, next_row
+from rowsetta.core.session import LabelStore
+from rowsetta.core.table import Table
 from scripts.bench_common import (
     BUDGETS,
     Observation,
@@ -26,9 +29,6 @@ from scripts.bench_common import (
     session,
 )
 from scripts.bench_learners import LEARNERS, STRATEGIES, probabilities
-from tabular_studio.core.active import Predictions, next_row
-from tabular_studio.core.session import LabelStore
-from tabular_studio.core.table import Table
 
 BATCH_SIZE = 5
 NOISE_SEED_OFFSET = 1000

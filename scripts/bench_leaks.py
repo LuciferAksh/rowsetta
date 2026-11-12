@@ -11,6 +11,8 @@ from time import perf_counter
 import numpy as np
 from pydantic import BaseModel, JsonValue
 
+from rowsetta.core.leaks import MIN_HUMAN_LABELS, find_leaks
+from rowsetta.core.table import ColumnInfo
 from scripts.bench_active import Acquisition, acquire
 from scripts.bench_common import (
     atomic_json,
@@ -24,8 +26,6 @@ from scripts.bench_common import (
     publish,
     session,
 )
-from tabular_studio.core.leaks import MIN_HUMAN_LABELS, find_leaks
-from tabular_studio.core.table import ColumnInfo
 
 FLIP_RATES = (0.0, 0.05, 0.1, 0.2, 0.4)
 LABEL_COUNTS = (30, 50, 100)

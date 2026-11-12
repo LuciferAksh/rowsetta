@@ -8,8 +8,8 @@ import duckdb
 import numpy as np
 import pytest
 
-from tabular_studio.core.distill import Count, Coverage
-from tabular_studio.core.export.dbt import to_dbt
+from rowsetta.core.distill import Count, Coverage
+from rowsetta.core.export.dbt import to_dbt
 from tests.integration.test_sql_export import demo_student
 from tests.sql_support import certificate, predictions
 

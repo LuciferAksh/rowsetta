@@ -9,16 +9,16 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from tabular_studio.core.errors import (
+from rowsetta.core.errors import (
     BadCsvError,
     FileTooLargeError,
     TooManyColumnsError,
     UnknownColumnsError,
 )
-from tabular_studio.core.table import MAX_COLS, MAX_FILE_BYTES, MAX_ROWS, SAMPLE_SEED, load_csv
+from rowsetta.core.table import MAX_COLS, MAX_FILE_BYTES, MAX_ROWS, SAMPLE_SEED, load_csv
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
-DATASETS = Path(__file__).resolve().parents[2] / "src" / "tabular_studio" / "datasets"
+DATASETS = Path(__file__).resolve().parents[2] / "src" / "rowsetta" / "datasets"
 
 
 @pytest.mark.parametrize(

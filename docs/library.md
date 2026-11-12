@@ -11,10 +11,10 @@ import duckdb
 import pandas as pd
 from sklearn.tree import DecisionTreeClassifier
 
-from tabular_studio.core.distill import Feature, FeatureSpec
-from tabular_studio.core.export.sql import SqlOptions, tree_to_sql
+from rowsetta.core.distill import Feature, FeatureSpec
+from rowsetta.core.export.sql import SqlOptions, tree_to_sql
 
-penguins = pd.read_csv(files("tabular_studio.datasets") / "penguins.csv")
+penguins = pd.read_csv(files("rowsetta.datasets") / "penguins.csv")
 spec = FeatureSpec(
     (
         Feature("flipper_length_mm", "numeric"),

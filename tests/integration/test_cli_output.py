@@ -20,8 +20,8 @@ def environment(tmp_path: Path, *, teacher: str = "fake") -> dict[str, str]:
         **os.environ,
         "NO_COLOR": "1",
         "COLUMNS": "80",
-        "TABSTUDIO_TEACHER": teacher,
-        "TABSTUDIO_DEVICE": "cpu",
+        "ROWSETTA_TEACHER": teacher,
+        "ROWSETTA_DEVICE": "cpu",
         "HOME": str(tmp_path),
         "HF_HOME": str(tmp_path / "hf"),
     }
@@ -47,7 +47,7 @@ def transcript(command: str, stdout: str, stderr: str, returncode: int | None) -
 
 def run(tmp_path: Path, command: str, *, teacher: str = "fake") -> str:
     result = subprocess.run(
-        [sys.executable, "-m", "tabular_studio", *command.split()],
+        [sys.executable, "-m", "rowsetta", *command.split()],
         capture_output=True,
         text=True,
         check=False,
@@ -59,7 +59,7 @@ def run(tmp_path: Path, command: str, *, teacher: str = "fake") -> str:
 
 def assert_golden(name: str, text: str) -> None:
     path = GOLDENS / f"{name}.txt"
-    if os.environ.get("TABSTUDIO_UPDATE_CLI_GOLDENS") == "1":
+    if os.environ.get("ROWSETTA_UPDATE_CLI_GOLDENS") == "1":
         GOLDENS.mkdir(exist_ok=True)
         path.write_text(text)
     assert path.read_text() == text, "Regenerate CLI fixtures with make golden."
@@ -87,13 +87,13 @@ def test_too_many_columns(tmp_path: Path) -> None:
 
 
 def test_missing_session(tmp_path: Path) -> None:
-    assert_golden("error-missing-session", run(tmp_path, "export absent.tabstudio.json"))
+    assert_golden("error-missing-session", run(tmp_path, "export absent.rowsetta.json"))
 
 
 def test_demo_startup_lines(tmp_path: Path) -> None:
     command = f"demo penguins --no-browser --port {DEMO_PORT}"
     with subprocess.Popen(
-        [sys.executable, "-m", "tabular_studio", *command.split()],
+        [sys.executable, "-m", "rowsetta", *command.split()],
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
         text=True,

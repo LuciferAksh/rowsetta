@@ -43,7 +43,7 @@ jobs:
       - run: uv sync --locked
       - run: uv run --locked pytest -m pg
         env:
-          TABSTUDIO_PG_DSN: postgresql://postgres:ci@localhost:5432/postgres
+          ROWSETTA_PG_DSN: postgresql://postgres:ci@localhost:5432/postgres
 
   pyodide-floor:
     runs-on: ubuntu-latest
@@ -91,7 +91,7 @@ jobs:
       - run: pnpm --dir frontend build
       - run: pnpm --dir frontend e2e
         env:
-          TABSTUDIO_TEACHER: fake
+          ROWSETTA_TEACHER: fake
 
   secrets:
     runs-on: ubuntu-latest
@@ -118,4 +118,4 @@ jobs:
       - run: uv run --locked python scripts/fetch_model.py
       - run: uv run --locked pytest -m model
         env:
-          TABSTUDIO_RUN_MODEL: "1"
+          ROWSETTA_RUN_MODEL: "1"

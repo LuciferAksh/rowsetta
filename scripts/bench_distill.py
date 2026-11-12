@@ -10,6 +10,15 @@ from time import perf_counter
 import numpy as np
 from pydantic import BaseModel, JsonValue
 
+from rowsetta.core import distill
+from rowsetta.core.prereg import (
+    ARMS,
+    ArmComparison,
+    CellKey,
+    completeness,
+    preregistered_rule,
+)
+from rowsetta.core.teacher import proposals_from_proba
 from scripts.bench_active import Acquisition, run_trajectory, scores
 from scripts.bench_common import (
     Observation,
@@ -25,15 +34,6 @@ from scripts.bench_common import (
     session,
 )
 from scripts.bench_identity import identity
-from tabular_studio.core import distill
-from tabular_studio.core.prereg import (
-    ARMS,
-    ArmComparison,
-    CellKey,
-    completeness,
-    preregistered_rule,
-)
-from tabular_studio.core.teacher import proposals_from_proba
 
 
 class DistilledCell(BaseModel):

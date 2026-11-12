@@ -12,7 +12,7 @@ from numpy.typing import NDArray
 from pydantic import JsonValue, TypeAdapter
 from starlette.types import Message, Scope
 
-from tabular_studio.teachers.fake import FakeTeacher
+from rowsetta.teachers.fake import FakeTeacher
 from tests.integration.api_support import (
     LAUNCH_CODE,
     api,
@@ -46,7 +46,7 @@ async def event_connection(app: FastAPI) -> AsyncGenerator[asyncio.Queue[str]]:
         "client": ("127.0.0.1", 12345),
         "headers": [
             (b"host", b"127.0.0.1"),
-            (b"cookie", f"tabstudio_session={LAUNCH_CODE}".encode()),
+            (b"cookie", f"rowsetta_session={LAUNCH_CODE}".encode()),
         ],
     }
     request_sent = False

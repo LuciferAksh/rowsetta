@@ -28,7 +28,7 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       # hatch_build.py builds the interface into the wheel.
       - run: uv build
-      - run: unzip -l dist/*.whl | grep -q tabular_studio/static/index.html
+      - run: unzip -l dist/*.whl | grep -q rowsetta/static/index.html
       - run: uv publish --trusted-publishing always
       - run: >-
           gh release create "$GITHUB_REF_NAME" dist/*

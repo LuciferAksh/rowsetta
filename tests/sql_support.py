@@ -7,8 +7,8 @@ import duckdb
 import pandas as pd
 import psycopg
 
-from tabular_studio.core.distill import Count, Coverage, NoDifference, Rate
-from tabular_studio.core.export.sql import Certificate, ColumnType, Dialect, NotExecuted
+from rowsetta.core.distill import Count, Coverage, NoDifference, Rate
+from rowsetta.core.export.sql import Certificate, ColumnType, Dialect, NotExecuted
 
 
 class SqlEngine(Protocol):
@@ -41,7 +41,7 @@ class SqliteEngine:
 class PgEngine:
     def execute(self, sql: str, frame: pd.DataFrame, table_name: str = "t") -> pd.DataFrame:
         with (
-            psycopg.connect(os.environ["TABSTUDIO_PG_DSN"]) as connection,
+            psycopg.connect(os.environ["ROWSETTA_PG_DSN"]) as connection,
             connection.cursor() as cursor,
         ):
             ordinal = "__test_row_ordinal"

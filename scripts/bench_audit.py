@@ -11,11 +11,11 @@ from time import perf_counter
 
 import numpy as np
 
+from rowsetta.core.audit import audit_labels
+from rowsetta.core.session import LabelStore
+from rowsetta.core.teacher import Teacher
+from rowsetta.teachers.fake import FakeTeacher
 from scripts.bench_common import TARGETS, dataset
-from tabular_studio.core.audit import audit_labels
-from tabular_studio.core.session import LabelStore
-from tabular_studio.core.teacher import Teacher
-from tabular_studio.teachers.fake import FakeTeacher
 
 FLIP_RATE = 0.05
 FLIP_SEED = 7
@@ -76,7 +76,7 @@ def make_teacher(name: str) -> Teacher:
     """Load the local model only when it is the teacher being measured."""
     if name == "fake":
         return FakeTeacher()
-    return importlib.import_module("tabular_studio.teachers.tabicl").TabICLTeacher()
+    return importlib.import_module("rowsetta.teachers.tabicl").TabICLTeacher()
 
 
 def parser() -> argparse.ArgumentParser:

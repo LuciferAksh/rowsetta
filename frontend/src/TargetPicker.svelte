@@ -3,7 +3,7 @@
 
   let { studio }: { studio: Studio } = $props();
 
-  // Mirror MIN_CLASSES and MAX_CLASSES in src/tabular_studio/core/session.py.
+  // Mirror MIN_CLASSES and MAX_CLASSES in src/rowsetta/core/session.py.
   const MIN_CLASSES = 2;
   const MAX_CLASSES = 10;
 

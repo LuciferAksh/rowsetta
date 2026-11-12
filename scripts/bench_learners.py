@@ -5,11 +5,11 @@ import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
 
-from tabular_studio.core.distill import direct_trees
-from tabular_studio.core.features import teacher_frame
-from tabular_studio.core.session import LabelStore
-from tabular_studio.core.table import Table
-from tabular_studio.teachers.tabicl import TabICLTeacher
+from rowsetta.core.distill import direct_trees
+from rowsetta.core.features import teacher_frame
+from rowsetta.core.session import LabelStore
+from rowsetta.core.table import Table
+from rowsetta.teachers.tabicl import TabICLTeacher
 
 LEARNERS = ("tabicl", "tabpfn", "forest", "logistic", "label_spreading", "self_training")
 STRATEGIES = ("ours", "random", "margin")

@@ -1,6 +1,6 @@
 import huggingface_hub
 
-from tabular_studio.teachers.checkpoint import (
+from rowsetta.teachers.checkpoint import (
     CHECKSUM_ERROR,
     FILENAME,
     SHA256,

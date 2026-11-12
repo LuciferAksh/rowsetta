@@ -28,7 +28,7 @@ COLD_BUDGET_SECONDS = 180
 WARM_BUDGET_SECONDS = 15
 PORT = 8787
 POLL_SECONDS = 0.2
-PENGUINS = ROOT / "src/tabular_studio/datasets/penguins.csv"
+PENGUINS = ROOT / "src/rowsetta/datasets/penguins.csv"
 LABELS_PER_SPECIES = 2  # The fewest that start proposals.
 
 
@@ -109,7 +109,7 @@ def run_local(spec: str, caches: Path) -> Timing:
         "UV_CACHE_DIR": str(caches / "uv"),
         "UV_TOOL_DIR": str(caches / "tools"),
         "HF_HOME": str(caches / "hf"),
-        "TABSTUDIO_SESSION_TOKEN": token,
+        "ROWSETTA_SESSION_TOKEN": token,
     }
     backend: list[str] = ["--torch-backend", "cpu"] if sys.platform == "linux" else []
     command = ["uvx", *backend, spec, "demo", "--no-browser", "--port", str(PORT)]
@@ -129,7 +129,7 @@ def main() -> None:
     cli.add_argument("--local", required=True, metavar="SPEC", help="for example rowsetta@0.1.0")
     cli.add_argument("--no-budget", action="store_true", help="measure without asserting budgets")
     args = cli.parse_args()
-    with tempfile.TemporaryDirectory(prefix="tabstudio-cold-") as folder:
+    with tempfile.TemporaryDirectory(prefix="rowsetta-cold-") as folder:
         caches = Path(folder)
         cold = run_local(args.local, caches)
         downloaded = du_bytes(caches / "uv", caches / "tools", caches / "hf")

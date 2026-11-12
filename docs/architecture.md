@@ -20,7 +20,7 @@ flowchart LR
 
 ## Module map
 
-### `src/tabular_studio/core/`
+### `src/rowsetta/core/`
 
 No module here reads files, opens sockets or starts threads; the shell passes
 bytes, teachers, random generators and persistence in.
@@ -53,7 +53,7 @@ bytes, teachers, random generators and persistence in.
 | `api/worker.py` | `RefitWorker` runs all teacher work on one background thread and keeps only the newest generation's result. |
 | `api/security.py` | Host allowlist, launch token and session cookie ([ADR 0010](adr/0010-localhost-security.md)). |
 | `api/schemas.py`, `api/presentation.py` | Response models and the state the page renders. |
-| `storage.py` | Atomic `<stem>.tabstudio.json` sidecars beside the CSV, or under the data directory for uploads and demos. |
+| `storage.py` | Atomic `<stem>.rowsetta.json` sidecars beside the CSV, or under the data directory for uploads and demos. |
 | `headless.py` | `rowsetta export`: refit a saved session and print its rule without the server. |
 | `doctor.py`, `teachers/checkpoint.py` | Download and SHA-256 check of the pinned TabICL checkpoint. |
 | `teachers/tabicl.py`, `teachers/fake.py` | The local TabICLv2 adapter and the deterministic test teacher. |

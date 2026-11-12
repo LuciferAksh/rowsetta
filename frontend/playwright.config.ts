@@ -7,17 +7,17 @@ import { E2E_TOKEN, SLOW_REFIT_DELAY_MS, SLOW_REFIT_PORT } from './e2e/session';
 // Sessions go to a scratch directory, never beside a user's own in the home
 // directory. Workers load this file again with the runner's environment, so
 // one directory serves the whole run.
-process.env.TABSTUDIO_E2E_SESSIONS ??= mkdtempSync(
-  join(tmpdir(), 'tabstudio-e2e-'),
+process.env.ROWSETTA_E2E_SESSIONS ??= mkdtempSync(
+  join(tmpdir(), 'rowsetta-e2e-'),
 );
-const SESSIONS = process.env.TABSTUDIO_E2E_SESSIONS;
+const SESSIONS = process.env.ROWSETTA_E2E_SESSIONS;
 
 function serverEnv(server: string): Record<string, string> {
   return {
-    TABSTUDIO_TEACHER: 'fake',
-    TABSTUDIO_SESSION_TOKEN: E2E_TOKEN,
-    TABSTUDIO_STATES: '1',
-    TABSTUDIO_SESSIONS_DIR: join(SESSIONS, server),
+    ROWSETTA_TEACHER: 'fake',
+    ROWSETTA_SESSION_TOKEN: E2E_TOKEN,
+    ROWSETTA_STATES: '1',
+    ROWSETTA_SESSIONS_DIR: join(SESSIONS, server),
   };
 }
 
@@ -38,7 +38,7 @@ export default defineConfig({
       url: `http://127.0.0.1:${String(SLOW_REFIT_PORT)}/health`,
       env: {
         ...serverEnv('slow-refit'),
-        TABSTUDIO_FAKE_DELAY_MS: String(SLOW_REFIT_DELAY_MS),
+        ROWSETTA_FAKE_DELAY_MS: String(SLOW_REFIT_DELAY_MS),
       },
       reuseExistingServer: false,
     },

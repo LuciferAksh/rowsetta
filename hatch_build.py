@@ -15,7 +15,7 @@ PNPM_MISSING = (
 
 
 class FrontendBuildHook(BuildHookInterface[Any]):
-    """Run the Vite build into `src/tabular_studio/static` before packaging."""
+    """Run the Vite build into `src/rowsetta/static` before packaging."""
 
     def initialize(self, version: str, build_data: dict[str, Any]) -> None:
         """Build the interface, unless this is an editable install or an unpacked sdist."""
@@ -27,7 +27,7 @@ class FrontendBuildHook(BuildHookInterface[Any]):
         frontend = root / "frontend"
         if not frontend.is_dir():
             # An sdist carries the built interface instead of its sources.
-            index = root / "src" / "tabular_studio" / "static" / "index.html"
+            index = root / "src" / "rowsetta" / "static" / "index.html"
             if not index.is_file():
                 msg = f"{index} is missing from this source distribution."
                 raise RuntimeError(msg)

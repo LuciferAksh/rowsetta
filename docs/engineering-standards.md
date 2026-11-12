@@ -10,7 +10,7 @@ here so contributors work to the same bar.
    `max_file_mb`).
 2. Small units: a function does one thing; files stay focused (soft cap around
    300 lines). No catch-all `utils` module; name modules by responsibility.
-3. Pure core, thin I/O shell. Code in `src/tabular_studio/core/` has no network,
+3. Pure core, thin I/O shell. Code in `src/rowsetta/core/` has no network,
    filesystem, clock or randomness hidden inside; the API shell and the CLI pass
    them in. This is what makes it testable.
 4. Types are strict and honest: no `any`, no `# type: ignore`, no `!` non-null

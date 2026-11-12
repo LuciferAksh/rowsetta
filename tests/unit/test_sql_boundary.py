@@ -4,8 +4,8 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from tabular_studio.core.distill import Feature, FeatureSpec
-from tabular_studio.core.export.sql import Dialect, SqlOptions, tree_to_sql
+from rowsetta.core.distill import Feature, FeatureSpec
+from rowsetta.core.export.sql import Dialect, SqlOptions, tree_to_sql
 from tests.sql_support import engine, predictions
 from tests.unit.test_distill import FourLeafTree
 

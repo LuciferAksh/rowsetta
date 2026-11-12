@@ -11,8 +11,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from tabular_studio.core.distill import Feature, FeatureSpec, TreeClassifier
-from tabular_studio.core.export.sql import tree_to_sql
+from rowsetta.core.distill import Feature, FeatureSpec, TreeClassifier
+from rowsetta.core.export.sql import tree_to_sql
 from tests.sql_support import engine, predictions
 
 pytestmark = pytest.mark.native
@@ -26,14 +26,14 @@ class BlockTeachers(importlib.abc.MetaPathFinder):
         path: Sequence[str] | None = None,
         target: ModuleType | None = None,
     ) -> ModuleSpec | None:
-        if fullname.startswith("tabular_studio.teachers"):
+        if fullname.startswith("rowsetta.teachers"):
             message = "Library export imported a teacher"
             raise AssertionError(message)
         return None
 
 
 def _iris_export() -> None:
-    assert not any(name.startswith("tabular_studio.teachers") for name in sys.modules)
+    assert not any(name.startswith("rowsetta.teachers") for name in sys.modules)
     sys.meta_path.insert(0, BlockTeachers())
     iris = importlib.import_module("sklearn.datasets").load_iris()
     frame = pd.DataFrame(iris.data, columns=iris.feature_names)
@@ -51,7 +51,7 @@ def _iris_export() -> None:
     for dialect in ("duckdb", "sqlite"):
         sql = tree_to_sql(tree, feature_spec=spec, target="answer", dialect=dialect)
         assert predictions(engine(dialect).execute(sql, frame)) == expected
-    assert not any(name.startswith("tabular_studio.teachers") for name in sys.modules)
+    assert not any(name.startswith("rowsetta.teachers") for name in sys.modules)
 
 
 def test_iris_export_without_teacher_imports() -> None:

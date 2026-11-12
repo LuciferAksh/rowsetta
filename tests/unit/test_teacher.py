@@ -6,11 +6,11 @@ import pandas as pd
 import pytest
 from numpy.typing import NDArray
 
-from tabular_studio.core.features import teacher_frame
-from tabular_studio.core.session import LabelStore, SourceRef
-from tabular_studio.core.table import ColumnInfo, Table, load_csv
-from tabular_studio.core.teacher import predict_table, proposals_from_proba
-from tabular_studio.teachers.fake import FakeTeacher
+from rowsetta.core.features import teacher_frame
+from rowsetta.core.session import LabelStore, SourceRef
+from rowsetta.core.table import ColumnInfo, Table, load_csv
+from rowsetta.core.teacher import predict_table, proposals_from_proba
+from rowsetta.teachers.fake import FakeTeacher
 
 
 @pytest.fixture
@@ -147,8 +147,8 @@ def test_fake_handles_categoricals_missing_and_unseen_values() -> None:
 
 def test_fake_delay_is_applied_only_during_prediction(monkeypatch: pytest.MonkeyPatch) -> None:
     waits: list[float] = []
-    monkeypatch.setenv("TABSTUDIO_FAKE_DELAY_MS", "125")
-    monkeypatch.setattr("tabular_studio.teachers.fake.sleep", waits.append)
+    monkeypatch.setenv("ROWSETTA_FAKE_DELAY_MS", "125")
+    monkeypatch.setattr("rowsetta.teachers.fake.sleep", waits.append)
     teacher = FakeTeacher()
     frame = pd.DataFrame({"x": [0, 1, 9, 10]})
     teacher.fit(frame, pd.Series(["a", "a", "b", "b"]))
@@ -196,7 +196,7 @@ def test_core_import_boundary() -> None:
             sys.executable,
             "-c",
             (
-                "import sys, tabular_studio.core.workspace; "
+                "import sys, rowsetta.core.workspace; "
                 "assert not {'torch','fastapi','duckdb','tabicl'} & set(sys.modules)"
             ),
         ],

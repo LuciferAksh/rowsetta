@@ -5,15 +5,15 @@ import pandas as pd
 import pytest
 from numpy.typing import NDArray
 
+from rowsetta.core.distill import fit_student
+from rowsetta.core.session import LabelStore
+from rowsetta.core.table import Table
 from scripts import bench_active, bench_common
 from scripts.bench_active import Acquisition, calibration, run_trajectory, scores
 from scripts.bench_common import Observation, atomic_json, load_checkpoint, session
 from scripts.bench_identity import identity
 from scripts.check_drift import drift_exceeded
 from scripts.render_bench import active_svg, render
-from tabular_studio.core.distill import fit_student
-from tabular_studio.core.session import LabelStore
-from tabular_studio.core.table import Table
 from tests.unit.test_distill import labelled
 
 

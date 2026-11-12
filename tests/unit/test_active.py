@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 from numpy.typing import NDArray
 
-from tabular_studio.core.active import Predictions, next_row
-from tabular_studio.core.session import LabelStore, SourceRef
+from rowsetta.core.active import Predictions, next_row
+from rowsetta.core.session import LabelStore, SourceRef
 
 CLASSES = ("a", "b", "c")
 ROWS = (10, 20, 30, 40, 50, 60)

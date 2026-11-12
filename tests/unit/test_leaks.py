@@ -6,13 +6,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from tabular_studio.core.features import teacher_frame
-from tabular_studio.core.leaks import find_leaks
-from tabular_studio.core.session import LabelStore, SourceRef
-from tabular_studio.core.table import Table, load_csv
+from rowsetta.core.features import teacher_frame
+from rowsetta.core.leaks import find_leaks
+from rowsetta.core.session import LabelStore, SourceRef
+from rowsetta.core.table import Table, load_csv
 
 ROOT = Path(__file__).resolve().parents[2]
-DATASETS = ROOT / "src" / "tabular_studio" / "datasets"
+DATASETS = ROOT / "src" / "rowsetta" / "datasets"
 
 
 def labelled_table(data: bytes, target: str = "answer") -> tuple[Table, LabelStore]:

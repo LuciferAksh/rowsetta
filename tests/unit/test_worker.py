@@ -5,10 +5,10 @@ import pandas as pd
 import pytest
 from numpy.typing import NDArray
 
-from tabular_studio.api.worker import RefitWorker
-from tabular_studio.core.session import LabelStore, SourceRef
-from tabular_studio.core.table import Table, load_csv
-from tabular_studio.teachers.fake import FakeTeacher
+from rowsetta.api.worker import RefitWorker
+from rowsetta.core.session import LabelStore, SourceRef
+from rowsetta.core.table import Table, load_csv
+from rowsetta.teachers.fake import FakeTeacher
 
 pytestmark = pytest.mark.native
 

@@ -1,7 +1,7 @@
 # Dataset card index
 
 The bundled CSV files and full source citations, checksums, processing notes and
-licences are in [the packaged cards](../src/tabular_studio/datasets/CARDS.md).
+licences are in [the packaged cards](../src/rowsetta/datasets/CARDS.md).
 
 | Dataset         | Files                       | Licence   |
 | --------------- | --------------------------- | --------- |
@@ -14,7 +14,7 @@ licences are in [the packaged cards](../src/tabular_studio/datasets/CARDS.md).
 
 The three ZIP archives are benchmark-only and are not bundled. Fetch and verify
 them with `uv run python scripts/fetch_bench_datasets.py --verify`. Unmodified
-source archives are cached under `~/.cache/tabular-studio/bench/`, or beneath
+source archives are cached under `~/.cache/rowsetta/bench/`, or beneath
 `XDG_CACHE_HOME` when set. Checksums are pinned in that script and recorded in
 [ADR 0009](../docs/adr/0009-third-party-browser-pieces.md#benchmark-source-verification).
 

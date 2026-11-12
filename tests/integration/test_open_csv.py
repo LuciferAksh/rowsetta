@@ -9,13 +9,13 @@ import pytest
 from fastapi import FastAPI
 from pydantic import JsonValue, TypeAdapter
 
-from tabular_studio.api.security import SessionSecurity
-from tabular_studio.app import LaunchCsv, create_app
-from tabular_studio.core.errors import FileTooLargeError, UnknownColumnsError
-from tabular_studio.teachers.fake import FakeTeacher
+from rowsetta.api.security import SessionSecurity
+from rowsetta.app import LaunchCsv, create_app
+from rowsetta.core.errors import FileTooLargeError, UnknownColumnsError
+from rowsetta.teachers.fake import FakeTeacher
 from tests.integration.api_support import DATASET, LAUNCH_CODE, authenticate, body, wait_refit
 
-SESSION = Path(__file__).parents[1] / "fixtures/penguins.tabstudio.json"
+SESSION = Path(__file__).parents[1] / "fixtures/penguins.rowsetta.json"
 
 
 def launch(csv: LaunchCsv) -> FastAPI:
@@ -70,7 +70,7 @@ def test_open_resumes_the_adjacent_session_and_refits_at_start(tmp_path: Path) -
     path = copy_dataset(tmp_path)
     session = json.loads(SESSION.read_text())
     session["source"]["file_name"] = path.name
-    path.with_suffix(".tabstudio.json").write_text(json.dumps(session))
+    path.with_suffix(".rowsetta.json").write_text(json.dumps(session))
 
     async def run() -> None:
         async with opened(LaunchCsv(path, session_beside=True)) as client:

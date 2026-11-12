@@ -8,14 +8,14 @@ from time import perf_counter
 import numpy as np
 from pydantic import JsonValue, TypeAdapter
 
-from tabular_studio.core.features import teacher_frame
-from tabular_studio.core.session import LabelStore, SourceRef
-from tabular_studio.core.table import Table, load_csv
-from tabular_studio.core.teacher import predict_table
-from tabular_studio.teachers.tabicl import TabICLTeacher
+from rowsetta.core.features import teacher_frame
+from rowsetta.core.session import LabelStore, SourceRef
+from rowsetta.core.table import Table, load_csv
+from rowsetta.core.teacher import predict_table
+from rowsetta.teachers.tabicl import TabICLTeacher
 
 ROOT = Path(__file__).resolve().parents[1]
-DATASETS = ROOT / "src" / "tabular_studio" / "datasets"
+DATASETS = ROOT / "src" / "rowsetta" / "datasets"
 BENCH_JSON = ROOT / "docs" / "bench.json"
 DATASET_TARGETS = {"penguins": "species", "bank": "y", "adult": "income"}
 LABEL_COUNTS = (20, 50, 100, 200)

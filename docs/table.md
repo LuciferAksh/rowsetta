@@ -34,15 +34,15 @@ A hash or size mismatch deletes the downloaded path and exits 1 with
 "checkpoint checksum mismatch; delete ~/.cache/huggingface/hub/models--jingang--TabICL
 and retry" (`CHECKSUM_ERROR` in `teachers/checkpoint.py`). Verification ran on
 macOS without credentials, with
-`HF_HOME=/private/tmp/tabular-studio-huggingface`; the verified file is under
+`HF_HOME=/private/tmp/rowsetta-huggingface`; the verified file is under
 `hub/models--jingang--TabICL/snapshots/<revision>/` there. The teacher reads the
 checkpoint from the same cache, so a different `HF_HOME` needs the fetch script
 run again.
 
 `scripts/fetch_datasets.py` checks all three source hashes before writing data.
-The destination is `src/tabular_studio/datasets/`; the expected hashes are
+The destination is `src/rowsetta/datasets/`; the expected hashes are
 pinned in that script.
-The full [packaged cards](../src/tabular_studio/datasets/CARDS.md) hold source
+The full [packaged cards](../src/rowsetta/datasets/CARDS.md) hold source
 URLs, hashes, citations, licences, modifications and the `duration` leakage note;
 [datasets/CARDS.md](../datasets/CARDS.md) indexes them.
 Penguins is unchanged, including `NA`. Bank comes from nested `bank.zip` and

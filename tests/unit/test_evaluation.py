@@ -6,9 +6,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from tabular_studio.core.evaluation import Measured, NeedsRows, evaluate
-from tabular_studio.core.session import LabelStore, SourceRef
-from tabular_studio.core.teacher import Proposals
+from rowsetta.core.evaluation import Measured, NeedsRows, evaluate
+from rowsetta.core.session import LabelStore, SourceRef
+from rowsetta.core.teacher import Proposals
 
 if TYPE_CHECKING:
     from collections.abc import Callable

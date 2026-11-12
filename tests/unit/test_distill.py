@@ -8,12 +8,12 @@ import pandas as pd
 import pytest
 from numpy.typing import NDArray
 
-from tabular_studio.core import distill
-from tabular_studio.core.session import LabelStore, SourceRef
-from tabular_studio.core.table import Table, load_csv
-from tabular_studio.core.teacher import Proposals
+from rowsetta.core import distill
+from rowsetta.core.session import LabelStore, SourceRef
+from rowsetta.core.table import Table, load_csv
+from rowsetta.core.teacher import Proposals
 
-DATASETS = Path(__file__).resolve().parents[2] / "src/tabular_studio/datasets"
+DATASETS = Path(__file__).resolve().parents[2] / "src/rowsetta/datasets"
 
 
 def labelled(frame: pd.DataFrame) -> tuple[Table, LabelStore, Proposals]:

@@ -25,7 +25,7 @@ def reject_network(*_args: object, **_kwargs: object) -> None:
 def test_full_flow_does_not_resolve_or_connect(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("TABSTUDIO_TEACHER", "fake")
+    monkeypatch.setenv("ROWSETTA_TEACHER", "fake")
     monkeypatch.setattr(socket, "getaddrinfo", reject_network)
     monkeypatch.setattr(socket, "create_connection", reject_network)
     monkeypatch.setattr(socket.socket, "connect", reject_network)
@@ -39,7 +39,7 @@ def test_full_flow_does_not_resolve_or_connect(
     asyncio.run(run())
 
 
-@pytest.mark.parametrize("module", ["tabular_studio.app", "tabular_studio.cli"])
+@pytest.mark.parametrize("module", ["rowsetta.app", "rowsetta.cli"])
 def test_telemetry_and_hub_offline_are_set_before_hub_import(module: str) -> None:
 
     environment = {
@@ -71,7 +71,7 @@ assert constants.HF_HUB_OFFLINE
 
 def test_missing_checkpoint_stays_offline(tmp_path: Path) -> None:
 
-    environment = {key: value for key, value in os.environ.items() if key != "TABSTUDIO_TEACHER"}
+    environment = {key: value for key, value in os.environ.items() if key != "ROWSETTA_TEACHER"}
     environment["HF_HOME"] = str(tmp_path)
     subprocess.run(
         [
@@ -79,8 +79,8 @@ def test_missing_checkpoint_stays_offline(tmp_path: Path) -> None:
             "-c",
             """
 import socket
-from tabular_studio.app import local_teacher
-from tabular_studio.api.errors import ModelUnavailableError
+from rowsetta.app import local_teacher
+from rowsetta.api.errors import ModelUnavailableError
 
 def reject(*args, **kwargs):
     raise AssertionError('Network attempted while resolving missing weights')

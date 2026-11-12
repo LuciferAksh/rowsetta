@@ -7,8 +7,8 @@ import pandas as pd
 import pytest
 from numpy.typing import NDArray
 
-from tabular_studio.core.teacher import TEACHER_N_ESTIMATORS, Teacher
-from tabular_studio.teachers import checkpoint, tabicl
+from rowsetta.core.teacher import TEACHER_N_ESTIMATORS, Teacher
+from rowsetta.teachers import checkpoint, tabicl
 
 
 def test_adapter_verifies_path_and_retains_class_order(
@@ -32,7 +32,7 @@ def test_adapter_verifies_path_and_retains_class_order(
 
     monkeypatch.setitem(sys.modules, "tabicl", SimpleNamespace(TabICLClassifier=StubClassifier))
     monkeypatch.setattr(tabicl, "checkpoint_path", lambda: verified)
-    monkeypatch.setenv("TABSTUDIO_DEVICE", "cpu")
+    monkeypatch.setenv("ROWSETTA_DEVICE", "cpu")
     teacher: Teacher = tabicl.TabICLTeacher()
     assert arguments == {
         "n_estimators": TEACHER_N_ESTIMATORS,

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
-PENGUINS = Path(__file__).resolve().parents[1] / "src/tabular_studio/datasets/penguins.csv"
+PENGUINS = Path(__file__).resolve().parents[1] / "src/rowsetta/datasets/penguins.csv"
 LABEL_ROWS = 20
 SMOKE_ROWS = 10
 SEED = 7

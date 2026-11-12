@@ -26,7 +26,7 @@ dependencies = [
 ]
 
 [project.scripts]
-rowsetta = "tabular_studio.cli:main"
+rowsetta = "rowsetta.cli:main"
 
 [[tool.uv.index]]
 name = "pytorch-cpu"
@@ -53,8 +53,8 @@ dev = [
 bench = ["tabpfn==9.2.0", "orbital==0.6.0"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/tabular_studio"]
-artifacts = ["src/tabular_studio/static/**"]
+packages = ["src/rowsetta"]
+artifacts = ["src/rowsetta/static/**"]
 
 # hatch_build.py builds the interface into static/; editable installs skip it.
 [tool.hatch.build.targets.wheel.hooks.custom]
@@ -62,14 +62,14 @@ artifacts = ["src/tabular_studio/static/**"]
 # The sdist carries the built interface, so a wheel built from it needs no Node.
 [tool.hatch.build.targets.sdist]
 only-include = [
-  "/src/tabular_studio",
+  "/src/rowsetta",
   "/hatch_build.py",
   "/pyproject.toml",
   "/README.md",
   "/LICENSE",
   "/NOTICE",
 ]
-artifacts = ["src/tabular_studio/static/**"]
+artifacts = ["src/rowsetta/static/**"]
 
 [tool.hatch.build.targets.sdist.hooks.custom]
 
@@ -97,7 +97,7 @@ ignore = ["hatch_build.py"]
 addopts = "-q --strict-markers"
 testpaths = ["tests"]
 markers = [
-  "model: downloads and runs TabICL (requires TABSTUDIO_RUN_MODEL=1)",
-  "pg: needs PostgreSQL at TABSTUDIO_PG_DSN",
+  "model: downloads and runs TabICL (requires ROWSETTA_RUN_MODEL=1)",
+  "pg: needs PostgreSQL at ROWSETTA_PG_DSN",
   "native: needs subprocesses, sqlite3, duckdb or hypothesis; excluded inside Pyodide",
 ]

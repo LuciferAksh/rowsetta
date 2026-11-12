@@ -2,8 +2,8 @@ from dataclasses import replace
 
 import pytest
 
-from tabular_studio.core.distill import NoDifference, OtherBetter, RuleBetter
-from tabular_studio.core.prereg import (
+from rowsetta.core.distill import NoDifference, OtherBetter, RuleBetter
+from rowsetta.core.prereg import (
     ARMS,
     BUDGETS,
     DATASETS,

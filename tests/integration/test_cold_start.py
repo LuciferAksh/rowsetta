@@ -16,11 +16,11 @@ LAUNCH_CODE = "cold-start-test-token"
 
 def test_drive_labels_six_rows_and_waits_for_first_proposals(tmp_path: Path) -> None:
     server = subprocess.Popen(
-        [sys.executable, "-m", "tabular_studio", "demo", "--no-browser", "--port", str(PORT)],
+        [sys.executable, "-m", "rowsetta", "demo", "--no-browser", "--port", str(PORT)],
         env={
             **os.environ,
-            "TABSTUDIO_TEACHER": "fake",
-            "TABSTUDIO_SESSION_TOKEN": LAUNCH_CODE,
+            "ROWSETTA_TEACHER": "fake",
+            "ROWSETTA_SESSION_TOKEN": LAUNCH_CODE,
             "HOME": str(tmp_path),
         },
         stdout=subprocess.DEVNULL,

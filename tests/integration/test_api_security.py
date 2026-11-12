@@ -8,9 +8,9 @@ from pathlib import Path
 import httpx
 import pytest
 
-from tabular_studio.api.security import SessionSecurity
-from tabular_studio.app import create_app
-from tabular_studio.teachers.fake import FakeTeacher
+from rowsetta.api.security import SessionSecurity
+from rowsetta.app import create_app
+from rowsetta.teachers.fake import FakeTeacher
 from tests.integration.api_support import LAUNCH_CODE, api, authenticate, body
 
 pytestmark = pytest.mark.native
@@ -78,7 +78,7 @@ def test_health_and_cookie_scope(tmp_path: Path) -> None:
             assert LAUNCH_CODE not in (await client.get("/state")).text
             assert body(await client.get("/state"))["dev_states"] is False
             client.cookies.clear()
-            client.cookies.set("tabstudio_session", "wrong")
+            client.cookies.set("rowsetta_session", "wrong")
             wrong = await client.get("/state")
             assert wrong.status_code == 403
             body(wrong)
@@ -89,11 +89,11 @@ def test_health_and_cookie_scope(tmp_path: Path) -> None:
 def test_launch_tokens_are_random_and_override_is_loopback_only(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("TABSTUDIO_SESSION_TOKEN", raising=False)
+    monkeypatch.delenv("ROWSETTA_SESSION_TOKEN", raising=False)
     first, second = SessionSecurity.for_host("127.0.0.1"), SessionSecurity.for_host("127.0.0.1")
     assert len(first.token) >= 43
     assert first.token != second.token
-    monkeypatch.setenv("TABSTUDIO_SESSION_TOKEN", LAUNCH_CODE)
+    monkeypatch.setenv("ROWSETTA_SESSION_TOKEN", LAUNCH_CODE)
     assert SessionSecurity.for_host("127.0.0.1").token == LAUNCH_CODE
     with pytest.raises(ValueError, match=r"only allowed on 127\.0\.0\.1"):
         SessionSecurity.for_host(str(IPv4Address(0)))
@@ -107,25 +107,25 @@ def test_cli_refuses_token_on_non_loopback_bind() -> None:
             """
 import sys
 from ipaddress import IPv4Address
-from tabular_studio.cli import main
+from rowsetta.cli import main
 sys.argv = ['rowsetta', 'demo', '--no-browser', '--host', str(IPv4Address(0))]
 main()
 """,
         ],
-        env={**os.environ, "TABSTUDIO_SESSION_TOKEN": LAUNCH_CODE, "TABSTUDIO_TEACHER": "fake"},
+        env={**os.environ, "ROWSETTA_SESSION_TOKEN": LAUNCH_CODE, "ROWSETTA_TEACHER": "fake"},
         capture_output=True,
         text=True,
         check=False,
     )
     assert result.returncode == 2
-    assert "TABSTUDIO_SESSION_TOKEN is only allowed on 127.0.0.1" in result.stderr
+    assert "ROWSETTA_SESSION_TOKEN is only allowed on 127.0.0.1" in result.stderr
     assert "Open http" not in result.stdout
 
 
 def test_built_static_is_authenticated_and_states_opt_in(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("TABSTUDIO_STATES", "1")
+    monkeypatch.setenv("ROWSETTA_STATES", "1")
     (tmp_path / "index.html").write_text("<html><title>Local app</title></html>")
     (tmp_path / "app.js").write_text("export const ready = true;")
 

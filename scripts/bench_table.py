@@ -1,9 +1,9 @@
 from pathlib import Path
 from time import perf_counter
 
-from tabular_studio.core.table import load_csv
+from rowsetta.core.table import load_csv
 
-DATASETS = Path(__file__).resolve().parents[1] / "src" / "tabular_studio" / "datasets"
+DATASETS = Path(__file__).resolve().parents[1] / "src" / "rowsetta" / "datasets"
 
 
 def main() -> None:

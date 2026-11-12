@@ -15,5 +15,5 @@ site/
 *.egg-info/
 frontend/playwright-report/
 frontend/test-results/
-src/tabular_studio/static/
+src/rowsetta/static/
 .DS_Store

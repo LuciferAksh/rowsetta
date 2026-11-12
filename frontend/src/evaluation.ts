@@ -1,6 +1,6 @@
 import type { Evaluation, Measured } from './backend/types';
 
-// Mirror src/tabular_studio/core/evaluation.py, which withholds each figure below these counts.
+// Mirror src/rowsetta/core/evaluation.py, which withholds each figure below these counts.
 export const MIN_EVAL_ROWS = 20;
 export const MIN_EVAL_PER_CLASS = 5;
 

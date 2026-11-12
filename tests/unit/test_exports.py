@@ -12,10 +12,10 @@ import pandas as pd
 import pytest
 from pydantic import TypeAdapter
 
-from tabular_studio.core.distill import Feature, FeatureSpec, fit_student
-from tabular_studio.core.export.json import Export, to_json
-from tabular_studio.core.export.python import to_python
-from tabular_studio.core.export.sql import Executed, UnsupportedDatetimeSplitError
+from rowsetta.core.distill import Feature, FeatureSpec, fit_student
+from rowsetta.core.export.json import Export, to_json
+from rowsetta.core.export.python import to_python
+from rowsetta.core.export.sql import Executed, UnsupportedDatetimeSplitError
 from tests.integration.test_sql_export import DEMO_TARGETS, demo_student
 from tests.sql_support import certificate
 from tests.unit.test_distill import FourLeafTree, labelled, ten_rows

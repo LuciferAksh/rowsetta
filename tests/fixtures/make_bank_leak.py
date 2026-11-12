@@ -8,7 +8,7 @@ import csv
 from pathlib import Path
 
 ROOT = Path(__file__).parents[2]
-SOURCE = ROOT / "src/tabular_studio/datasets/bank.csv"
+SOURCE = ROOT / "src/rowsetta/datasets/bank.csv"
 OUTPUT = Path(__file__).with_name("bank_leak.csv")
 AFTER_CALL = {"yes": "deposit opened", "no": "no deposit"}
 

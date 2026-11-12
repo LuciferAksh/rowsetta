@@ -1,8 +1,8 @@
 // Wire types for the local HTTP API. Field names keep the backend's snake_case so
 // a body reads the same in the browser, the server and the session file.
-// Request and response bodies mirror src/tabular_studio/api/schemas.py and are
+// Request and response bodies mirror src/rowsetta/api/schemas.py and are
 // checked against tests/openapi.json. Server events are not in that schema; they
-// mirror src/tabular_studio/api/runtime.py. http.ts decodes every response.
+// mirror src/rowsetta/api/runtime.py. http.ts decodes every response.
 
 export const LABEL_MODES = ['human', 'eval'] as const;
 export type LabelMode = (typeof LABEL_MODES)[number];

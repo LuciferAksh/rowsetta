@@ -11,12 +11,12 @@ from types import SimpleNamespace
 import pytest
 import uvicorn
 
-from tabular_studio import cli
-from tabular_studio.api.errors import ModelUnavailableError
-from tabular_studio.core.errors import UserError
-from tabular_studio.doctor import DownloadProgress, doctor, fetch_checkpoint
-from tabular_studio.teachers import checkpoint
-from tabular_studio.teachers.fake import FakeTeacher
+from rowsetta import cli
+from rowsetta.api.errors import ModelUnavailableError
+from rowsetta.core.errors import UserError
+from rowsetta.doctor import DownloadProgress, doctor, fetch_checkpoint
+from rowsetta.teachers import checkpoint
+from rowsetta.teachers.fake import FakeTeacher
 
 PINNED = b"pinned checkpoint bytes"
 RETRY = "rowsetta demo --no-browser"
@@ -68,7 +68,7 @@ class FakeHub:
 def pinned(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(checkpoint, "SHA256", hashlib.sha256(PINNED).hexdigest())
     monkeypatch.setattr(checkpoint, "SIZE_BYTES", len(PINNED))
-    monkeypatch.setenv("TABSTUDIO_DEVICE", "cpu")
+    monkeypatch.setenv("ROWSETTA_DEVICE", "cpu")
 
 
 def test_fix_replaces_a_corrupted_cached_checkpoint(tmp_path: Path) -> None:
@@ -120,7 +120,7 @@ def test_report_names_the_device_and_a_missing_checkpoint(tmp_path: Path) -> Non
     lines = report.getvalue().splitlines()
     assert lines[0].startswith("torch       ")
     assert lines[1].startswith("tabicl      ")
-    assert lines[2:] == ["device      cpu (TABSTUDIO_DEVICE)", "checkpoint  not downloaded"]
+    assert lines[2:] == ["device      cpu (ROWSETTA_DEVICE)", "checkpoint  not downloaded"]
 
 
 def test_fix_downloads_a_missing_checkpoint(tmp_path: Path) -> None:
@@ -184,7 +184,7 @@ def test_download_progress_starts_no_multiprocessing_resource_tracker() -> None:
             "-c",
             """
 from multiprocessing import resource_tracker
-from tabular_studio.doctor import DownloadProgress
+from rowsetta.doctor import DownloadProgress
 DownloadProgress(total=1, unit="B").close()
 assert resource_tracker._resource_tracker._pid is None
 """,
@@ -200,7 +200,7 @@ assert resource_tracker._resource_tracker._pid is None
 def launch_demo(hub: FakeHub, monkeypatch: pytest.MonkeyPatch, home: Path) -> list[object]:
     served: list[object] = []
     monkeypatch.setenv("HOME", str(home))
-    monkeypatch.delenv("TABSTUDIO_TEACHER", raising=False)
+    monkeypatch.delenv("ROWSETTA_TEACHER", raising=False)
     monkeypatch.setattr(sys, "argv", ["rowsetta", *RETRY.split()[1:]])
     monkeypatch.setattr(cli, "fetch_checkpoint", partial(fetch_checkpoint, hub=hub))
     monkeypatch.setattr(cli, "local_teacher", FakeTeacher)

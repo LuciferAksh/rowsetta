@@ -2,9 +2,9 @@ import json
 import tempfile
 from pathlib import Path
 
-from tabular_studio.api.security import SessionSecurity
-from tabular_studio.app import create_app
-from tabular_studio.teachers.fake import FakeTeacher
+from rowsetta.api.security import SessionSecurity
+from rowsetta.app import create_app
+from rowsetta.teachers.fake import FakeTeacher
 
 
 def openapi_document() -> str:

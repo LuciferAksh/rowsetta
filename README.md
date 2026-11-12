@@ -42,7 +42,7 @@ performance advantage from them.
 
 Rowsetta handles classification on CSV files. It samples tables above `10,000`
 rows, defaults to a `200 MB` file limit and accepts up to `100` columns
-([limits in code](src/tabular_studio/core/table.py)). Free-text
+([limits in code](src/rowsetta/core/table.py)). Free-text
 columns are skipped. Leak checks find some identifiers and near-copies of the
 target, not every post-outcome column.
 

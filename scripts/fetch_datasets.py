@@ -6,7 +6,7 @@ from zipfile import ZipFile
 import httpx
 import pandas as pd
 
-DESTINATION = Path(__file__).resolve().parents[1] / "src" / "tabular_studio" / "datasets"
+DESTINATION = Path(__file__).resolve().parents[1] / "src" / "rowsetta" / "datasets"
 SAMPLE_SEED = 7
 LOCAL_ROWS = 5_000
 BROWSER_ROWS = 2_000

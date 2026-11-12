@@ -3,10 +3,10 @@ import pandas as pd
 import pytest
 from numpy.typing import NDArray
 
-from tabular_studio.core.audit import AUDIT_FOLDS, NeedAuditLabelsError, audit_labels
-from tabular_studio.core.session import LabelStore, SourceRef
-from tabular_studio.core.table import Table, load_csv
-from tabular_studio.teachers.fake import FakeTeacher
+from rowsetta.core.audit import AUDIT_FOLDS, NeedAuditLabelsError, audit_labels
+from rowsetta.core.session import LabelStore, SourceRef
+from rowsetta.core.table import Table, load_csv
+from rowsetta.teachers.fake import FakeTeacher
 
 
 def clusters(answers: list[str]) -> tuple[Table, LabelStore]:

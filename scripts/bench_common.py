@@ -16,12 +16,12 @@ import numpy as np
 import pandas as pd
 from pydantic import BaseModel, JsonValue, TypeAdapter
 
+from rowsetta.core.distill import Count, Rate
+from rowsetta.core.prereg import DATASETS, SEEDS
+from rowsetta.core.session import LabelStore, SourceRef
+from rowsetta.core.table import Table, load_csv
 from scripts.fetch_bench_datasets import DATASETS as ARCHIVES
 from scripts.fetch_bench_datasets import verify_archive
-from tabular_studio.core.distill import Count, Rate
-from tabular_studio.core.prereg import DATASETS, SEEDS
-from tabular_studio.core.session import LabelStore, SourceRef
-from tabular_studio.core.table import Table, load_csv
 
 ROOT = Path(__file__).resolve().parents[1]
 BENCH_JSON = ROOT / "docs/bench.json"
@@ -66,7 +66,7 @@ class Section(BaseModel):
 
 def cache_root() -> Path:
     """Honor XDG_CACHE_HOME so restricted runs can use a writable location."""
-    return Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "tabular-studio/bench"
+    return Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "rowsetta/bench"
 
 
 def atomic_json(path: Path, value: object) -> None:
@@ -82,8 +82,8 @@ def fingerprint() -> str:
     digest = hashlib.sha256((ROOT / "uv.lock").read_bytes())
     for folder in (
         ROOT / "scripts",
-        ROOT / "src/tabular_studio/core",
-        ROOT / "src/tabular_studio/teachers",
+        ROOT / "src/rowsetta/core",
+        ROOT / "src/rowsetta/teachers",
     ):
         for path in sorted(folder.rglob("*.py")):
             digest.update(str(path.relative_to(ROOT)).encode())
@@ -96,7 +96,7 @@ def checkpoint_path(section: str, settings: dict[str, JsonValue]) -> Path:
     signature = {
         "code": fingerprint(),
         "settings": settings,
-        "device": os.environ.get("TABSTUDIO_DEVICE", "auto"),
+        "device": os.environ.get("ROWSETTA_DEVICE", "auto"),
         "platform": platform.platform(),
         "python": platform.python_version(),
     }
@@ -129,7 +129,7 @@ def provenance(script: str, seconds: float, settings: Mapping[str, object]) -> S
         settings={
             **DOCUMENT.validate_python(settings),
             "source_sha256": fingerprint(),
-            "device": os.environ.get("TABSTUDIO_DEVICE", "auto"),
+            "device": os.environ.get("ROWSETTA_DEVICE", "auto"),
             "numpy": importlib.metadata.version("numpy"),
             "scikit_learn": importlib.metadata.version("scikit-learn"),
         },
@@ -159,7 +159,7 @@ def matrix(args: argparse.Namespace) -> tuple[list[str], list[int], list[int]]:
 def dataset(name: str) -> tuple[Table, SourceRef]:
     """Load pinned public fixtures; UCI archives must first pass their checksum."""
     if name in ("penguins", "bank", "adult"):
-        data = (ROOT / "src/tabular_studio/datasets" / f"{name}.csv").read_bytes()
+        data = (ROOT / "src/rowsetta/datasets" / f"{name}.csv").read_bytes()
     else:
         archive = next(item for item in ARCHIVES if item.name == name)
         path = cache_root() / f"{name}.zip"

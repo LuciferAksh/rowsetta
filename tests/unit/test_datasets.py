@@ -9,7 +9,7 @@ import pytest
 
 from scripts import fetch_datasets, fetch_model
 
-DATASETS = Path(__file__).resolve().parents[2] / "src" / "tabular_studio" / "datasets"
+DATASETS = Path(__file__).resolve().parents[2] / "src" / "rowsetta" / "datasets"
 
 
 def test_penguins_is_the_unchanged_source_with_missing_markers() -> None:

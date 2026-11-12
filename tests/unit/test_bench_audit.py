@@ -1,7 +1,7 @@
 import pytest
 
+from rowsetta.teachers.fake import FakeTeacher
 from scripts.bench_audit import FLIP_RATE, flip_labels, measure, parser
-from tabular_studio.teachers.fake import FakeTeacher
 
 
 def test_flips_are_seeded_and_always_change_the_label() -> None:
