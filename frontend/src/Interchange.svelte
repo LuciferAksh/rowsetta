@@ -2,6 +2,8 @@
   import { BROWSER } from './browser/config';
   import { untrack } from 'svelte';
   import { MediaQuery, SvelteMap } from 'svelte/reactivity';
+  import AuditControls from './AuditControls.svelte';
+  import AuditProgress from './AuditProgress.svelte';
   import { fade } from 'svelte/transition';
   import { shownSuspects } from './audit';
   import type { ByRow, Cell, LeafLine } from './backend/types';
@@ -50,7 +52,6 @@
   const LAY_MS = 1100;
   const REDRAW_MS = 700;
   /** The longest the map waits for the refit after a ride before letting go of the old rule. */
-  const REFIT_WAIT_MS = 20000;
   /** Retired termini stay struck through this long on the old map, then fold one after another. */
   const GHOST_HOLD_MS = 2000;
   const GHOST_STEP_MS = 320;
@@ -71,11 +72,8 @@
   let pending = $state.raw<ByRow<string>>({});
   /** The rule as it stood when the ride began; the map refits once, at the end. */
   let frozen = $state.raw<typeof studio.rule>(null);
-  let riding = $state(false);
-  let hurry = false;
   /** How many rows the ride fixed, from its last drop until the refitted rule lands. */
   let awaiting = $state<number | null>(null);
-  let rideTotal = $state(0);
   /** A terminus the refit retired, struck through where it stood until it folds into the terminus that took its rows. */
   interface Ghost {
     key: string;
@@ -388,8 +386,7 @@
             }
           : { ...a, opacity: 0 };
       // During a ride a fixed thread stays whole, cased and in its new colour.
-      const keep =
-        riding && a.row !== null && fixing.has(a.row) && b.opacity > 0;
+      const keep = false;
       pairs.push({ a: { ...a, colour }, b, fold: true, keep });
     }
     for (const b of next) {
@@ -821,67 +818,6 @@
     if (fixing.size === 0) receiving = new Set();
   }
 
-  /**
-   * One ride through every row on the wrong line, in rank order. The first
-   * three drops run slowly enough to follow; the rest follow 250 ms apart, and
-   * Esc lands them all at once.
-   */
-  async function fixAll(): Promise<void> {
-    const all = [...wrong];
-    studio.selectedRow = null;
-    if (calm) {
-      await Promise.all(all.map((doubt) => fix(doubt)));
-      return;
-    }
-    riding = true;
-    trails = [];
-    merged = [];
-    rideTotal = all.length;
-    tally = null;
-    frozen = studio.rule;
-    // shortcut: one PUT per row, queued behind the drops; a batch endpoint would let the server refit once.
-    let sent = Promise.resolve();
-    for (const [index, doubt] of all.entries()) {
-      const send = (): void => {
-        sent = sent.then(() => studio.label(doubt.row, doubt.likely));
-      };
-      receive(doubt.row);
-      if (hurry) {
-        pending = { ...pending, [String(doubt.row)]: doubt.likely };
-        send();
-        continue;
-      }
-      const [move, run, rest] = index < 3 ? [280, 300, 220] : [110, 100, 40];
-      const at = restOn(doubt.row)?.at ?? null;
-      if (at !== null) {
-        travelling = true;
-        glide(at, [], move);
-        await wait(move);
-        travelling = false;
-      }
-      fixing = new Set([...fixing, doubt.row]);
-      dye(doubt, run);
-      await wait(run);
-      pending = { ...pending, [String(doubt.row)]: doubt.likely };
-      send();
-      dyes = dyes.filter((step) => step.row !== doubt.row);
-      await wait(rest);
-    }
-    await sent;
-    await wait(MORPH_MS + 120);
-    fixing = new Set();
-    pending = {};
-    riding = false;
-    hurry = false;
-    receiving = new Set();
-    idle = true;
-    awaiting = all.length;
-    // A refit that never lands must not hold the old map forever.
-    void wait(REFIT_WAIT_MS).then(() => {
-      if (awaiting !== null) land(null);
-    });
-  }
-
   // The map holds the old rule until the server has fitted it again on every
   // new label and the redrawn rule is in.
   $effect(() => {
@@ -1112,11 +1048,7 @@
 
   // Doubted rows that ride a line other than the one their label names.
   const wrong = $derived(
-    doubts.filter(
-      (doubt) =>
-        rule?.leaf_summary.find((line) => line.row_ids.includes(doubt.row))
-          ?.label !== doubt.given,
-    ),
+    doubts.filter((doubt) => doubt.likely !== doubt.given),
   );
   const termini = $derived(landed ?? rule?.leaf_summary.length ?? 0);
   const fixedCount = $derived(
@@ -1129,15 +1061,9 @@
         : 'Drawing the rule.';
     }
     if (checking) return `Reading ${String(Object.keys(human).length)} labels.`;
-    if (riding || awaiting !== null) {
-      const done = awaiting ?? Object.keys(pending).length;
-      return done === 0
-        ? `Fixing ${String(rideTotal)} labels.`
-        : `${String(done)}\u00a0fixed. Refitting…`;
-    }
-    if (wrong.length === 1) return '1 label rides the wrong line.';
+    if (wrong.length === 1) return '1 label disagrees with the teacher.';
     if (wrong.length > 1)
-      return `${String(wrong.length)} labels ride the wrong line.`;
+      return `${String(wrong.length)} labels disagree with the teacher.`;
     if (fixedCount > 0 && terminiBefore !== null) {
       const fewer = terminiBefore - termini;
       return fewer > 0
@@ -1146,7 +1072,7 @@
     }
     return studio.suspects === null
       ? `${String(termini)} lines carry every row.`
-      : 'No doubted label rides the wrong line.';
+      : 'No doubted label disagrees with the teacher.';
   });
   /** The headline's sentences, each set on its own line; the spaces stay for reading aloud. */
   const clauses = $derived(
@@ -1162,14 +1088,11 @@
     if (checking) {
       return `The model scores every label with its own row held out, so it never grades a label it has already seen.`;
     }
-    if (riding) {
-      return `Each thread takes the colour of the line it rides. The map keeps the old rule until the server has fitted it again on the new labels.`;
-    }
     if (awaiting !== null) {
       return `All ${String(awaiting)} labels are in. The server is fitting the rule again on them; the map changes when it lands.`;
     }
     if (wrong.length > 0) {
-      return `The model read all ${String(rows)} labels, each with its own row held out. A label it doubts rides the map as a thread in that label's colour, on the line the rule sends its row down.`;
+      return `The model read all ${String(rows)} labels, each with its own row held out. Review each suggested label before changing it. A label the teacher doubts rides the map as a thread in that label's colour.`;
     }
     if (fixedCount > 0 && terminiBefore !== null) {
       return terminiBefore === termini
@@ -1643,12 +1566,6 @@
   {/each}
 {/snippet}
 
-<svelte:window
-  onkeydown={(event: KeyboardEvent) => {
-    if (riding && event.key === 'Escape') hurry = true;
-  }}
-/>
-
 <section
   id="interchange"
   class="interchange"
@@ -1680,58 +1597,16 @@
         {/each}
       </ul>
     {/if}
-    {#if checking}
-      <progress class="runner" aria-label="Reading the labels"></progress>
-    {:else if awaiting !== null}
-      <progress
-        class="runner"
-        aria-label="Fitting the rule again"
-        value={studio.refit?.total == null ? undefined : studio.refit.done}
-        max={studio.refit?.total ?? undefined}
-      ></progress>
-    {/if}
+    <AuditProgress {checking} {awaiting} refit={studio.refit} />
     <p class="lede">{lede}</p>
-    {#if studio.suspects !== null && shown.size > 0}
-      <div class="acts">
-        {#if riding && Object.keys(pending).length < rideTotal}
-          <button
-            type="button"
-            class="button button-solid"
-            aria-keyshortcuts="Escape"
-            onclick={() => {
-              hurry = true;
-            }}>Finish now</button
-          >
-        {:else if wrong.length > 0 && !riding && awaiting === null}
-          <button
-            type="button"
-            class="button button-solid"
-            onclick={() => {
-              void fixAll();
-            }}>Fix all {wrong.length}</button
-          >
-        {/if}
-        <button
-          type="button"
-          class="button"
-          disabled={checking}
-          onclick={() => {
-            void check();
-          }}>Check again</button
-        >
-      </div>
-    {:else if !BROWSER && rule !== null && !checking && studio.suspects === null}
-      <div class="acts">
-        <button
-          type="button"
-          class="button button-solid"
-          onclick={() => {
-            void check();
-          }}>Check the labels</button
-        >
-      </div>
-    {/if}
-    {#if !phone.current && !riding && !idle && selected === null && reading !== null}
+    <AuditControls
+      hasSuspects={studio.suspects !== null}
+      hasShown={shown.size > 0}
+      hasRule={rule !== null}
+      {checking}
+      oncheck={check}
+    />
+    {#if !phone.current && !idle && selected === null && reading !== null}
       {@const here = rowsAt(reading)}
       <div class="panel" aria-live="polite">
         {#if reading.station !== null}
@@ -1912,7 +1787,7 @@
                     class="button button-solid"
                     onclick={() => {
                       void fix(doubt);
-                    }}>Fix to {doubt.likely}</button
+                    }}>Change to {doubt.likely}</button
                   >
                   <button
                     type="button"
@@ -1939,7 +1814,12 @@
     {/if}
   </div>
 
-  <div class="stage" bind:clientWidth={width} bind:clientHeight={height}>
+  <div
+    class="stage"
+    class:stage--empty={rule === null}
+    bind:clientWidth={width}
+    bind:clientHeight={height}
+  >
     {#if map !== null}
       <svg
         class="map"
@@ -1996,6 +1876,13 @@
     border-bottom: var(--rule);
     background: var(--sheet);
   }
+  .stage--empty {
+    display: none;
+  }
+  .interchange:has(.stage--empty) {
+    height: auto;
+    grid-template-columns: minmax(0, 1fr);
+  }
   .notice {
     display: flex;
     flex-direction: column;
@@ -2021,9 +1908,6 @@
   .lede {
     color: var(--ink-2);
     max-width: 36ch;
-  }
-  .runner {
-    width: 100%;
   }
   .doubts {
     border-top: var(--rule);
@@ -2114,11 +1998,6 @@
     stroke: currentColor;
     stroke-width: 1.6;
     flex: none;
-  }
-  .acts {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
   }
   .stage {
     position: relative;

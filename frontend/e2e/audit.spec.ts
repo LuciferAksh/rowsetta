@@ -20,6 +20,7 @@ test('the audit lists a wrong label first and the lens reads its row', async ({
 }) => {
   await labelSpeciesWithOneWrong(page);
 
+  await expect(page.getByRole('button', { name: /Fix all/ })).toHaveCount(0);
   const list = page.getByRole('list', { name: 'Labels the model doubts most' });
   const first = list.getByRole('listitem').first().getByRole('button').first();
   await expect(first).toContainText('Row 0', { timeout: 60_000 });
@@ -32,7 +33,7 @@ test('the audit lists a wrong label first and the lens reads its row', async ({
   await first.click();
   const card = page.locator('#interchange .reading');
   await expect(card).toContainText(/Gentoo, it rides the \w+ line/);
-  await expect(card.getByRole('button', { name: /^Fix to / })).toBeVisible();
+  await expect(card.getByRole('button', { name: /^Change to / })).toBeVisible();
 });
 
 test('fixing a doubted label re-routes it onto its line', async ({ page }) => {
@@ -42,8 +43,8 @@ test('fixing a doubted label re-routes it onto its line', async ({ page }) => {
   const first = list.getByRole('listitem').first().getByRole('button').first();
   await expect(first).toContainText('Row 0', { timeout: 60_000 });
   await expect(first).toHaveAttribute('aria-expanded', 'true');
-  const fix = page.getByRole('button', { name: /^Fix to / });
-  const likely = ((await fix.textContent()) ?? '').replace('Fix to ', '');
+  const fix = page.getByRole('button', { name: /^Change to / });
+  const likely = ((await fix.textContent()) ?? '').replace('Change to ', '');
   await fix.click();
 
   // The new label follows its line roundel, whose initial is part of the text.

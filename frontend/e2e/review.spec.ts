@@ -125,7 +125,7 @@ test.describe('evaluation', () => {
     page,
   }) => {
     await teachPenguins(page);
-    const panel = page.getByRole('region', { name: 'Accuracy' });
+    const panel = page.getByRole('region', { name: 'Teacher accuracy' });
     const servedText = panel.getByText(/^Evaluating row \d+:/);
     const focusedRow = page
       .locator('tbody tr', { has: page.locator('button:focus') })
@@ -172,7 +172,7 @@ test.describe('evaluation', () => {
 
   test('the unsure count follows the threshold slider', async ({ page }) => {
     await teachPenguins(page);
-    const panel = page.getByRole('region', { name: 'Accuracy' });
+    const panel = page.getByRole('region', { name: 'Teacher accuracy' });
     const unsure = panel.getByText(/are marked unsure/);
     const slider = panel.getByLabel('Confidence threshold');
     // The server's count once the refit for this threshold has landed, as shown.
