@@ -224,8 +224,8 @@ describe('panels', () => {
     const { body } = render(TargetPicker, {
       props: { studio: await studioWith({ ...STATE, loaded: false }) },
     });
-    expect(body).toContain(
-      'Numbers and categories are used; free-text columns are skipped.',
+    expect(body.replace(/\s+/g, ' ')).toContain(
+      'Text columns inferred as free text are skipped when more than half of their values are distinct. Lower-cardinality text can remain a feature.',
     );
     expect(body).toContain('type="file"');
     expect(body).not.toContain('Create target');

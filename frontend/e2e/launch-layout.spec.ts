@@ -27,6 +27,12 @@ test('long target headers wrap and do not cover the submit button', async ({
   await expect(
     page.getByRole('main').getByText(`Target: ${header}`, { exact: false }),
   ).toBeVisible();
+  await expect(
+    page.getByText(`Took the labels from ${header}`, { exact: false }),
+  ).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
+    390,
+  );
 });
 
 test('connection failure offers a retry', async ({ page }) => {

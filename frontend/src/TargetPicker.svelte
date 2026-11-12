@@ -130,7 +130,8 @@
     </label>
     {#if chosenFile === null}
       <p class="hint">
-        Numbers and categories are used; free-text columns are skipped.
+        Text columns inferred as free text are skipped when more than half of
+        their values are distinct. Lower-cardinality text can remain a feature.
       </p>
     {:else}
       <p class="hint">Opened {chosenFile}.</p>
@@ -269,6 +270,9 @@
   }
   .target-line {
     font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  .hint {
     overflow-wrap: anywhere;
   }
   .field-error {

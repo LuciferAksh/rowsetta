@@ -38,7 +38,7 @@ test.describe('table and target', () => {
 
     await expect(
       page.getByText(
-        'Numbers and categories are used; free-text columns are skipped.',
+        'Text columns inferred as free text are skipped when more than half of their values are distinct. Lower-cardinality text can remain a feature.',
       ),
     ).toBeVisible();
   });
