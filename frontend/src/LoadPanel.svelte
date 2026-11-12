@@ -1,4 +1,5 @@
 <script lang="ts">
+  let { failed = false }: { failed?: boolean } = $props();
   import { runtimeLoading } from './browser/loading.svelte';
 </script>
 
@@ -10,7 +11,12 @@
     {:else if runtimeLoading.model !== 'Checking WebGPU support'}TabICLv2 needs
       Chromium with WebGPU. The lite model needs no model-weight download.{/if}
   </p>
-  {#if !runtimeLoading.ready}
+  {#if failed}
+    <p>
+      Browser runtime failed. Keep this page open to preserve labels until you
+      are ready to retry.
+    </p>
+  {:else if !runtimeLoading.ready}
     <label>
       Runtime: {runtimeLoading.done.toLocaleString()} / {runtimeLoading.total.toLocaleString()}
       bytes

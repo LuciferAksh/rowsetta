@@ -248,6 +248,11 @@ describe('panels', () => {
       eval_count: 24,
     });
     const { body } = render(EvalPanel, { props: { studio } });
+    expect(body).toContain('Teacher accuracy');
+    expect(body).toContain(
+      'Raw teacher predictions are measured on all evaluation rows',
+    );
+    expect(body).not.toContain('likely at least');
     expect(body).toContain('Accuracy 88% (95% CI 69% to 96%)');
     expect(body).toContain('Always guessing no would score 92%.');
     expect(body).toContain('yes: recall needs 5 evaluation rows');

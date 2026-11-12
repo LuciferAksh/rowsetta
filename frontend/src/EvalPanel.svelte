@@ -21,7 +21,7 @@
 </script>
 
 <section class="panel panel--eval" aria-labelledby="eval-heading">
-  <h2 id="eval-heading">Accuracy</h2>
+  <h2 id="eval-heading">Teacher accuracy</h2>
   {#if BROWSER}<p class="hint">{runtimeLoading.model}</p>{/if}
   {#if evaluation !== null}
     <p class="peak" aria-hidden="true">{percent(evaluation.accuracy.value)}</p>
@@ -62,9 +62,9 @@
       {/each}
     </ul>
     <p class="hint">
-      Measured on rows that had no human label when served. Teaching moves hard
-      rows to human labels, so the filled column is likely at least this
-      accurate.
+      Raw teacher predictions are measured on all evaluation rows, including
+      rows marked unsure. Changing the confidence threshold does not change this
+      accuracy.
     </p>
   {/if}
 

@@ -44,7 +44,7 @@
 
 <header class="appbar">
   <h1 class="wordmark">Rowsetta</h1>
-  {#if BROWSER}<span>{runtimeLoading.model}</span>{/if}
+  {#if BROWSER}<span class="runtime-name">{runtimeLoading.model}</span>{/if}
   {#if workspace !== null && loaded}
     <p class="facts">
       <span class="file">{studio.fileName ?? 'demo table'}</span>
@@ -56,7 +56,11 @@
       {/if}
       {#if workspace.target !== null}
         <span class="state quiet" class:state--busy={refitting}>
-          model {refitting ? 'updating' : 'up to date'}
+          model {failure !== null
+            ? 'failed'
+            : refitting
+              ? 'updating'
+              : 'up to date'}
         </span>
       {/if}
     </p>
@@ -78,27 +82,53 @@
 </header>
 
 <main class="shell" class:shell--bare={workspace !== null && !loaded}>
-  {#if BROWSER}<LoadPanel />{/if}
+  {#if BROWSER}<LoadPanel failed={failure !== null} />{/if}
   {#if failure !== null}
     <div role="alert" class="alert">
       <p class="what">{failure.error}</p>
-      <p class="next">{failure.next_step}</p>
+      <p class="next">
+        {failure.next_step.includes('Save session')
+          ? 'Keep this page open to preserve your labels. Choose another export format.'
+          : failure.next_step}
+      </p>
+      <button
+        type="button"
+        class="button"
+        onclick={() => {
+          location.reload();
+        }}>Retry by reloading</button
+      >
+    </div>
+  {/if}
+  {#if studio.connection === 'reconnecting'}
+    <div role="status" class="alert">
+      <p>Connection lost. Reconnecting to the local server.</p>
+      <button
+        type="button"
+        class="button"
+        onclick={() => {
+          location.reload();
+        }}>Retry now</button
+      >
     </div>
   {/if}
   {#if workspace === null}
     <div class="stage">
-      <progress class="runner" aria-label="Connecting"></progress>
-      <p>
-        {BROWSER
-          ? 'Loading the bundled table.'
-          : 'Connecting to the local server.'}
-      </p>
+      {#if failure === null && studio.connection !== 'reconnecting'}<progress
+          class="runner"
+          aria-label="Connecting"
+        ></progress>
+        <p>
+          {BROWSER
+            ? 'Loading the bundled table.'
+            : 'Connecting to the local server.'}
+        </p>{/if}
     </div>
   {:else}
+    <TargetPicker {studio} />
     {#if loaded && workspace.target !== null}
       <Interchange {studio} />
     {/if}
-    <TargetPicker {studio} />
     {#if loaded}
       <!-- Above the table in reading order, so a filter that shortens the table
       never moves a line under a resting pointer and changes the filter again. -->
