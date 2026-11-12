@@ -24,7 +24,7 @@
     /** How many times the glass enlarges the map: enough to part a band into its rows. */
     magnify: number;
     onmove: (to: Point) => void;
-    /** Lifted off the map, out of sight, while it travels between drops. */
+    /** Lifted off the map, out of sight: between drops, and with nothing to read. */
     away?: boolean;
     glass: Snippet<[TransitMap]>;
   } = $props();
@@ -206,6 +206,9 @@
   .away .body {
     opacity: 0;
     scale: 1.06;
+  }
+  .away .handle {
+    pointer-events: none;
   }
   .window {
     position: absolute;

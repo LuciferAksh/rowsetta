@@ -16,9 +16,10 @@ import {
  * map. The bevel is a thick rounded edge of clear glass: it shows the same
  * enlarged map, displaced outward more and more toward the rim, so every band
  * that reaches the edge bends and squeezes into it as it would at the edge of a
- * real lens. A bright specular line runs along the rim, strongest where it
- * faces the light, with a fainter one opposite, and a hairline ink edge holds
- * it on a white page.
+ * real lens. It reads at most 1.2 bevel widths outward and blurs as it goes,
+ * so lines crowd softly rather than fan. A bright specular line runs along the
+ * rim, strongest where it faces the light, with a fainter one opposite, and a
+ * hairline ink edge holds it on a white page.
  */
 
 const VERTEX = /* glsl */ `
@@ -30,7 +31,7 @@ void main() {
 `;
 
 /** How much farther than its own place the bevel reads at the rim, in bevel widths. */
-const REACH = 2.6;
+const REACH = 1.2;
 
 const FRAGMENT = /* glsl */ `
 uniform sampler2D uView;
@@ -63,12 +64,14 @@ void main() {
   // outward ever faster: lines bend into the edge and crowd together there.
   float push = ${REACH.toFixed(1)} * uBevel * t * t * t;
   vec2 q = p + n * push;
-  // A little apart for red, green and blue, as thick glass splits light.
+  // A little apart for red, green and blue, as thick glass splits light, and
+  // softer toward the rim, so crowded lines blur together instead of fanning.
   vec2 spread = n * 1.2 * t * t;
+  float soft = 2.5 * t * t;
   vec3 colour = vec3(
-    texture2D(uView, (q + spread) / uViewSize + 0.5).r,
-    texture2D(uView, q / uViewSize + 0.5).g,
-    texture2D(uView, (q - spread) / uViewSize + 0.5).b
+    texture2D(uView, (q + spread) / uViewSize + 0.5, soft).r,
+    texture2D(uView, q / uViewSize + 0.5, soft).g,
+    texture2D(uView, (q - spread) / uViewSize + 0.5, soft).b
   );
 
   // The curved face catches light on the lit side and falls into shade opposite.
@@ -79,13 +82,11 @@ void main() {
   // The specular rim: a bright line just inside the edge, brightest toward the light.
   float rim = smoothstep(-3.4, -2.2, d) * (1.0 - smoothstep(-1.6, -0.9, d));
   colour = mix(colour, vec3(1.0), rim * (0.55 + 0.45 * max(facing, 0.0)));
-  // Where the bevel meets the flat middle, a faint bright seam.
-  float seam = 1.0 - smoothstep(0.0, 1.2, abs(d + uBevel - 0.6));
-  colour = mix(colour, vec3(1.0), 0.25 * seam);
   // A hairline ink edge outside.
   colour = mix(colour, vec3(0.05), smoothstep(-0.9, -0.3, d));
 
-  float alpha = 1.0 - smoothstep(-0.3, 0.0, d);
+  // The bevel fades in over its first pixels, so it meets the flat middle without a seam.
+  float alpha = (1.0 - smoothstep(-0.3, 0.0, d)) * smoothstep(-uBevel, -uBevel + 2.0, d);
   gl_FragColor = vec4(clamp(colour, 0.0, 1.0) * alpha, alpha);
 }
 `;
