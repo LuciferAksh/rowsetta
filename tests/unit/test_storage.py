@@ -168,6 +168,7 @@ def test_sessions_default_to_the_home_directory(
 ) -> None:
     monkeypatch.delenv("ROWSETTA_SESSIONS_DIR", raising=False)
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
     assert SessionStorage().data_dir == tmp_path / ".rowsetta/sessions"
 
 

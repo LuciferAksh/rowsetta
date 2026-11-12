@@ -3,6 +3,7 @@ import os
 import socket
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -22,14 +23,25 @@ def reject_network(*_args: object, **_kwargs: object) -> None:
     raise UnexpectedNetworkError(message)
 
 
+def reject_remote(connect: Callable[..., int | None]) -> Callable[..., int | None]:
+    """Allow loopback: the Windows event loop connects a socket pair to itself."""
+
+    def guarded(sock: socket.socket, address: tuple[str, int], *args: object) -> int | None:
+        if address[0] != "127.0.0.1":
+            reject_network()
+        return connect(sock, address, *args)
+
+    return guarded
+
+
 def test_full_flow_does_not_resolve_or_connect(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("ROWSETTA_TEACHER", "fake")
     monkeypatch.setattr(socket, "getaddrinfo", reject_network)
     monkeypatch.setattr(socket, "create_connection", reject_network)
-    monkeypatch.setattr(socket.socket, "connect", reject_network)
-    monkeypatch.setattr(socket.socket, "connect_ex", reject_network)
+    monkeypatch.setattr(socket.socket, "connect", reject_remote(socket.socket.connect))
+    monkeypatch.setattr(socket.socket, "connect_ex", reject_remote(socket.socket.connect_ex))
     monkeypatch.setattr(socket.socket, "sendto", reject_network)
 
     async def run() -> None:

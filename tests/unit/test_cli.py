@@ -1,5 +1,6 @@
 import json
 import os
+import shlex
 import socket
 import subprocess
 import sys
@@ -177,7 +178,7 @@ def test_export_rejects_a_changed_csv(tmp_path: Path) -> None:
     assert_user_error(
         run_cli("export", str(session)),
         what="changed since",
-        next_step=f"open {tmp_path / 'penguins.csv'}",
+        next_step=f"open {shlex.quote(str(tmp_path / 'penguins.csv'))}",
     )
 
 
@@ -277,7 +278,10 @@ def test_browser_opens_only_after_the_port_is_bound(monkeypatch: pytest.MonkeyPa
     opened: list[str] = []
 
     def open_browser(url: str) -> bool:
-        with socket.socket() as probe, pytest.raises(OSError, match="Address already in use"):
+        with (
+            socket.socket() as probe,
+            pytest.raises(OSError, match=r"Address already in use|WinError 10048"),
+        ):
             probe.bind(("127.0.0.1", port))
         opened.append(url)
         return True
