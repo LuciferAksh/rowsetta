@@ -147,8 +147,7 @@ export class Studio {
     return this.#settle(
       request,
       (next) => {
-        const current = this.workspace;
-        if (current === null || !isOlder(next, current)) this.#show(next);
+        this.#showNewest(next);
       },
       false,
     );
@@ -205,7 +204,7 @@ export class Studio {
         this.page = null;
         this.proposals = NO_PROPOSALS;
         this.fileName = file.name;
-        this.#show(next);
+        this.#showNewest(next);
       },
       false,
     );
@@ -221,7 +220,7 @@ export class Studio {
         this.tableContext += 1;
         this.#wholeTable = null;
         this.proposals = NO_PROPOSALS;
-        this.#show(next);
+        this.#showNewest(next);
         this.#forgetLabels();
       },
       false,
@@ -440,6 +439,13 @@ export class Studio {
     this.#forgetLabels();
     this.#wholeTable = null;
     this.rowCount = null;
+  }
+
+  // The refit can finish, and its event refresh the state, before the response
+  // that queued it arrives; that response must not roll the state back.
+  #showNewest(next: WorkspaceState): void {
+    const current = this.workspace;
+    if (current === null || !isOlder(next, current)) this.#show(next);
   }
 
   #show(next: WorkspaceState): void {

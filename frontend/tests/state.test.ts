@@ -254,6 +254,20 @@ describe('applying responses', () => {
     expect(studio.workspace).toEqual(at(3));
   });
 
+  it('keeps a finished refit when the response that queued it arrives after', async () => {
+    const queued = pending<WorkspaceState>();
+    const studio = new Studio(
+      fakeBackend([], { setTarget: () => queued.promise }).backend,
+    );
+
+    const chosen = studio.chooseTarget({ target: 'species', classes: ['a'] });
+    await studio.apply(Promise.resolve(at(3, 3)));
+    queued.resolve(at(3));
+    await chosen;
+
+    expect(studio.workspace).toEqual(at(3, 3));
+  });
+
   it('takes a later refit of the same inputs', async () => {
     const studio = new Studio(fakeBackend([]).backend);
 
