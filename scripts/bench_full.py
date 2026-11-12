@@ -1,4 +1,5 @@
 import os
+import subprocess
 import sys
 from time import perf_counter
 from urllib.request import ProxyHandler, build_opener
@@ -11,11 +12,9 @@ from scripts.bench_llm import verify_model
 def execute(module: str, arguments: list[str]) -> None:
     """Use a fresh process per phase so model memory is released between phases."""
     os.chdir(ROOT)
-    pid = os.posix_spawn(
-        sys.executable, [sys.executable, "-m", f"scripts.{module}", *arguments], dict(os.environ)
-    )
-    _, status = os.waitpid(pid, 0)
-    code = os.waitstatus_to_exitcode(status)
+    code = subprocess.run(  # noqa: S603 -- Fixed local benchmark entrypoint.
+        [sys.executable, "-m", f"scripts.{module}", *arguments], check=False
+    ).returncode
     if code:
         raise SystemExit(code)
 
