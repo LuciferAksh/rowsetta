@@ -43,7 +43,7 @@
       await navigator.clipboard.writeText(text);
       studio.announcement = { text: `Copied ${name}` };
     } catch {
-      studio.problem = COPY_REFUSED;
+      studio.exportProblem = COPY_REFUSED;
     }
   }
 </script>
@@ -68,6 +68,7 @@
     <button
       type="button"
       class="button button-solid"
+      disabled={studio.refitting}
       onclick={() => {
         void studio.exportRule(depth);
       }}
@@ -75,6 +76,9 @@
       Export rule
     </button>
   </div>
+  {#if studio.refitting}<p role="status">
+      Wait for the model update before exporting.
+    </p>{/if}
   <RuleView {studio} />
   {#if studio.certificate.length > 0}
     <h3>Certificate</h3>
@@ -84,7 +88,7 @@
       {/each}
     </ul>
   {/if}
-  {#if exported !== null}
+  {#if exported !== null || studio.exportProblem !== null}
     <fieldset class="segments">
       <legend>Format</legend>
       {#each EXPORT_FORMATS as format (format)}
@@ -94,6 +98,7 @@
             name="export-format"
             value={format}
             checked={query.format === format}
+            disabled={studio.refitting}
             onchange={() => {
               void studio.showExport({ ...query, format });
             }}
@@ -112,6 +117,7 @@
               name="export-dialect"
               value={dialect}
               checked={query.dialect === dialect}
+              disabled={studio.refitting}
               onchange={() => {
                 void studio.showExport({ ...query, dialect });
               }}
@@ -120,6 +126,13 @@
           </label>
         {/each}
       </fieldset>
+    {/if}
+    {#if studio.exportProblem !== null}
+      <div role="alert" class="alert">
+        <p>{studio.exportProblem.error}</p>
+        <p>{studio.exportProblem.next_step}</p>
+        <p>Choose another format above to export this rule.</p>
+      </div>
     {/if}
     {#each files as [name, text] (name)}
       <h3>{name}</h3>

@@ -11,20 +11,16 @@
   import LeakList from './LeakList.svelte';
   import { Studio } from './state.svelte';
   import TableView from './TableView.svelte';
-  import TargetPicker from './TargetPicker.svelte';
+  import SetupPanel from './SetupPanel.svelte';
   import './styles/base.css';
 
   const studio = new Studio(BROWSER ? createBrowserBackend() : createBackend());
-  const failure = $derived(studio.problem ?? studio.workspace?.failure ?? null);
+  const failure = $derived(
+    studio.runtimeFailure ?? studio.workspace?.failure ?? null,
+  );
   const workspace = $derived(studio.workspace);
   const loaded = $derived(workspace?.loaded ?? false);
-  const refitting = $derived(
-    studio.refit !== null ||
-      (workspace !== null &&
-        workspace.target !== null &&
-        workspace.refit_generation !== workspace.generation &&
-        Object.keys(workspace.missing).length === 0),
-  );
+  const refitting = $derived(studio.refitting);
   // Fixed states for design review exist only in the dev server.
   const fixture =
     import.meta.env.DEV && typeof location !== 'undefined'
@@ -100,6 +96,12 @@
       >
     </div>
   {/if}
+  {#if studio.problem !== null}
+    <div role="alert" class="alert">
+      <p class="what">{studio.problem.error}</p>
+      <p class="next">{studio.problem.next_step}</p>
+    </div>
+  {/if}
   {#if studio.connection === 'reconnecting'}
     <div role="status" class="alert">
       <p>Connection lost. Reconnecting to the local server.</p>
@@ -125,18 +127,20 @@
         </p>{/if}
     </div>
   {:else}
-    <TargetPicker {studio} />
-    {#if loaded && workspace.target !== null}
-      <Interchange {studio} />
-    {/if}
-    {#if loaded}
-      <!-- Above the table in reading order, so a filter that shortens the table
+    <SetupPanel {studio} />
+    {#key studio.tableContext}
+      {#if loaded && workspace.target !== null}
+        <Interchange {studio} />
+      {/if}
+      {#if loaded}
+        <!-- Above the table in reading order, so a filter that shortens the table
       never moves a line under a resting pointer and changes the filter again. -->
-      <ExportPanel {studio} />
-      <TableView {studio} />
-      <EvalPanel {studio} />
-      <LeakList {studio} />
-    {/if}
+        <ExportPanel {studio} />
+        <TableView {studio} />
+        <EvalPanel {studio} />
+        <LeakList {studio} />
+      {/if}
+    {/key}
     <KeySheet {studio} />
   {/if}
   <p role="status" class="visually-hidden">

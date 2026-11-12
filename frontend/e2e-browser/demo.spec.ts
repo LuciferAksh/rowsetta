@@ -164,7 +164,7 @@ test.describe('saved browser labels', () => {
       await page
         .getByRole('button', { name: 'Create target', exact: true })
         .click();
-      await expect(page.getByText(/^Target: y/)).toBeVisible();
+      await expect(page.locator('.appbar')).toContainText('target: y');
     }
     await page.goto('/');
     await expect(
@@ -253,4 +253,68 @@ test('successful runtime startup emits no console errors', async ({
     await expect(page.locator('.appbar')).toContainText('TabICLv2 (WebGPU)');
   }
   expect(errors).toEqual([]);
+});
+
+test.describe('browser export health', () => {
+  test.use({ userAgent: 'Rowsetta export recovery test' });
+  test('dbt identifier errors preserve the browser runtime and recover with SQL', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    await expect(
+      page.getByText('Browser runtime ready.', { exact: true }),
+    ).toBeVisible();
+    await page.locator('input[type=file]').setInputFiles({
+      name: 'risk.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(
+        `x\n${Array.from({ length: 20 }, (_, row) => String(row)).join('\n')}\n`,
+      ),
+    });
+    await page
+      .getByLabel('New target name', { exact: true })
+      .fill('Risk category');
+    await page
+      .getByLabel('Classes, separated by commas', { exact: true })
+      .fill('a, b');
+    await page
+      .getByRole('button', { name: 'Create target', exact: true })
+      .click();
+    await expect(page.locator('.appbar')).toContainText(
+      'target: Risk category',
+    );
+    const cells = page.locator('tbody button.chip');
+    for (const [row, key] of [
+      [0, '1'],
+      [1, '1'],
+      [2, '1'],
+      [17, '2'],
+      [18, '2'],
+      [19, '2'],
+    ] as const) {
+      await cells.nth(row).focus();
+      await page.keyboard.press(key);
+      await expect(cells.nth(row)).toHaveText(
+        `Labelled ${key === '1' ? 'a' : 'b'}`,
+      );
+    }
+    const panel = page.getByRole('region', { name: 'Export' });
+    await expect(
+      panel.getByRole('button', { name: 'Export rule' }),
+    ).toBeEnabled();
+    await panel.getByRole('button', { name: 'Export rule' }).click();
+    await expect(panel.locator('pre')).toContainText('SELECT');
+    await panel.getByRole('radio', { name: 'dbt', exact: true }).check();
+    await expect(panel.getByRole('alert')).toContainText('dbt identifier');
+    await expect(
+      page.getByRole('complementary', { name: 'Browser runtime' }),
+    ).toContainText('Browser runtime ready.');
+    await expect(page.locator('.appbar')).toContainText('model up to date');
+    await expect(
+      page.getByRole('button', { name: 'Retry by reloading' }),
+    ).toHaveCount(0);
+    await panel.getByRole('radio', { name: 'SQL', exact: true }).check();
+    await expect(panel.getByRole('alert')).toHaveCount(0);
+    await expect(panel.locator('pre')).toContainText('SELECT');
+  });
 });
