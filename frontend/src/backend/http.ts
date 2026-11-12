@@ -1,4 +1,5 @@
 import * as decode from './decode';
+import type { LabelRecovery } from '../browser/labels.svelte';
 import type {
   DemoInput,
   Distilled,
@@ -67,6 +68,8 @@ export interface EventChannel {
 export type OpenEvents = (url: string) => EventChannel;
 
 export interface Backend {
+  readonly recovery?: LabelRecovery;
+  restoreLabels?(session: string): Promise<WorkspaceState>;
   state(): Promise<WorkspaceState>;
   loadDemo(): Promise<WorkspaceState>;
   uploadCsv(file: File): Promise<WorkspaceState>;

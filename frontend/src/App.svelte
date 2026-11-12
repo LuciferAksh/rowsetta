@@ -88,7 +88,7 @@
       <p class="what">{failure.error}</p>
       <p class="next">
         {failure.next_step.includes('Save session')
-          ? 'Keep this page open to preserve your labels. Choose another export format.'
+          ? 'Choose another export format. Saved browser labels can be restored after reopening the same CSV and target.'
           : failure.next_step}
       </p>
       <button

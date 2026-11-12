@@ -103,13 +103,13 @@ test('keeps the validated snapshot until a queued target is accepted', async () 
   expect(await backend.state()).toEqual(initial);
 });
 
-test('explains label loss on fatal runtime recovery without promising Save session', async () => {
+test('offers saved-label recovery on fatal runtime failure without promising Save session', async () => {
   const { backend, worker } = setup();
   await backend.state();
   worker.receive({ kind: 'fatal', error: 'Runtime stopped.' });
   const snapshot = await backend.state();
   expect(snapshot.human).toEqual(initial.human);
-  expect(snapshot.failure?.next_step).toContain('lost if you reload');
+  expect(snapshot.failure?.next_step).toContain('Restore labels');
   expect(snapshot.failure?.next_step).not.toContain('Save session');
   await expect(backend.health()).rejects.toBeInstanceOf(BackendError);
 });

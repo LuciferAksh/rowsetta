@@ -1,3 +1,4 @@
+import type { LabelRecovery } from './browser/labels.svelte';
 import { SvelteSet } from 'svelte/reactivity';
 import { BackendError, type Backend } from './backend/http';
 import type {
@@ -105,6 +106,7 @@ export class Studio {
   /** The depth the shown rule was fitted at, so a redraw keeps it. */
   ruleDepth = $state.raw(DEFAULT_RULE_DEPTH);
 
+  readonly recovery: LabelRecovery | null;
   readonly #backend: Backend;
   #context = 0;
   #requestedPage = 0;
@@ -113,6 +115,7 @@ export class Studio {
 
   constructor(backend: Backend) {
     this.#backend = backend;
+    this.recovery = backend.recovery ?? null;
   }
 
   /** Follow server events, loading the state on each connection; returns a function that stops. */
@@ -143,6 +146,12 @@ export class Studio {
    * served row takes a label, as an evaluation label, and the next row is served.
    */
   async label(rowId: number, label: string | null): Promise<void> {
+    if (this.recovery?.pending != null) {
+      this.announcement = {
+        text: 'Restore or discard saved labels before labelling.',
+      };
+      return;
+    }
     const mode = this.mode;
     if (mode.kind === 'label') {
       await this.apply(this.#backend.setLabel(rowId, { label }));
@@ -152,6 +161,16 @@ export class Studio {
     const context = this.#context;
     await this.apply(this.#backend.setLabel(rowId, { label, mode: 'eval' }));
     if (context === this.#context && this.problem === null) await this.#serve();
+  }
+
+  async restoreLabels(): Promise<void> {
+    const saved = this.recovery?.pending;
+    if (saved == null || this.#backend.restoreLabels === undefined) return;
+    await this.#settle(this.#backend.restoreLabels(saved.session), (next) => {
+      this.#forgetLabels();
+      this.#show(next);
+      this.announcement = { text: 'Saved labels restored.' };
+    });
   }
 
   undo(): Promise<void> {

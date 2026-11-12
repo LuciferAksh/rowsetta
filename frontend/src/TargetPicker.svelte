@@ -69,6 +69,33 @@
 
 <section class="panel panel--target" aria-labelledby="target-heading">
   <h2 id="target-heading">Table and target</h2>
+  {#if studio.recovery?.problem}
+    <div role="alert" class="recovery"><p>{studio.recovery.problem}</p></div>
+  {/if}
+  {#if studio.recovery?.pending}
+    <section class="recovery" aria-label="Saved labels">
+      <p>
+        {studio.recovery.pending.count} saved {studio.recovery.pending.count ===
+        1
+          ? 'label'
+          : 'labels'} for this table and target.
+      </p>
+      <button
+        type="button"
+        class="button button-solid"
+        onclick={() => {
+          void studio.restoreLabels();
+        }}>Restore labels</button
+      >
+      <button
+        type="button"
+        class="button"
+        onclick={() => {
+          studio.recovery?.discard();
+        }}>Discard saved labels</button
+      >
+    </section>
+  {/if}
   {#if workspace?.loaded !== true}
     <p class="lede">
       Open a CSV, label a few rows, and keep a rule that labels the rest. The
@@ -170,6 +197,14 @@
 </section>
 
 <style>
+  .recovery {
+    display: grid;
+    gap: var(--space-2);
+    border: 3px solid var(--ink);
+    padding: var(--space-3);
+    overflow-wrap: anywhere;
+  }
+
   .drop {
     display: grid;
     gap: var(--space-2);

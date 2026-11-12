@@ -1,7 +1,13 @@
-import { loadPyodide } from 'pyodide';
+import { loadPyodide, type PyodideInterface } from 'pyodide';
 import { loadTeacher } from './teacher';
 import { predictRefit } from './refit';
 import { supportsBrowserTeacher } from './config';
+
+async function pythonText(py: PyodideInterface, code: string): Promise<string> {
+  const value: unknown = await py.runPythonAsync(code);
+  if (typeof value !== 'string') throw new Error('Invalid Python response');
+  return value;
+}
 
 interface Command {
   id: number;
@@ -146,6 +152,14 @@ browser.workspace.set_target('species', ('Adelie', 'Chinstrap', 'Gentoo'))
   const teacher = await model;
   if (teacher !== null && teacher.backend !== 'webgpu')
     throw new Error('Expected the WebGPU teacher');
+  postMessage({
+    kind: 'labels',
+    session: await pythonText(
+      py,
+      'browser.workspace.require_store().to_json()',
+    ),
+    save: false,
+  });
   postMessage({ kind: 'ready' });
   return { py, teacher };
 }
@@ -169,11 +183,71 @@ onmessage = (event: MessageEvent<Start | Command>) => {
     try {
       if (started === undefined) throw new Error('Runtime has not started');
       const { py, teacher } = await started;
+      const input: unknown = JSON.parse(data.message);
+      const restoring =
+        typeof input === 'object' &&
+        input !== null &&
+        'action' in input &&
+        input.action === 'restore' &&
+        'session' in input &&
+        typeof input.session === 'string';
+      if (restoring) {
+        await py.runPythonAsync(`
+from rowsetta.core.session import LabelStore
+saved_labels = LabelStore.from_json(${JSON.stringify(input.session)})
+current_source = browser.workspace.require_store().source
+if saved_labels.source.sha256 != current_source.sha256 or saved_labels.source.row_ids() != current_source.row_ids() or saved_labels.target != browser.workspace.require_store().target:
+    raise ValueError('Saved labels belong to another table or target')
+browser.workspace.set_target(saved_labels.target, saved_labels.classes)
+browser.workspace.store = saved_labels
+browser.workspace.invalidate()
+`);
+      }
+      const message = restoring
+        ? JSON.stringify({ action: 'state' })
+        : data.message;
       let value: unknown = await py.runPythonAsync(
-        `browser.call(${JSON.stringify(data.message)}, refit=${teacher === null ? 'True' : 'False'})`,
+        `browser.call(${JSON.stringify(message)}, refit=${teacher === null ? 'True' : 'False'})`,
       );
       if (typeof value !== 'string') throw new Error('Invalid Python response');
-      const response: unknown = JSON.parse(value);
+      let response: unknown = JSON.parse(value);
+      if (
+        typeof response === 'object' &&
+        response !== null &&
+        'ok' in response &&
+        response.ok === true &&
+        typeof input === 'object' &&
+        input !== null &&
+        'action' in input
+      ) {
+        if (input.action === 'load') postMessage({ kind: 'table-loaded' });
+        else if (
+          [
+            'target',
+            'label',
+            'undo',
+            'exclude',
+            'threshold',
+            'restore',
+            'eval',
+          ].includes(String(input.action))
+        ) {
+          postMessage({
+            kind: 'labels',
+            session: await pythonText(
+              py,
+              'browser.workspace.require_store().to_json()',
+            ),
+            save: input.action !== 'target',
+          });
+        }
+        if (restoring) {
+          if (teacher === null) await py.runPythonAsync('browser.refit()');
+          const refit = await pythonText(py, 'browser.refit_input()');
+          response = { ...response, refit };
+          value = await py.runPythonAsync(`browser.call('{"action":"state"}')`);
+        }
+      }
       if (
         teacher !== null &&
         typeof response === 'object' &&
@@ -201,7 +275,7 @@ onmessage = (event: MessageEvent<Start | Command>) => {
           error: {
             error: 'The browser runtime could not complete this operation.',
             next_step:
-              'Try the operation again. Browser labels are held in memory and will be lost if you reload or close this tab.',
+              'Try the operation again. To recover saved labels, reload this page and reopen the same CSV and target, then choose Restore labels.',
           },
         }),
       });

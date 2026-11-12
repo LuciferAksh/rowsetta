@@ -13,8 +13,8 @@
   </p>
   {#if failed}
     <p>
-      Browser runtime failed. Keep this page open to preserve labels until you
-      are ready to retry.
+      Browser runtime failed. Reload to retry; reopen the same CSV and target to
+      restore saved labels.
     </p>
   {:else if !runtimeLoading.ready}
     <label>

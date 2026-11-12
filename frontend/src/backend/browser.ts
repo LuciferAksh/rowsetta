@@ -7,6 +7,7 @@ import type {
   WorkspaceState,
   TablePage,
 } from './types';
+import { LabelRecovery } from '../browser/labels.svelte';
 import { BROWSER_ASSETS } from '../browser/config';
 import { runtimeLoading, teacherName } from '../browser/loading.svelte';
 
@@ -19,12 +20,13 @@ function object(value: unknown): Record<string, unknown> {
   return value;
 }
 
-/** In-memory worker backend; the only network calls load static application assets. */
+/** Tab-local worker backend; the only network calls load static application assets. */
 export function createBrowserBackend(): Backend {
   const worker = new Worker(
     new URL('../browser/pyodide.worker.ts', import.meta.url),
     { type: 'module' },
   );
+  const recovery = new LabelRecovery();
   const pending = new Map<
     number,
     { resolve: (value: unknown) => void; reject: (error: Error) => void }
@@ -46,7 +48,7 @@ export function createBrowserBackend(): Backend {
   const initial = fetch(`${BROWSER_ASSETS}demo.json`).then(async (response) => {
     if (!response.ok) throw new Error('The bundled demo could not be loaded.');
     const body = object(await response.json());
-    snapshot = decode.workspaceState(body.state, 'demo.state');
+    snapshot = browserState(body.state);
     firstPage = decode.tablePage(body.table, 'demo.table');
   });
 
@@ -56,7 +58,7 @@ export function createBrowserBackend(): Backend {
       {
         error: message,
         next_step:
-          'Browser labels are held in memory and will be lost if you reload or close this tab. Reload to retry the runtime only after recording any labels you need.',
+          'Reload this page, reopen the same CSV and target, then choose Restore labels to recover saved labels.',
       },
       null,
     );
@@ -92,6 +94,11 @@ export function createBrowserBackend(): Backend {
     ) {
       runtimeLoading.modelDone = data.progress.loaded;
       runtimeLoading.modelTotal = data.progress.total;
+    } else if (data.kind === 'labels' && typeof data.session === 'string') {
+      if (data.save === true) recovery.save(data.session);
+      else recovery.offer(data.session);
+    } else if (data.kind === 'table-loaded') {
+      recovery.pending = null;
     } else if (data.kind === 'ready') {
       runtimeLoading.ready = true;
       readyResolve();
@@ -136,11 +143,22 @@ export function createBrowserBackend(): Backend {
     });
   }
 
+  function browserState(value: unknown): WorkspaceState {
+    const state = decode.workspaceState(value, 'state');
+    return {
+      ...state,
+      notice:
+        state.notice?.startsWith('Browser labels') === true
+          ? null
+          : state.notice,
+    };
+  }
+
   async function mutate(
     message: Record<string, unknown>,
   ): Promise<WorkspaceState> {
     await initial;
-    const state = decode.workspaceState(await call(message), 'state');
+    const state = browserState(await call(message));
     if (state.generation >= snapshot.generation) {
       runtimeFailure = null;
       snapshot = state;
@@ -150,6 +168,13 @@ export function createBrowserBackend(): Backend {
   }
 
   return {
+    recovery,
+    restoreLabels: async (session) => {
+      const offered = recovery.pending;
+      const state = await mutate({ action: 'restore', session });
+      if (recovery.pending === offered) recovery.pending = null;
+      return state;
+    },
     state: async () => {
       await initial;
       return { ...snapshot, failure: runtimeFailure };
