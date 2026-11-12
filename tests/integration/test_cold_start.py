@@ -1,5 +1,6 @@
 import json
 import os
+import socket
 import subprocess
 import sys
 from pathlib import Path
@@ -17,13 +18,15 @@ if TYPE_CHECKING:
 
 pytestmark = pytest.mark.native
 
-PORT = 8796
 LAUNCH_CODE = "cold-start-test-token"
 
 
 def test_drive_labels_six_rows_and_waits_for_first_proposals(tmp_path: Path) -> None:
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        port = listener.getsockname()[1]
     server = subprocess.Popen(
-        [sys.executable, "-m", "rowsetta", "demo", "--no-browser", "--port", str(PORT)],
+        [sys.executable, "-m", "rowsetta", "demo", "--no-browser", "--port", str(port)],
         env={
             **os.environ,
             "ROWSETTA_TEACHER": "fake",
@@ -35,8 +38,8 @@ def test_drive_labels_six_rows_and_waits_for_first_proposals(tmp_path: Path) -> 
     )
     try:
         started = perf_counter()
-        wait_healthy(PORT, timeout=60)
-        timing = drive(PORT, LAUNCH_CODE, started=started)
+        wait_healthy(port, timeout=60)
+        timing = drive(port, LAUNCH_CODE, started=started)
     finally:
         server.terminate()
         server.wait(timeout=30)

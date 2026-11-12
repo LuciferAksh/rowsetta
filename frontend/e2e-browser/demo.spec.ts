@@ -132,7 +132,7 @@ test('static demo queues labels, predicts and exports SQL without data egress', 
   for (const request of requests) {
     expect(request.method).toBe('GET');
     expect(request.data).toBeNull();
-    expect(new URL(request.url).origin).toBe('http://127.0.0.1:4173');
+    expect(new URL(request.url).origin).toBe(testInfo.project.use.baseURL);
     expect(new URL(request.url).search).toBe('');
     expect(request.url).not.toMatch(/huggingface|hf\.co|spike/);
   }
@@ -351,4 +351,39 @@ test.describe('browser export health', () => {
     await expect(panel.getByRole('alert')).toHaveCount(0);
     await expect(panel.locator('pre')).toContainText('SELECT');
   });
+});
+
+test('mobile app bar gives the target its full width', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  const target = page.locator('.appbar .target');
+  await expect(target).toHaveText('target: species');
+  await expect(page.locator('.runtime-short')).toBeVisible();
+  expect(await target.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(
+    true,
+  );
+  const widths = await page.evaluate(() => ({
+    scroll: document.documentElement.scrollWidth,
+    available: document.documentElement.clientWidth,
+  }));
+  expect(widths.scroll).toBe(widths.available);
+  const shots = process.env.ROWSETTA_FIX_SHOTS;
+  if (shots !== undefined) {
+    const { mkdirSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    mkdirSync(shots, { recursive: true });
+    await page.screenshot({
+      path: join(
+        shots,
+        `runtime-${page.context().browser()?.browserType().name() ?? 'browser'}-390x844.png`,
+      ),
+    });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.screenshot({
+      path: join(
+        shots,
+        `runtime-${page.context().browser()?.browserType().name() ?? 'browser'}-1440x900.png`,
+      ),
+    });
+  }
 });
