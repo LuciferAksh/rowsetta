@@ -330,6 +330,18 @@ describe('line map', () => {
     expect(across?.at).toEqual([200, 107.5]);
 
     expect(restAlong(route, half, [[0, 0, 400, 200]], size)).toBeNull();
+
+    // Scored, it takes the passing point with the most map under it.
+    const inked = restAlong(
+      route,
+      half,
+      [],
+      size,
+      false,
+      ([x]) => -Math.abs(x - 300),
+    );
+    expect(inked?.at[0]).toBeCloseTo(0.74 * 400);
+    expect(inked?.at[1]).toBe(100);
   });
 
   it('settles the glass on the nearest stretch of track clear of every box', () => {

@@ -14,8 +14,7 @@
     legs,
     offsetLine,
     branchSentence,
-    clearSpot,
-    openSpot,
+    columnWords,
     restNear,
     restAlong,
     nearestOn,
@@ -41,19 +40,23 @@
   const LIFT_MS = 220;
   /** The ≤ and > signs read small for their size, so they are set larger than the names. */
   const SIGN_SIZE = 14;
+  /** Rank roundels, 15 px across, sit in slots this far apart. */
+  const RANK_SLOT = 18;
+  /** The glass's bevel; it must match the Loupe's shape. */
+  const BEVEL = 18;
   /** Map type while the ride re-routes rows: stepped back, still legible. */
   const QUIET_INK = '#8a8d92';
   const LAY_MS = 1100;
   const REDRAW_MS = 700;
   /** The longest the map waits for the refit after a ride before letting go of the old rule. */
   const REFIT_WAIT_MS = 20000;
-  /** Retired termini stay struck through this long, then fold one after another. */
+  /** Retired termini stay struck through this long on the old map, then fold one after another. */
   const GHOST_HOLD_MS = 2000;
   const GHOST_STEP_MS = 320;
   const GHOST_FOLD_MS = 520;
   /** When a ghost starts to fold: once the new map is laid and the hold is over. */
   const foldAt = (ghost: { order: number }): number =>
-    LIFT_MS + LAY_MS + GHOST_HOLD_MS + ghost.order * GHOST_STEP_MS;
+    GHOST_HOLD_MS + ghost.order * GHOST_STEP_MS;
   const RIDE_MS = 1300;
   const FONT = "Ronzino, 'Helvetica Neue', Arial, sans-serif";
 
@@ -72,18 +75,21 @@
   /** How many rows the ride fixed, from its last drop until the refitted rule lands. */
   let awaiting = $state<number | null>(null);
   let rideTotal = $state(0);
-  /** A terminus the refit retired, struck through where it stood while it folds into the line that took its rows. */
+  /** A terminus the refit retired, struck through where it stood until it folds into the terminus that took its rows. */
   interface Ghost {
     key: string;
-    x: number;
-    y: number;
-    half: number;
     label: string | null;
     rows: number;
     into: LeafLine;
+    /** How far it moves to fold into that terminus, on the old map. */
+    toY: number;
     order: number;
   }
   let ghosts = $state.raw<Ghost[]>([]);
+  /** The last ride's merges, listed in the notice until the next ride or check. */
+  let merged = $state.raw<Ghost[]>([]);
+  /** The refitted rule's termini, while the old map still shows its fold. */
+  let landed = $state<number | null>(null);
   /** The termini count in the notice, run down one fold at a time. */
   let tally = $state<number | null>(null);
   /** Termini whose counts are changing, kept at full ink. */
@@ -225,6 +231,7 @@
   let checking = $state(false);
   async function check(): Promise<void> {
     checking = true;
+    merged = [];
     await studio.checkLabels();
     checking = false;
   }
@@ -278,6 +285,8 @@
   let laidAt = '';
   /** Threads already dyed their new colour, by row. */
   let dyed: Partial<Record<number, string>> = {};
+  /** Threads fixed during a ride, drawn in their new colour until the refit lands. */
+  let trails = $state.raw<{ key: string; d: string; colour: string }[]>([]);
   let dyes = $state.raw<
     {
       key: string;
@@ -351,7 +360,7 @@
     }
     const before = new Map(from.map((band) => [band.key, band]));
     const keys = new Set(next.map((band) => band.key));
-    const pairs: { a: Drawn; b: Drawn; fold: boolean }[] = [];
+    const pairs: { a: Drawn; b: Drawn; fold: boolean; keep?: boolean }[] = [];
     for (const a of from) {
       if (keys.has(a.key)) continue;
       const colour = (a.row !== null ? dyed[a.row] : undefined) ?? a.colour;
@@ -375,7 +384,10 @@
               casing: false,
             }
           : { ...a, opacity: 0 };
-      pairs.push({ a: { ...a, colour }, b, fold: true });
+      // During a ride a fixed thread stays whole, cased and in its new colour.
+      const keep =
+        riding && a.row !== null && fixing.has(a.row) && b.opacity > 0;
+      pairs.push({ a: { ...a, colour }, b, fold: true, keep });
     }
     for (const b of next) {
       const a = before.get(b.key);
@@ -392,26 +404,42 @@
     const step = (now: number): void => {
       const t = Math.min((now - start) / MORPH_MS, 1);
       const e = ease(t);
-      bands = pairs.map(({ a, b, fold }) => ({
+      bands = pairs.map(({ a, b, fold, keep }) => ({
         key: b.key,
         points: a.points.map((p, i): Point => [
           p[0] + ((b.points[i]?.[0] ?? p[0]) - p[0]) * e,
           p[1] + ((b.points[i]?.[1] ?? p[1]) - p[1]) * e,
         ]),
         width: a.width + (b.width - a.width) * e,
-        colour: e < 0.5 ? a.colour : b.colour,
+        colour: keep === true ? b.colour : e < 0.5 ? a.colour : b.colour,
         casing: fold ? a.casing && t < 0.25 : b.casing,
         rows: b.rows,
         row: fold ? a.row : b.row,
-        opacity: fold
-          ? 1 - Math.max(0, (t - 0.75) / 0.25)
-          : a.opacity + (b.opacity - a.opacity) * e,
+        opacity:
+          keep === true
+            ? 1
+            : fold
+              ? 1 - Math.max(0, (t - 0.75) / 0.25)
+              : a.opacity + (b.opacity - a.opacity) * e,
       }));
       if (t < 1) {
         frame = requestAnimationFrame(step);
       } else {
         bands = next;
-        dyed = {};
+        // Only the threads this fold carried; a later drop may already be dyed.
+        for (const { a, fold } of pairs) {
+          if (fold && a.row !== null) dyed[a.row] = undefined;
+        }
+        trails = [
+          ...trails,
+          ...pairs
+            .filter((pair) => pair.keep === true)
+            .map(({ a, b }) => ({
+              key: a.key,
+              d: path(b.points),
+              colour: b.colour,
+            })),
+        ];
       }
     };
     frame = requestAnimationFrame(step);
@@ -627,7 +655,7 @@
    */
   const shoved = $derived.by((): Record<string, number> => {
     const moves: Record<string, number> = {};
-    if (map === null || narrow || !parked) return moves;
+    if (map === null || narrow || !parked || idle) return moves;
     const top = lens[1] - half[1] - 4;
     const bottom = lens[1] + half[1] + 4;
     const glass: Rect = [
@@ -668,6 +696,40 @@
     return dy === undefined ? undefined : `translateY(${String(dy)}px)`;
   };
 
+  /** The map's track as dots 6 px apart, each with the index of its band. */
+  const inkDots = $derived.by((): [number, number, number][] => {
+    const dots: [number, number, number][] = [];
+    for (const [index, band] of (map?.bands ?? []).entries()) {
+      for (const [a, b] of legs(band.points)) {
+        const n = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 6);
+        for (let i = 0; i < n; i++) {
+          const f = i / n;
+          dots.push([
+            a[0] + (b[0] - a[0]) * f,
+            a[1] + (b[1] - a[1]) * f,
+            index,
+          ]);
+        }
+      }
+    }
+    return dots;
+  });
+
+  /**
+   * How many separate bands the flat middle of a glass resting at `at` would
+   * show: most where the bands part, not inside one wide band.
+   */
+  const inkUnder = (at: Point): number =>
+    new Set(
+      inkDots
+        .filter(
+          ([x, y]) =>
+            Math.abs(x - at[0]) < half[0] - BEVEL &&
+            Math.abs(y - at[1]) < half[1] - BEVEL,
+        )
+        .map(([, , band]) => band),
+    ).size;
+
   /** A doubted row's route and where the glass rests on it: mid-route, clear of every label. */
   function restOn(row: number): { at: Point; through: Point[] } | null {
     if (map === null) return null;
@@ -681,8 +743,8 @@
     // On the thread clear of everything, else on the thread clear of the
     // interchanges with their type moved aside, and only then beside it.
     const rest =
-      restAlong(route, half, keepClear, size, false) ??
-      restAlong(route, half, solid, size, false) ??
+      restAlong(route, half, keepClear, size, false, inkUnder) ??
+      restAlong(route, half, solid, size, false, inkUnder) ??
       restAlong(route, half, keepClear, size);
     if (rest !== null) {
       return { at: rest.at, through: route.slice(0, rest.before + 1) };
@@ -769,6 +831,8 @@
       return;
     }
     riding = true;
+    trails = [];
+    merged = [];
     rideTotal = all.length;
     tally = null;
     frozen = studio.rule;
@@ -798,17 +862,16 @@
       pending = { ...pending, [String(doubt.row)]: doubt.likely };
       send();
       dyes = dyes.filter((step) => step.row !== doubt.row);
-      void wait(MORPH_MS + 120).then(() => {
-        fixing = new Set([...fixing].filter((row) => row !== doubt.row));
-      });
       await wait(rest);
     }
     await sent;
-    await wait(fixing.size > 0 ? MORPH_MS : 0);
+    await wait(MORPH_MS + 120);
+    fixing = new Set();
     pending = {};
     riding = false;
     hurry = false;
     receiving = new Set();
+    idle = true;
     awaiting = all.length;
     // A refit that never lands must not hold the old map forever.
     void wait(REFIT_WAIT_MS).then(() => {
@@ -833,91 +896,89 @@
   });
 
   /**
-   * The refitted rule replaces the frozen one. Each old terminus whose rows
-   * now mostly reach a line another old terminus reaches too, with fewer of
-   * them, was retired: it stays struck through where it stood, then folds into
-   * that line one after another, and the count runs down with each fold.
+   * The refitted rule lands. Each old terminus whose rows now mostly reach a
+   * line that a larger old terminus also reaches was retired. On the old map,
+   * each is struck through with the line it merges into, then folds into that
+   * terminus one after another while the count runs down; only then is the
+   * new map laid.
    */
   function land(fresh: typeof studio.rule): void {
     const old = map;
     awaiting = null;
-    frozen = null;
-    settling = true;
-    if (fresh === null || old === null) return;
-    const after = fresh.leaf_summary.length;
-    const before = old.termini.length;
-    if (calm || after >= before) {
-      tally = after;
+    idle = true;
+    const release = (): void => {
+      frozen = null;
+      trails = [];
+      ghosts = [];
+      landed = null;
+    };
+    if (fresh === null || old === null) {
+      release();
       return;
     }
-    const keeper: Record<number, { key: string; rows: number } | undefined> =
-      {};
-    const goes = old.termini.map((terminus) => {
+    const after = fresh.leaf_summary.length;
+    const before = old.termini.length;
+    landed = after;
+    tally = after;
+    if (calm || after >= before) {
+      release();
+      return;
+    }
+    const keeper: Record<number, Terminus | undefined> = {};
+    const shared = (terminus: Terminus, line: LeafLine): number => {
       const rows = new Set(terminus.line.row_ids);
+      return line.row_ids.filter((id) => rows.has(id)).length;
+    };
+    const goes = old.termini.map((terminus) => {
       let into = fresh.leaf_summary[0];
-      let most = -1;
       for (const line of fresh.leaf_summary) {
-        const shared = line.row_ids.filter((id) => rows.has(id)).length;
-        if (shared > most) [into, most] = [line, shared];
+        if (
+          into === undefined ||
+          shared(terminus, line) > shared(terminus, into)
+        )
+          into = line;
       }
       const best = into === undefined ? undefined : keeper[into.line_no];
-      if (into !== undefined && (best === undefined || most > best.rows)) {
-        keeper[into.line_no] = { key: terminus.key, rows: most };
+      if (
+        into !== undefined &&
+        (best === undefined || shared(terminus, into) > shared(best, into))
+      ) {
+        keeper[into.line_no] = terminus;
       }
       return { terminus, into };
     });
     ghosts = goes
-      .filter(
-        ({ terminus, into }) =>
-          into !== undefined && keeper[into.line_no]?.key !== terminus.key,
-      )
-      .map(({ terminus, into }, order) => ({
-        key: terminus.key,
-        x: terminus.x,
-        y: terminus.y,
-        half: terminus.half,
-        label: terminus.line.label,
-        rows: terminus.line.row_ids.length,
-        into: into as LeafLine,
-        order,
-      }));
+      .flatMap(({ terminus, into }) => {
+        const target = into === undefined ? undefined : keeper[into.line_no];
+        return into === undefined ||
+          target === undefined ||
+          target.key === terminus.key
+          ? []
+          : [
+              {
+                key: terminus.key,
+                label: terminus.line.label,
+                rows: terminus.line.row_ids.length,
+                into,
+                toY: target.y - terminus.y,
+                order: 0,
+              },
+            ];
+      })
+      .map((ghost, order) => ({ ...ghost, order }));
+    merged = ghosts;
     tally = before;
     for (const ghost of ghosts) {
       void wait(foldAt(ghost) + GHOST_FOLD_MS).then(() => {
         tally = Math.max(after, (tally ?? before) - 1);
       });
     }
-    void wait(foldAt({ order: ghosts.length }) + GHOST_FOLD_MS).then(() => {
-      ghosts = [];
-      tally = after;
-    });
+    void wait(foldAt({ order: ghosts.length }) + GHOST_FOLD_MS).then(release);
   }
 
-  // After a ride, and again when the refitted map lands, the glass settles on
-  // the nearest stretch of track that leaves every station, label and count in
-  // view, else on the nearest white with no track under it, else the nearest
-  // place clear of type.
-  // It stays put once someone moves it.
-  let settling = $state(false);
-  $effect(() => {
-    if (!settling || map === null || fixing.size > 0) return;
-    const near = untrack(() => lens);
-    const size = [map.width, map.height] as const;
-    const spot =
-      clearSpot(
-        near,
-        half,
-        keepClear,
-        map.bands.map((band) => band.points),
-        size,
-      ) ??
-      openSpot(near, half, keepClear, size, map.bands) ??
-      openSpot(near, half, keepClear, size);
-    if (spot !== null)
-      untrack(() => {
-        glide(spot);
-      });
-  });
+  // With nothing selected after a ride, or once a row is let go, the glass
+  // lifts off and leaves the map clear; picking a row or moving it brings it back.
+  let idle = $state(false);
 
   // The loupe: where it is, and what it reads. At a terminus its right edge
   // stops just past the bullet, so the terminus name stays in plain view.
@@ -1020,7 +1081,7 @@
 
   /** Select a doubted row: the loupe rides its thread from the origin to rest mid-route. */
   function read(doubt: Doubt): void {
-    settling = false;
+    idle = false;
     studio.selectedRow = doubt.row;
     const rest = restOn(doubt.row);
     if (rest === null || map === null) return;
@@ -1054,7 +1115,7 @@
           ?.label !== doubt.given,
     ),
   );
-  const termini = $derived(rule?.leaf_summary.length ?? 0);
+  const termini = $derived(landed ?? rule?.leaf_summary.length ?? 0);
   const fixedCount = $derived(
     [...drawnShown.values()].filter((item) => item.state === 'fixed').length,
   );
@@ -1069,7 +1130,7 @@
       const done = awaiting ?? Object.keys(pending).length;
       return done === 0
         ? `Fixing ${String(rideTotal)} labels.`
-        : `${String(done)} fixed. Refitting…`;
+        : `${String(done)}\u00a0fixed. Refitting…`;
     }
     if (wrong.length === 1) return '1 label rides the wrong line.';
     if (wrong.length > 1)
@@ -1077,13 +1138,19 @@
     if (fixedCount > 0 && terminiBefore !== null) {
       const fewer = terminiBefore - termini;
       return fewer > 0
-        ? `${String(fixedCount)} fixed, ${String(fewer)} fewer termini.`
+        ? `${String(fixedCount)}\u00a0fixed. ${String(fewer)}\u00a0fewer\u00a0termini.`
         : `${String(fixedCount)} fixed. Every doubted label rides its own line.`;
     }
     return studio.suspects === null
       ? `${String(termini)} lines carry every row.`
       : 'No doubted label rides the wrong line.';
   });
+  /** The headline's sentences, each set on its own line; the spaces stay for reading aloud. */
+  const clauses = $derived(
+    headline
+      .split(/(?<=\.) /)
+      .map((clause, i, all) => (i < all.length - 1 ? `${clause} ` : clause)),
+  );
   const lede = $derived.by(() => {
     const rows = studio.rowCount ?? 0;
     if (rule === null) {
@@ -1092,8 +1159,11 @@
     if (checking) {
       return `The model scores every label with its own row held out, so it never grades a label it has already seen.`;
     }
-    if (riding || awaiting !== null) {
+    if (riding) {
       return `Each thread takes the colour of the line it rides. The map keeps the old rule until the server has fitted it again on the new labels.`;
+    }
+    if (awaiting !== null) {
+      return `All ${String(awaiting)} labels are in. The server is fitting the rule again on them; the map changes when it lands.`;
     }
     if (wrong.length > 0) {
       return `The model read all ${String(rows)} labels, each with its own row held out. A label it doubts rides the map as a thread in that label's colour, on the line the rule sends its row down.`;
@@ -1117,10 +1187,16 @@
       cell === null || cell === undefined ? 'missing' : String(cell);
     return (table?.columns ?? [])
       .filter((column) => column.name !== workspace?.target)
-      .map((column) => [
-        column.name.replaceAll('_', ' '),
-        show(record[column.name]),
-      ]);
+      .map((column) => {
+        const [name, unit] = columnWords(column.name);
+        const cell = record[column.name];
+        return [
+          name,
+          unit === undefined || cell === null || cell === undefined
+            ? show(cell)
+            : `${show(cell)} ${unit}`,
+        ];
+      });
   }
 
   /** Rows at a stop, doubted first, each with the values its splits read. */
@@ -1179,7 +1255,7 @@
           ? -1
           : 0;
     if (step !== 0 || event.key === 'Home' || event.key === 'End') {
-      settling = false;
+      idle = false;
     }
     if (step !== 0) {
       event.preventDefault();
@@ -1197,11 +1273,12 @@
       if (doubt) read(doubt);
     } else if (event.key === 'Escape') {
       studio.selectedRow = null;
+      idle = true;
     }
   }
 
   function moved(to: Point): void {
-    settling = false;
+    idle = false;
     parked = false;
     cancelAnimationFrame(ride);
     lens = to;
@@ -1260,6 +1337,22 @@
           stroke-width={width}
           stroke-linejoin="miter"
           {opacity}
+        />
+      {/each}
+      {#each trails as trail (trail.key)}
+        <path
+          d={trail.d}
+          fill="none"
+          stroke="#0d0d0d"
+          stroke-width="8.4"
+          stroke-linejoin="miter"
+        />
+        <path
+          d={trail.d}
+          fill="none"
+          stroke={trail.colour}
+          stroke-width="6"
+          stroke-linejoin="miter"
         />
       {/each}
       {#each dyes as dye (dye.key)}
@@ -1360,8 +1453,19 @@
         {/each}
         {#each m.termini as terminus (terminus.key)}
           {@const answer = terminus.line.label}
+          <!-- A terminus the refit retired is struck through with the line it
+               merges into, then folds into that line's terminus. -->
+          {@const ghost = ghosts.find((g) => g.key === terminus.key)}
           <g
             opacity={quiet && !receiving.has(terminus.key) ? 0.35 : 1}
+            class:ghost={ghost !== undefined}
+            style:--fold={ghost === undefined
+              ? undefined
+              : `${String(ghost.toY)}px`}
+            style:animation-delay={ghost === undefined
+              ? undefined
+              : `${String(foldAt(ghost))}ms`}
+            style:animation-duration={`${String(GHOST_FOLD_MS)}ms`}
             in:fade={{
               duration: calm ? 0 : 260,
               delay: calm ? 0 : LIFT_MS + LAY_MS * 0.55,
@@ -1382,12 +1486,17 @@
                 y={terminus.y - 1}
                 font-size="14"
                 font-weight="700"
-                fill="#0d0d0d">{answer ?? 'No answer'}</text
+                fill="#0d0d0d"
+                text-decoration={ghost === undefined
+                  ? undefined
+                  : 'line-through'}>{answer ?? 'No answer'}</text
               >
-              {@const counts = `${String(terminus.line.row_ids.length)} rows${terminus.counts
-                .filter(([cls]) => cls !== answer)
-                .map(([cls, n]) => `, ${String(n)} ${cls}`)
-                .join('')}`}
+              {@const counts = ghost
+                ? `merges into ${ghost.into.label ?? 'no answer'}, ${String(ghost.into.row_ids.length)} rows`
+                : `${String(terminus.line.row_ids.length)} rows${terminus.counts
+                    .filter(([cls]) => cls !== answer)
+                    .map(([cls, n]) => `, ${String(n)} ${cls}`)
+                    .join('')}`}
               <!-- When a fix changes a terminus, its count ticks over once. -->
               {#key counts}
                 <text
@@ -1405,39 +1514,19 @@
           </g>
         {/each}
       </g>
-      <!-- Each retired terminus, a dashed bar where it stood, folds into the line that took its rows. -->
-      {#each ghosts as ghost (ghost.key)}
-        {@const target = m.termini.find(
-          (t) => t.line.line_no === ghost.into.line_no,
-        )}
-        <rect
-          class="ghost"
-          style:--fold={`${String((target?.y ?? ghost.y) - ghost.y)}px`}
-          style:animation-delay={`${String(foldAt(ghost))}ms`}
-          style:animation-duration={`${String(GHOST_FOLD_MS)}ms`}
-          x={ghost.x + 0.75}
-          y={ghost.y - ghost.half}
-          width="4.5"
-          height={ghost.half * 2}
-          fill="#ffffff"
-          stroke="#0d0d0d"
-          stroke-width="1.5"
-          stroke-dasharray="3 2"
-        />
-      {/each}
       {#each m.termini as terminus (terminus.key)}
         {#each terminus.doubts as end, index (end.doubt.row)}
-          <!-- Rank roundels stand in their own column 24 px before the bar, stacked
-               about the terminus so they never touch each other or the bar. -->
-          <!-- In the phone overview they sit side by side, at desk size. -->
-          {@const r = phone.current ? 8 * ink : narrow ? 7 : 10}
+          <!-- Rank roundels stand in their own column 24 px before the bar, each
+               rank in its own slot 18 px from the next, stacked about the terminus. -->
+          <!-- In the phone overview the slots run side by side, at desk size. -->
+          {@const r = 7.5 * ink}
           {@const x = phone.current
-            ? terminus.x - 6 * ink - r - index * (r * 2 + 3 * ink)
+            ? terminus.x - 6 * ink - r - index * RANK_SLOT * ink
             : terminus.x - 24 - r}
           {@const y = phone.current
             ? terminus.y
             : terminus.y +
-              (index - (terminus.doubts.length - 1) / 2) * (r * 2 + 3)}
+              (index - (terminus.doubts.length - 1) / 2) * RANK_SLOT}
           <g opacity={quiet && !fixing.has(end.doubt.row) ? 0.35 : 1}>
             {#if !phone.current}
               <polyline
@@ -1458,9 +1547,9 @@
             {#if !narrow || phone.current}
               <text
                 {x}
-                y={y + 4 * ink}
+                y={y + 3.5 * ink}
                 text-anchor="middle"
-                font-size={11 * ink}
+                font-size={10 * ink}
                 font-weight="700"
                 fill={selected?.row === end.doubt.row ? '#0d0d0d' : '#ffffff'}
                 >{end.doubt.rank}</text
@@ -1563,19 +1652,22 @@
   aria-labelledby="interchange-heading"
 >
   <div class="notice">
-    <h2 id="interchange-heading" class="headline">{headline}</h2>
-    {#if ghosts.length > 0 && tally !== null}
+    <!-- Each sentence of the headline starts its own line. -->
+    <h2
+      id="interchange-heading"
+      class="headline"
+      class:two={clauses.length > 1}
+    >
+      {#each clauses as clause, i (i)}<span class="clause">{clause}</span
+        >{/each}
+    </h2>
+    {#if merged.length > 0 && tally !== null}
       <p class="tally" aria-hidden="true">
         <span class="tally-n">{tally}</span> termini
       </p>
       <ul class="retired" aria-label="Termini the refit retired">
-        {#each ghosts as ghost (ghost.key)}
-          <li
-            class="ghost"
-            style:--fold="0px"
-            style:animation-delay={`${String(foldAt(ghost))}ms`}
-            style:animation-duration={`${String(GHOST_FOLD_MS)}ms`}
-          >
+        {#each merged as ghost (ghost.key)}
+          <li>
             <s>{ghost.label ?? 'No answer'}, {ghost.rows} rows</s>
             merges into {#if ghost.into.label !== null}{@render bullet(
                 ghost.into.label,
@@ -1587,6 +1679,13 @@
     {/if}
     {#if checking}
       <progress class="runner" aria-label="Reading the labels"></progress>
+    {:else if awaiting !== null}
+      <progress
+        class="runner"
+        aria-label="Fitting the rule again"
+        value={studio.refit?.total == null ? undefined : studio.refit.done}
+        max={studio.refit?.total ?? undefined}
+      ></progress>
     {/if}
     <p class="lede">{lede}</p>
     {#if studio.suspects !== null && shown.size > 0}
@@ -1629,7 +1728,7 @@
         >
       </div>
     {/if}
-    {#if !phone.current && !riding && selected === null && reading !== null}
+    {#if !phone.current && !riding && !idle && selected === null && reading !== null}
       {@const here = rowsAt(reading)}
       <div class="panel" aria-live="polite">
         {#if reading.station !== null}
@@ -1716,8 +1815,10 @@
               disabled={doubt === undefined}
               onclick={() => {
                 if (doubt === undefined) return;
-                if (studio.selectedRow === s.row_id) studio.selectedRow = null;
-                else read(doubt);
+                if (studio.selectedRow === s.row_id) {
+                  studio.selectedRow = null;
+                  idle = true;
+                } else read(doubt);
               }}
             >
               <span class="roundel" aria-hidden="true">{item.rank + 1}</span>
@@ -1816,6 +1917,7 @@
                     onclick={() => {
                       studio.toggleKept(doubt.row);
                       studio.selectedRow = null;
+                      idle = true;
                     }}>Keep {doubt.given}</button
                   >
                 </div>
@@ -1861,7 +1963,7 @@
           strokes={glassStrokes}
           {narrow}
           {magnify}
-          away={travelling}
+          away={travelling || idle}
           onmove={moved}
         >
           {#snippet glass(m: TransitMap)}
@@ -1905,6 +2007,13 @@
     line-height: 1;
     letter-spacing: -0.025em;
     text-wrap: balance;
+  }
+  .clause {
+    display: block;
+  }
+  /* Two sentences, each kept to its own line in the column. */
+  .headline.two {
+    font-size: min(var(--step-peak), 2.5rem);
   }
   .lede {
     color: var(--ink-2);
@@ -2079,7 +2188,6 @@
   }
   .tally-n {
     display: inline-block;
-    min-width: 2ch;
     font-size: var(--step-2);
     line-height: 1;
     font-variant-numeric: tabular-nums;
@@ -2192,52 +2300,43 @@
     line-height: 1.6;
   }
   /* The row's values as a run of stops: each value over its column's name. */
-  /* A row's values as stops on one ruled line: value above, column name below. */
+  /* A row's values as stops down one ruled line, as on a strip map: a tick at
+     each stop, the value with its unit, then the column's name. */
   .cells {
-    position: relative;
-    display: flex;
-    justify-content: space-between;
-    gap: var(--space-2);
-    padding-top: var(--space-3);
+    display: grid;
+    gap: 0.15rem;
+    margin: var(--space-1) 0 0 5px;
+    border-left: 2px solid var(--ink);
+    padding-left: var(--space-3);
     font-variant-numeric: tabular-nums;
   }
-  .cells::before {
+  .cells div {
+    position: relative;
+    display: flex;
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+    align-items: baseline;
+    gap: var(--space-3);
+  }
+  .cells div::before {
     content: '';
     position: absolute;
-    left: 0;
-    right: 0;
-    top: calc(var(--space-3) + 1.25rem);
-    border-top: 2px solid var(--ink);
-  }
-  .cells div {
-    display: flex;
-    flex-direction: column-reverse;
-    justify-content: flex-end;
-    min-width: 0;
+    left: calc(-1 * var(--space-3) - 5px);
+    top: 0.62em;
+    width: 8px;
+    height: 2px;
+    background: var(--ink);
   }
   .cells dd {
-    position: relative;
-    height: 1.25rem;
+    min-width: 6.5rem;
     font-size: var(--step--1);
     font-weight: 700;
     white-space: nowrap;
   }
-  .cells dd::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: calc(1.25rem - 3px);
-    width: 2px;
-    height: 8px;
-    background: var(--ink);
-  }
   .cells dt {
-    width: min-content;
-    min-width: 100%;
-    padding-top: 0.5rem;
-    font-size: 0.6875rem;
-    line-height: 1.2;
+    font-size: var(--step--1);
     color: var(--ink-2);
+    white-space: nowrap;
   }
   .thin {
     font-size: var(--step--1);

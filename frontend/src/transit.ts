@@ -116,18 +116,25 @@ function goesLeft(condition: Condition): boolean {
   return test === '<=' || test === '<' || test === '<>';
 }
 
+/** A column as people read it, and its unit: `bill_length_mm` is `bill length`, `mm`. */
+export function columnWords(column: string): [string, string | undefined] {
+  return [
+    column.replace(UNIT_SUFFIX, '').replaceAll('_', ' '),
+    UNIT.exec(column)?.[1],
+  ];
+}
+
 function splitOf(
   condition: Condition,
   decimals: ReadonlyMap<string, number>,
 ): Split {
   const [column, operator, value] = condition;
-  const name = column.replace(UNIT_SUFFIX, '').replaceAll('_', ' ');
+  const [name, unit] = columnWords(column);
   const test = operator.replace(MISSING_PREFIX, '');
   if (test === '<>' || test === '=') {
     const word = value.replace(/^'|'$/g, '').replace(/''/g, "'");
     return { column, label: name, cut: word, left: '≠', right: '=' };
   }
-  const unit = UNIT.exec(column)?.[1];
   const places = decimals.get(column);
   let threshold = Number(value);
   const strict = test === '<' || test === '>=';
@@ -667,7 +674,8 @@ export type Rect = readonly [number, number, number, number];
  * anything in `avoid` or leaving `size`: the middle of the route first, then
  * further out each way. Returns the point and the index of the route point
  * just before it, so the lens can ride the route to it. With `slide` false
- * the route must run through the lens's middle.
+ * the route must run through the lens's middle. With `ink`, of the points that
+ * pass, the one it scores highest wins, the middle first on a tie.
  */
 export function restAlong(
   route: readonly Point[],
@@ -675,6 +683,7 @@ export function restAlong(
   avoid: readonly Rect[],
   size: readonly [number, number],
   slide = true,
+  ink?: (at: Point) => number,
 ): { at: Point; before: number } | null {
   const lengths = legs(route).map(([a, b]) =>
     Math.hypot(b[0] - a[0], b[1] - a[1]),
@@ -688,9 +697,17 @@ export function restAlong(
     fractions.push(0.5 - step, 0.5 + step);
   const shifts = slide ? [0, 0.25, -0.25, 0.5, -0.5] : [0];
   for (const shift of shifts.map((f) => f * half[1])) {
-    const found = fractions
+    const passing = fractions
       .map((fraction) => restAt(fraction, shift))
-      .find((rest) => rest !== null);
+      .filter((rest) => rest !== null);
+    const found =
+      ink === undefined
+        ? passing[0]
+        : passing.reduce<(typeof passing)[number] | undefined>(
+            (best, rest) =>
+              best === undefined || ink(rest.at) > ink(best.at) ? rest : best,
+            undefined,
+          );
     if (found !== undefined) return found;
   }
   return null;

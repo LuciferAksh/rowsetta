@@ -71,7 +71,7 @@ interface Bound {
 
 /**
  * A rule line's tests as one short phrase per column: the numeric bounds on a
- * column merge into an interval, `flipper_length ≤ 206.5 · 40.75 < bill_length ≤ 42.35`.
+ * column merge into an interval, `flipper length ≤ 206.5 · 40.75 < bill length ≤ 42.35`.
  * Which side missing values take is left to the exported SQL.
  */
 export function ruleIntervals(
@@ -105,7 +105,7 @@ export function ruleIntervals(
   }
   return [...phrases]
     .map(([column, { lower, upper, words }]) => {
-      const name = column.replace(UNIT_SUFFIX, '');
+      const name = column.replace(UNIT_SUFFIX, '').replaceAll('_', ' ');
       const shown = (bound: Bound): string =>
         formatThreshold(String(bound.value), decimals.get(column));
       const parts = words.map((word) => `${name} ${word}`);

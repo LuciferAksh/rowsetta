@@ -47,7 +47,7 @@ describe('threshold formatting', () => {
     };
     expect(
       ruleLineParts(line, new Map([['flipper_length_mm', 0]])).conditions,
-    ).toBe('flipper_length ≤ 206.5 · island is Dream');
+    ).toBe('flipper length ≤ 206.5 · island is Dream');
   });
 
   it('merges bounds on one column into an interval', () => {
@@ -61,6 +61,6 @@ describe('threshold formatting', () => {
         ],
         new Map([['bill_length_mm', 1]]),
       ),
-    ).toBe('40.75 < bill_length ≤ 42.35 · island is not Dream');
+    ).toBe('40.75 < bill length ≤ 42.35 · island is not Dream');
   });
 });
