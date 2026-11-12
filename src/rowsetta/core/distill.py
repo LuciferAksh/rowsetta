@@ -303,7 +303,7 @@ def eval_accuracy(student: Student, store: LabelStore) -> Rate:
 
 
 def teacher_eval_accuracy(proposals: Proposals, store: LabelStore) -> Rate:
-    """Measure the teacher's answered evaluation rows and threshold coverage."""
+    """Measure conditional accuracy on confident predictions, with threshold coverage."""
     predicted = [None if row in proposals.abstained else proposals.label[row] for row in store.eval]
     return _wilson(_count(predicted, list(store.eval.values())))
 
