@@ -101,11 +101,10 @@ def test_recovery_commands_quote_user_supplied_arguments() -> None:
     ]
 
 
-def test_bad_csv_recovery_keeps_the_save_instruction_after_a_quoted_command() -> None:
+def test_bad_csv_recovery_opens_the_converted_file() -> None:
     file_name = "sales $(date).csv"
     error = BadCsvError("Invalid UTF-8 encoding", 2, file_name=file_name)
-    command, instruction = error.next_step.split(". Save it", maxsplit=1)
-
+    command, reopen = error.next_step.split(" && ", maxsplit=1)
     assert shlex.split(command) == [
         "iconv",
         "-f",
@@ -116,5 +115,4 @@ def test_bad_csv_recovery_keeps_the_save_instruction_after_a_quoted_command() ->
         ">",
         file_name + ".utf8.csv",
     ]
-    assert "as UTF-8 CSV with a comma, semicolon or tab separator, then run" in instruction
-    assert shlex.join(["rowsetta", "open", file_name]) in instruction
+    assert shlex.split(reopen) == ["rowsetta", "open", file_name + ".utf8.csv"]

@@ -103,9 +103,8 @@ class BadCsvError(UserError):
         super().__init__(
             f"Could not read `{file_name}`: {reason} (line {line_number}).",
             f"{shlex.join(['iconv', '-f', 'WINDOWS-1252', '-t', 'UTF-8', file_name])} "
-            f"> {shlex.quote(file_name + '.utf8.csv')}. "
-            "Save it as UTF-8 CSV with a comma, semicolon or tab separator, then run "
-            f"`{shlex.join(['rowsetta', 'open', file_name])}`",
+            f"> {shlex.quote(file_name + '.utf8.csv')} && "
+            f"{shlex.join(['rowsetta', 'open', file_name + '.utf8.csv'])}",
         )
 
 
