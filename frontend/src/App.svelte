@@ -40,14 +40,19 @@
 
 <header class="appbar">
   <h1 class="wordmark">Rowsetta</h1>
-  {#if BROWSER}<span class="runtime-name">{runtimeLoading.model}</span>{/if}
+  {#if BROWSER}<span class="runtime-name" title={runtimeLoading.model}
+      ><span class="runtime-full">{runtimeLoading.model}</span><span
+        class="runtime-short"
+        >{runtimeLoading.fullModel ? 'WebGPU' : 'Browser'}</span
+      ></span
+    >{/if}
   {#if workspace !== null && loaded}
     <p class="facts">
       <span class="file"
         >{workspace.file_name ?? studio.fileName ?? 'loaded table'}</span
       >
       {#if workspace.target !== null}
-        <span>target: {workspace.target}</span>
+        <span class="target">target: {workspace.target}</span>
       {/if}
       {#if studio.rowCount !== null}
         <span class="quiet">{studio.rowCount} rows</span>

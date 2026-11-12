@@ -1,5 +1,5 @@
 import type { LabelRecovery } from './browser/labels.svelte';
-import { SvelteSet } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { BackendError, type Backend } from './backend/http';
 import type {
   Distilled,
@@ -22,7 +22,7 @@ import {
 } from './labelling';
 import { fetchWholeTable, filteredPage, type WholeTable } from './rows';
 import { certificateFigures } from './certificate';
-import { DEFAULT_RULE_DEPTH, type RowFilter } from './rule';
+import { columnDecimals, DEFAULT_RULE_DEPTH, type RowFilter } from './rule';
 
 const PROPOSALS_UPDATED = 'Proposals updated';
 const NOTHING_TO_EVALUATE = 'Every row without a human label has been served.';
@@ -91,6 +91,7 @@ export class Studio {
   /** A row the table moves focus to once its page is shown. */
   focusRow = $state.raw<number | null>(null);
   rule = $state.raw<Distilled | null>(null);
+  ruleDecimals = $state.raw<ReadonlyMap<string, number>>(new SvelteMap());
   /** The rule in the chosen format, as the server checked and sent it. */
   exported = $state.raw<ExportArtifact | null>(null);
   exportStale = $state(false);
@@ -113,6 +114,7 @@ export class Studio {
   readonly recovery: LabelRecovery | null;
   readonly #backend: Backend;
   #context = 0;
+  #reserved = new SvelteSet<number>();
   #requestedPage = 0;
   #unfilteredPage = 0;
   #wholeTable: Promise<WholeTable> | null = null;
@@ -237,8 +239,12 @@ export class Studio {
   showRule(maxDepth: number = this.ruleDepth): Promise<void> {
     this.ruleDepth = maxDepth;
     return this.#settle(
-      this.#backend.distill({ max_depth: maxDepth }),
-      (rule) => {
+      Promise.all([
+        this.#backend.distill({ max_depth: maxDepth }),
+        this.#table(),
+      ]),
+      ([rule, table]) => {
+        this.ruleDecimals = columnDecimals(table.rows.values());
         this.rule = rule;
       },
       true,
@@ -385,13 +391,17 @@ export class Studio {
 
   async #serve(): Promise<void> {
     await this.#settle(this.#backend.nextEvalRow(), async (row) => {
+      if (row !== null) {
+        this.#reserved.add(row);
+        if (this.workspace !== null) this.#show(this.workspace);
+      }
       this.mode = { kind: 'evaluate', row };
       if (row === null) {
         this.announcement = { text: NOTHING_TO_EVALUATE };
         return;
       }
       this.announcement = { text: `Evaluation row ${String(row)}` };
-      await this.goToRow(row);
+      await Promise.all([this.goToRow(row), this.refresh()]);
     });
   }
 
@@ -412,6 +422,7 @@ export class Studio {
   }
 
   #forgetLabels(): void {
+    this.#reserved.clear();
     this.exportStale ||= this.exported !== null || this.certificate.length > 0;
     this.mode = { kind: 'label' };
     this.rule = null;
@@ -451,7 +462,26 @@ export class Studio {
     ) {
       this.announcement = { text: PROPOSALS_UPDATED };
     }
-    this.proposals = nextProposals(this.proposals, next);
+    const visible = <T>(rows: Readonly<Record<string, T>>): Record<string, T> =>
+      Object.fromEntries(
+        Object.entries(rows).filter(
+          ([row]) => !this.#reserved.has(Number(row)),
+        ),
+      );
+    next = {
+      ...next,
+      proposals: visible(next.proposals),
+      confidence: visible(next.confidence),
+      abstained: next.abstained.filter((row) => !this.#reserved.has(row)),
+    };
+    const shown = nextProposals(this.proposals, next);
+    this.proposals = {
+      ...shown,
+      labels: visible(shown.labels),
+      unsure: new SvelteSet(
+        [...shown.unsure].filter((row) => !this.#reserved.has(row)),
+      ),
+    };
     this.workspace = next;
   }
 

@@ -600,3 +600,70 @@ it('replaces an in-flight whole-table read after a successful upload', async () 
   expect(result.rows.get(0)).toEqual({ x: 12 });
   expect(await studio.wholeTable()).toBe(result);
 });
+
+it('masks the first reserved row before navigation and state refresh finish', async () => {
+  const refreshed = pending<WorkspaceState>();
+  const studio = new Studio(
+    fakeBackend([() => refreshed.promise], {
+      nextEvalRow: () => Promise.resolve(7),
+      tablePage: () =>
+        Promise.resolve({
+          rows: [],
+          row_ids: [7],
+          columns: [],
+          total: 1,
+          source_rows: 1,
+          page: 0,
+          size: 100,
+        }),
+    }).backend,
+  );
+  const state = {
+    ...at(2, 2),
+    proposals: { '7': 'Gentoo' },
+    confidence: { '7': 0.9 },
+    abstained: [7],
+  };
+  await studio.apply(Promise.resolve(state));
+  const serving = studio.toggleEvaluation();
+  await settled();
+  expect(studio.mode).toEqual({ kind: 'evaluate', row: 7 });
+  expect(studio.proposals.labels['7']).toBeUndefined();
+  expect(studio.proposals.unsure.has(7)).toBe(false);
+  expect(studio.workspace?.proposals['7']).toBeUndefined();
+  expect(studio.workspace?.confidence['7']).toBeUndefined();
+  refreshed.resolve(state);
+  await serving;
+  expect(studio.proposals.labels['7']).toBeUndefined();
+  await studio.toggleEvaluation();
+  await studio.apply(Promise.resolve({ ...state, refit_generation: 1 }));
+  expect(studio.proposals.labels['7']).toBeUndefined();
+});
+
+it('waits for every table page before exposing rule precision', async () => {
+  const last = pending<TablePage>();
+  const page: TablePage = {
+    rows: [{ x: 1 }],
+    row_ids: [0],
+    columns: [],
+    total: 1001,
+    source_rows: 1001,
+    page: 0,
+    size: 1000,
+  };
+  const studio = new Studio(
+    fakeBackend([], {
+      distill: () =>
+        Promise.resolve({ generation: 1, leaf_summary: [], disagreements: [] }),
+      tablePage: ({ page: index }) =>
+        index === 0 ? Promise.resolve(page) : last.promise,
+    }).backend,
+  );
+  const requested = studio.showRule();
+  await settled();
+  expect(studio.rule).toBeNull();
+  last.resolve({ ...page, page: 1, rows: [{ x: 1.01 }], row_ids: [1000] });
+  await requested;
+  expect(studio.ruleDecimals.get('x')).toBe(2);
+  expect(studio.rule?.generation).toBe(1);
+});
