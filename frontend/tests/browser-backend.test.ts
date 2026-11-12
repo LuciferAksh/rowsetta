@@ -51,18 +51,25 @@ function setup() {
   runtimeLoading.ready = false;
   vi.stubGlobal('Worker', WorkerStub);
   vi.stubGlobal('location', { href: 'http://localhost/' });
+  vi.stubGlobal('localStorage', { getItem: () => null, setItem: vi.fn() });
   vi.stubGlobal(
     'fetch',
     vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({
           state: initial,
+          session: {
+            source: { sha256: 'a'.repeat(64) },
+            target: 'species',
+            human: initial.human,
+            eval: {},
+          },
           table: {
-            rows: [{ x: 1 }],
-            row_ids: [0],
+            rows: [{ x: 1 }, { x: 2 }],
+            row_ids: [0, 1],
             columns: [],
-            total: 1,
-            source_rows: 1,
+            total: 2,
+            source_rows: 2,
             page: 0,
             size: 100,
           },
@@ -144,4 +151,42 @@ test('keeps an accepted edit when a later queued mutation is rejected', async ()
   });
   await assertion;
   expect(await backend.state()).toEqual(accepted);
+});
+
+test('shows early labels immediately, retains later edits during replay and saves on failure', async () => {
+  const { backend, worker } = setup();
+  const saved = new Map<string, string>();
+  vi.stubGlobal('localStorage', {
+    getItem: (key: string) => saved.get(key) ?? null,
+    setItem: (key: string, value: string) => saved.set(key, value),
+  });
+  await backend.state();
+  await expect(backend.setLabel(0, { label: 'b' })).resolves.toMatchObject({
+    human: { '0': 'b' },
+  });
+  await backend.setLabel(0, { label: 'a' });
+  await backend.setLabel(1, { label: 'b' });
+  expect(worker.messages.filter((m) => 'id' in m)).toHaveLength(0);
+  worker.receive({ kind: 'ready' });
+  await vi.waitFor(() => {
+    expect(worker.messages.filter((m) => 'id' in m)).toHaveLength(3);
+  });
+  const commands = worker.messages.filter((m) => 'id' in m);
+  worker.receive({
+    kind: 'result',
+    id: commands[0]?.id,
+    value: JSON.stringify({
+      ok: true,
+      value: { ...initial, generation: 2, human: { '0': 'b' } },
+    }),
+  });
+  await vi.waitFor(async () => {
+    expect((await backend.state()).human).toEqual({ '0': 'a', '1': 'b' });
+  });
+  worker.receive({ kind: 'fatal', error: 'Runtime stopped.' });
+  expect((await backend.state()).human).toEqual({ '0': 'a', '1': 'b' });
+  expect(saved.size).toBe(1);
+  expect(JSON.parse([...saved.values()][0] ?? '{}')).toMatchObject({
+    human: { '0': 'a', '1': 'b' },
+  });
 });

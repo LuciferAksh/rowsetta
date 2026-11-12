@@ -6,6 +6,7 @@ import type {
   ServerEvent,
   WorkspaceState,
   TablePage,
+  LabelInput,
 } from './types';
 import { LabelRecovery } from '../browser/labels.svelte';
 import { BROWSER_ASSETS } from '../browser/config';
@@ -38,6 +39,8 @@ export function createBrowserBackend(): Backend {
   let sequence = 0;
   let snapshot: WorkspaceState;
   let firstPage: TablePage;
+  let demoSession: Record<string, unknown>;
+  const queuedLabels = new Set<LabelInput & { action: 'label'; row: number }>();
   let runtimeFailure: ErrorBody | null = null;
   let readyResolve: () => void = () => {};
   let readyReject: (error: Error) => void = () => {};
@@ -50,6 +53,8 @@ export function createBrowserBackend(): Backend {
     const body = object(await response.json());
     snapshot = browserState(body.state);
     firstPage = decode.tablePage(body.table, 'demo.table');
+    demoSession = object(body.session);
+    recovery.offer(JSON.stringify(demoSession));
   });
 
   function failed(message: string): BackendError {
@@ -95,8 +100,10 @@ export function createBrowserBackend(): Backend {
       runtimeLoading.modelDone = data.progress.loaded;
       runtimeLoading.modelTotal = data.progress.total;
     } else if (data.kind === 'labels' && typeof data.session === 'string') {
-      if (data.save === true) recovery.save(data.session);
-      else recovery.offer(data.session);
+      if (queuedLabels.size === 0) {
+        if (data.save === true) recovery.save(data.session);
+        else recovery.offer(data.session);
+      }
     } else if (data.kind === 'table-loaded') {
       recovery.pending = null;
     } else if (data.kind === 'ready') {
@@ -164,7 +171,20 @@ export function createBrowserBackend(): Backend {
       snapshot = state;
       emit({ kind: 'refit_done', generation: state.generation });
     }
-    return state;
+    return labelledState();
+  }
+
+  function labelledState(): WorkspaceState {
+    const human = new Map(Object.entries(snapshot.human));
+    for (const { row, label } of queuedLabels) {
+      if (label === null) human.delete(String(row));
+      else human.set(String(row), label);
+    }
+    return {
+      ...snapshot,
+      human: Object.fromEntries(human),
+      failure: runtimeFailure,
+    };
   }
 
   return {
@@ -177,7 +197,7 @@ export function createBrowserBackend(): Backend {
     },
     state: async () => {
       await initial;
-      return { ...snapshot, failure: runtimeFailure };
+      return labelledState();
     },
     loadDemo: async () =>
       mutate({
@@ -229,7 +249,38 @@ export function createBrowserBackend(): Backend {
     },
     setTarget: (input) =>
       mutate({ action: 'target', ...input, classes: input.classes ?? [] }),
-    setLabel: (row, input) => mutate({ action: 'label', row, ...input }),
+    setLabel: async (row, input) => {
+      if (runtimeLoading.ready)
+        return mutate({ action: 'label', row, ...input });
+      await initial;
+      if (
+        input.mode === 'eval' ||
+        !firstPage.row_ids.includes(row) ||
+        (input.label !== null && !snapshot.classes.includes(input.label))
+      )
+        throw failed('Choose a row and class from the demo table.');
+      const message = { action: 'label', row, ...input } as const;
+      queuedLabels.add(message);
+      const state = labelledState();
+      recovery.save(JSON.stringify({ ...demoSession, human: state.human }));
+      void call(message)
+        .then((value) => {
+          const accepted = browserState(value);
+          queuedLabels.delete(message);
+          if (accepted.generation >= snapshot.generation) snapshot = accepted;
+          emit({ kind: 'refit_done', generation: snapshot.generation });
+        })
+        .catch((error: unknown) => {
+          emit({
+            kind: 'malformed',
+            failure:
+              error instanceof BackendError
+                ? error.body
+                : failed(String(error)).body,
+          });
+        });
+      return state;
+    },
     undo: () => mutate({ action: 'undo' }),
     nextEvalRow: async () =>
       decode.nextEvalRow(await call({ action: 'eval' }), 'eval'),

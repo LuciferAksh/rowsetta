@@ -92,6 +92,8 @@ jobs:
       - run: pnpm --dir frontend e2e
         env:
           ROWSETTA_TEACHER: fake
+      - run: make browser
+      - run: xvfb-run --auto-servernum pnpm --dir frontend exec playwright test -c playwright.browser.config.ts
 
   secrets:
     runs-on: ubuntu-latest

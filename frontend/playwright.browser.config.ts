@@ -1,10 +1,10 @@
-import { defineConfig } from '@playwright/test';
+import { chromium, defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e-browser',
   // This is a portability smoke; F18 startup budgets use headed Chromium separately.
-  timeout: 300_000,
-  expect: { timeout: 240_000 },
+  timeout: 120_000,
+  expect: { timeout: 60_000 },
   workers: 1,
   use: { baseURL: 'http://127.0.0.1:4173', screenshot: 'only-on-failure' },
   projects: [
@@ -17,7 +17,9 @@ export default defineConfig({
           args: ['--enable-unsafe-webgpu'],
           executablePath:
             process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ??
-            '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
+            (process.platform === 'darwin'
+              ? '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'
+              : chromium.executablePath()),
         },
       },
     },

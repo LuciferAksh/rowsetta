@@ -139,6 +139,38 @@ test('static demo queues labels, predicts and exports SQL without data egress', 
 test.describe('saved browser labels', () => {
   // Exercise the WASM/lite path without downloading the WebGPU teacher.
   test.use({ userAgent: 'Rowsetta label recovery test' });
+  test('restores an early demo label after a runtime download failure', async ({
+    page,
+  }) => {
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route('**/browser/runtime/pyodide.asm.wasm', async (route) => {
+      await held;
+      await route.abort('failed');
+    });
+    await page.goto('/');
+    const first = page.getByRole('table').locator('tbody button').first();
+    await expect(first).toHaveText('Unlabelled');
+    await first.focus();
+    await page.keyboard.press('1');
+    await expect(first).toHaveText('Labelled Adelie');
+    release();
+    await expect(page.getByRole('alert')).toContainText('Reload this page');
+    await page.unroute('**/browser/runtime/pyodide.asm.wasm');
+    await page.reload();
+    await expect(
+      page.getByText('Browser runtime ready.', { exact: true }),
+    ).toBeVisible();
+    const saved = page.getByRole('region', { name: 'Saved labels' });
+    await expect(saved).toContainText('1 saved label');
+    await saved
+      .getByRole('button', { name: 'Restore labels', exact: true })
+      .click();
+    await expect(first).toHaveText('Labelled Adelie');
+    await expect(saved).toHaveCount(0);
+  });
   test('restores labels after reload and reopening the same file and target', async ({
     page,
   }, testInfo) => {

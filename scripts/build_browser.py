@@ -166,7 +166,13 @@ def main() -> None:
     shell.workspace.load((PUBLIC / "penguins.csv").read_bytes(), "penguins.csv", max_rows=2000)
     shell.workspace.set_target("species", ("Adelie", "Chinstrap", "Gentoo"))
     (PUBLIC / "demo.json").write_text(
-        json.dumps({"state": shell.state(), "table": shell.table_page(0, 1000)})
+        json.dumps(
+            {
+                "state": shell.state(),
+                "table": shell.table_page(0, 1000),
+                "session": json.loads(shell.workspace.require_store().to_json()),
+            }
+        )
     )
     manifest = {
         str(path.relative_to(PUBLIC)): {
