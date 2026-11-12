@@ -101,7 +101,7 @@ describe('table view', () => {
       (match) => match[1],
     );
 
-    expect(headers).toEqual(['Row', 'island', 'bill_length_mm', 'species']);
+    expect(headers).toEqual(['Row', 'island', 'bill length mm', 'species']);
   });
 
   it('leaves a missing value empty', async () => {

@@ -199,7 +199,7 @@
               <th
                 scope="col"
                 class:num={column.kind === 'numeric'}
-                title={column.name}>{column.name}</th
+                title={column.name}>{column.name.replaceAll('_', ' ')}</th
               >
             {/each}
             {#if target !== null}

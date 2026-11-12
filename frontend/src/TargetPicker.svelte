@@ -138,7 +138,7 @@
               value={option.name}
               bind:group={column}
             />
-            {option.name}
+            {option.name.replaceAll('_', ' ')}
             <span class="visually-hidden">({option.kind})</span>
           </label>
         {/each}
