@@ -20,7 +20,7 @@ test('uses the native seed and bounds each WebGPU prediction batch', async () =>
   const rows = Array.from({ length: 2000 }, (_, i) => [i]);
   const probabilities = await fitted.predictProba(rows);
   expect(mocks.load).toHaveBeenCalledWith(
-    expect.objectContaining({ randomState: 7 }),
+    expect.objectContaining({ randomState: 7, cache: false }),
   );
   expect(mocks.predict.mock.calls.map(([batch]) => batch.length)).toEqual([
     500, 500, 500, 500,

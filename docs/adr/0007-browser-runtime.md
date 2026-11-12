@@ -48,8 +48,10 @@ required. Relative URLs support a repository subpath. Use HTTP(S), not `file://`
 The staging script checks weights against immutable SHA-256 pins on download
 and cached reads. A build manifest pins local assets; the worker verifies
 Cache Storage hits and fresh downloads. Corrupt cache entries are discarded.
-Forecast-web also verifies the graph and external weights. JavaScript module
-imports use ordinary browser module caching. The diagnostic fp32 graph and full
+Forecast-web's internal weight cache is disabled because its cache hits bypass
+SHA validation. Its fetches instead use the worker's verified cache, followed by
+forecast-web's graph and external-weight pin checks. JavaScript module imports
+use ordinary browser module caching. The diagnostic fp32 graph and full
 tensor captures stay in the ignored spike directory and never enter `site/`.
 
 The shell paints a target-masked penguins table before startup finishes. Early
@@ -89,18 +91,26 @@ The final local run on 2026-11-11 passed `make check` (472 Python tests,
 smoke tests and the headed WebGPU parity test. Svelte reported zero errors
 and warnings. Chromium and WebKit rendered states were inspected.
 
-## Historical startup measurements
+## Startup measurement procedure
 
-The public `cold_start.browser` numbers in `docs/bench.json` remain frozen. They
-were measured with the earlier lite-only build and do not describe the larger
-TabICLv2 download. They have not been replaced by this parity investigation.
+The existing `cold_start.browser` figures in [bench.json](../bench.json) describe
+an earlier lite-only build. They are historical, not current launch figures.
+The current launch bar remains 10 seconds to label, 30 seconds to proposals on
+the first visit, and 6 seconds to proposals on the second visit.
 
-| Visit, earlier lite build | Table labelable | First proposals | Response bytes |
-| --- | --- | --- | --- |
-| Cold | 1.131914 s | 22.413568 s | 43047823 |
-| Warm | 0.201800 s | 14.081791 s | 0 |
+With a built browser preview running at `http://127.0.0.1:4174/`, run:
 
-That source-mounted Pyodide suite had 239 passes and 31 native exclusions. Its
-six browser smoke tests passed, as did 467 Python and 205 frontend tests. Those
-counts are historical; the parity changes add separate regressions. No new
-public cold-start promise follows from the local parity or smoke results.
+```sh
+uv run --locked python scripts/cold_start.py --browser http://127.0.0.1:4174/ --browser-runs 5 --browser-path both && uv run --locked python scripts/render_bench.py
+```
+
+This waits for one-minute load at or below 8, measures five clean-profile pairs
+per path in headed Chromium at 50 Mbit/s and 40 ms, restarts Chromium on the same
+profile for each second visit, and asserts the median budgets. It records the
+actual teacher, browser identity, served manifest SHA, load averages and asset
+transfers. Successful output regenerates [bench.md](../bench.md); individual
+runs are saved in `docs/bench-data/browser-startup-runs.json`.
+
+For diagnostics, `scripts/browser_cold_start.mjs --runs 5 --path both
+--allow-heavy-load URL OUTPUT` bypasses only the load gate. Its results are
+marked **heavy-load diagnostic** and must remain outside the launch timing docs.

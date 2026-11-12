@@ -20,7 +20,8 @@ export async function loadTeacher(
     dtype: 'fp16',
     device: 'webgpu',
     worker: false,
-    cache: true,
+    // The worker verifies cached weight bytes; forecast-web skips cached checks.
+    cache: false,
     ...options,
   });
   return {
