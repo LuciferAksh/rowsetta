@@ -2,6 +2,7 @@ import { loadPyodide, type PyodideInterface } from 'pyodide';
 import { loadTeacher } from './teacher';
 import { predictRefit } from './refit';
 import { supportsBrowserTeacher } from './config';
+import { instantiateSynchronously } from './wasm';
 
 async function pythonText(py: PyodideInterface, code: string): Promise<string> {
   const value: unknown = await py.runPythonAsync(code);
@@ -45,6 +46,11 @@ function manifest(value: unknown): Record<string, Asset> {
 }
 
 async function start({ base, today }: Start) {
+  // Only WebKit hangs. Chromium's user agent also names AppleWebKit, and ONNX Runtime
+  // needs the native API there; Firefox keeps its streaming compile.
+  const agent = navigator.userAgent;
+  if (/AppleWebKit\//.test(agent) && !supportsBrowserTeacher(agent))
+    instantiateSynchronously(WebAssembly);
   const network = globalThis.fetch.bind(globalThis);
   const response = await network(`${base}manifest.json`);
   if (!response.ok)
