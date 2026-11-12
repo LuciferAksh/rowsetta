@@ -1,13 +1,12 @@
 <script lang="ts">
   import type { LeafLine } from './backend/types';
   import { lineColour } from './palette';
-  import { columnDecimals, lineFilter, ruleLineParts } from './rule';
+  import { lineFilter, ruleLineParts } from './rule';
   import type { Studio } from './state.svelte';
 
   let { studio }: { studio: Studio } = $props();
 
   const rule = $derived(studio.rule);
-  const decimals = $derived(columnDecimals(studio.page?.rows ?? []));
   const stale = $derived(
     rule !== null && rule.generation !== studio.workspace?.generation,
   );
@@ -28,7 +27,7 @@
     </p>
     <ol>
       {#each rule.leaf_summary as line (line.line_no)}
-        {@const parts = ruleLineParts(line, decimals)}
+        {@const parts = ruleLineParts(line, studio.ruleDecimals)}
         <li>
           <button
             type="button"

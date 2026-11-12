@@ -115,8 +115,13 @@ class Certificate:
             f"Tree: depth {self.tree_depth}, {self.tree_leaves} leaves",
             _measurement("In-sample agreement", self.in_sample),
             _measurement("Cross-fitted agreement", self.cross_fitted),
-            _measurement("Rule evaluation accuracy", self.rule_accuracy),
-            _measurement("Teacher evaluation accuracy", self.teacher_accuracy),
+            _measurement(
+                "Rule conditional evaluation accuracy (answered rows)", self.rule_accuracy
+            ),
+            _measurement(
+                "Teacher conditional evaluation accuracy (confident predictions)",
+                self.teacher_accuracy,
+            ),
             _measurement("Direct tree, same settings", self.direct_same_accuracy),
             _measurement("Direct tree, tuned", self.direct_tuned_accuracy),
             f"McNemar (rule versus tuned direct tree): {verdict}",

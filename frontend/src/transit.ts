@@ -1,5 +1,5 @@
 import type { ByRow, Condition, LeafLine } from './backend/types';
-import { formatThreshold } from './rule';
+import { displayCut } from './rule';
 
 /**
  * The fitted rule drawn as a line map, after Vignelli's 1972 subway diagram:
@@ -135,30 +135,17 @@ function splitOf(
     const word = value.replace(/^'|'$/g, '').replace(/''/g, "'");
     return { column, label: name, cut: word, left: '≠', right: '=' };
   }
-  const places = decimals.get(column);
-  let threshold = Number(value);
-  const strict = test === '<' || test === '>=';
-  // `< t` reads as `≤` the value one step below t at the column's precision,
-  // so every station uses the same pair of signs. If no value can equal t,
-  // `< t` and `≤ t` already pick the same rows.
-  if (strict && places !== undefined && Number.isFinite(threshold)) {
-    const step = 10 ** -places;
-    // Thresholds arrive as float32, so "on the grid" allows for its rounding.
-    const onGrid =
-      Math.abs(Math.round(threshold / step) * step - threshold) < step * 1e-3;
-    if (onGrid) threshold = Number((threshold - step).toFixed(places));
-  }
-  const exact = strict && places === undefined;
-  const cut = formatThreshold(
-    Number.isFinite(threshold) ? String(threshold) : value,
-    places,
+  const { value: cut, strict } = displayCut(
+    value,
+    test === '<' || test === '>=',
+    decimals.get(column),
   );
   return {
     column,
     label: name,
     cut: unit === undefined ? cut : `${cut} ${unit}`,
-    left: exact ? '<' : '≤',
-    right: exact ? '≥' : '>',
+    left: strict ? '<' : '≤',
+    right: strict ? '≥' : '>',
   };
 }
 
@@ -350,7 +337,17 @@ export function layoutMap(
       return node.y;
     };
     place(root);
-    root.x = PAD + 120;
+    root.x =
+      PAD +
+      Math.max(
+        120,
+        root.split === null
+          ? 0
+          : Math.min(
+              typeWidth(typeLines(root.split, true)[0]) + 12,
+              (terminusX - PAD) / 2,
+            ),
+      );
     const across = (node: TransitNode): void => {
       for (const child of node.children) {
         child.x = node.x + STUB * 2 + Math.abs(child.y - node.y);
@@ -546,6 +543,9 @@ export function layoutMap(
   const trunkTop = origin[1] - thickness(groupsOf(root.rows)) / 2;
   const taken: Rect[] = [
     [terminusX - ROUNDELS, -Infinity, Infinity, Infinity],
+    [-Infinity, -Infinity, 0, Infinity],
+    [0, -Infinity, box.width, 16],
+    [0, box.height - 76, origin[0] + 350, box.height],
     // The row count over the origin.
     [origin[0], trunkTop - 24, origin[0] + 80, trunkTop - 6],
   ];
@@ -605,7 +605,9 @@ export function layoutMap(
     // further out, down or up before the next is tried. If none is clear, the
     // one that covers least wins.
     const nudges = [0, 16, 32].flatMap((dx) =>
-      [0, 6, -6, 12, -12].map((dy): Point => [dx, dy]),
+      [0, 6, -6, 12, -12, 24, -24, 36, -36, 48, -48, 60, -60].map(
+        (dy): Point => [dx, dy],
+      ),
     );
     // Only what lies near this station's choices can collide with them.
     const span = choices.flatMap(boxesOf);
@@ -614,8 +616,8 @@ export function layoutMap(
         (mine) =>
           box[0] < mine[2] + 40 &&
           mine[0] - 40 < box[2] &&
-          box[1] < mine[3] + 20 &&
-          mine[1] - 20 < box[3],
+          box[1] < mine[3] + 80 &&
+          mine[1] - 80 < box[3],
       ),
     );
     let best = choices[0];
@@ -956,6 +958,44 @@ export function labelChoices(
 
 export const overlaps = (a: Rect, b: Rect): boolean =>
   a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
+
+/** Move type clear of the glass without stacking separate readings on one edge. */
+export function labelShifts(
+  boxes: readonly Rect[],
+  glass: Rect,
+  height: number,
+): number[] {
+  const placed = [...boxes];
+  return boxes.map((box, index) => {
+    if (!overlaps(box, glass)) return 0;
+    const up = glass[1] - box[3];
+    const down = glass[3] - box[1];
+    const candidates = Array.from({ length: 16 }, (_, step) => [
+      up - step * 16,
+      down + step * 16,
+    ])
+      .flat()
+      .sort((a, b) => Math.abs(a) - Math.abs(b));
+    const moved = (dy: number): Rect => [
+      box[0],
+      box[1] + dy,
+      box[2],
+      box[3] + dy,
+    ];
+    const dy =
+      candidates.find((shift) => {
+        const next = moved(shift);
+        return (
+          next[1] >= 16 &&
+          next[3] <= height - 16 &&
+          !overlaps(next, glass) &&
+          placed.every((other, i) => i === index || !overlaps(next, other))
+        );
+      }) ?? (-up < down ? up : down);
+    placed[index] = moved(dy);
+    return dy;
+  });
+}
 
 const overlapArea = (a: Rect, b: Rect): number =>
   Math.max(0, Math.min(a[2], b[2]) - Math.max(a[0], b[0])) *

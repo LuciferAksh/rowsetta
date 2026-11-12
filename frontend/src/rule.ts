@@ -10,25 +10,16 @@ export interface RowFilter {
   description: string;
 }
 
-/** The shortest decimal text that reads back as the same 32-bit float. */
-function shortestFloat32(value: number): string {
-  for (let digits = 1; digits <= 9; digits++) {
-    const candidate = Number(value.toPrecision(digits));
-    if (Math.fround(candidate) === Math.fround(value)) return String(candidate);
-  }
-  return String(value);
-}
-
 function decimalPlaces(text: string): number {
-  return text.split('.')[1]?.length ?? 0;
+  const [mantissa = '', exponent = '0'] = text.toLowerCase().split('e');
+  return Math.max(0, (mantissa.split('.')[1]?.length ?? 0) - Number(exponent));
 }
 
 /**
- * Decimal places each column is written with, read off the rows on screen, so
- * a threshold can be shown in the precision of the values it splits.
+ * Column precision includes exponents so small values stay distinct in the table.
  */
 export function columnDecimals(
-  rows: readonly Readonly<Record<string, Cell>>[],
+  rows: Iterable<Readonly<Record<string, Cell>>>,
 ): ReadonlyMap<string, number> {
   const places = new Map<string, number>();
   for (const row of rows) {
@@ -43,22 +34,82 @@ export function columnDecimals(
   return places;
 }
 
-/**
- * A split value for people: the model stores thresholds as 32-bit floats, so
- * show the shortest text that round-trips, and no more than one place beyond the
- * column's own (a threshold sits halfway between two recorded values).
- */
-export function formatThreshold(
-  value: string,
-  decimals: number | undefined,
-): string {
+/** The shortest decimal text that preserves the SQL boundary as a double. */
+export function formatThreshold(value: string): string {
   const number = Number(value);
-  if (!Number.isFinite(number)) return value;
-  const shortest = shortestFloat32(number);
-  if (decimals === undefined || decimalPlaces(shortest) <= decimals + 1) {
-    return shortest;
+  return Number.isFinite(number) ? String(number) : value;
+}
+
+function floatBits(number: number): bigint {
+  const view = new DataView(new ArrayBuffer(8));
+  view.setFloat64(0, number);
+  return view.getBigUint64(0);
+}
+
+function adjacentFloat(number: number, up: boolean): number {
+  if (number === 0) return up ? Number.MIN_VALUE : -Number.MIN_VALUE;
+  const view = new DataView(new ArrayBuffer(8));
+  view.setBigUint64(0, floatBits(number) + (number > 0 === up ? 1n : -1n));
+  return view.getFloat64(0);
+}
+
+function floatUnits(number: number): bigint {
+  const bits = floatBits(number);
+  const exponent = Number((bits >> 52n) & 2047n);
+  const mantissa =
+    (bits & ((1n << 52n) - 1n)) | (exponent === 0 ? 0n : 1n << 52n);
+  const units = mantissa << BigInt(Math.max(0, exponent - 1));
+  return bits >> 63n ? -units : units;
+}
+
+function floorDivide(value: bigint, divisor: bigint): bigint {
+  return value / divisor - (value < 0n && value % divisor !== 0n ? 1n : 0n);
+}
+
+export function displayCut(
+  value: string,
+  strict: boolean,
+  places: number | undefined,
+): { value: string; strict: boolean } {
+  const number = Number(value);
+  const exact = { value: formatThreshold(value), strict };
+  if (places === undefined || !Number.isFinite(number)) return exact;
+  const adjacent = adjacentFloat(number, !strict);
+  if (!Number.isFinite(adjacent)) return exact;
+  const scale = 10n ** BigInt(places);
+  // Units of 2^-1074 give an exact rounding midpoint, even on subnormal grids.
+  const midpoint = floatUnits(number) + floatUnits(adjacent);
+  let tick = floorDivide(midpoint * scale, 1n << 1075n);
+  const grid = (index: bigint, digits = places): number =>
+    Number(`${String(index)}e-${String(digits)}`);
+  const left = (x: number): boolean => (strict ? x < number : x <= number);
+  if (!left(grid(tick))) tick--;
+  const low = grid(tick);
+  const high = grid(tick + 1n);
+  let best = exact;
+  let factor = scale;
+  for (let digits = 0; digits <= places; digits++, factor /= 10n) {
+    const base = floorDivide(tick, factor);
+    for (const open of [false, true]) {
+      for (const index of [base, base + 1n]) {
+        const candidate = grid(index, digits);
+        const separates =
+          Number.isFinite(candidate) &&
+          (open
+            ? low < candidate && candidate <= high
+            : low <= candidate && candidate < high);
+        const text = String(candidate);
+        if (
+          separates &&
+          (text.length < best.value.length ||
+            (text.length === best.value.length && best.strict && !open))
+        ) {
+          best = { value: text, strict: open };
+        }
+      }
+    }
   }
-  return String(Number(number.toFixed(decimals + 1)));
+  return best;
 }
 
 const UNIT_SUFFIX = /_(?:mm|cm|kg|g|m|s|ms)$/;
@@ -105,15 +156,28 @@ export function ruleIntervals(
       continue;
     }
     const test = operator.replace(MISSING_PREFIX, '');
-    const number = Number(value);
+    let number = Number(value);
     if (['<', '<=', '>', '>='].includes(test) && Number.isFinite(number)) {
       const upper = test === '<=' || test === '<';
-      const bound = { value: number, strict: test === '<' || test === '>' };
-      if (upper && (entry.upper === undefined || number < entry.upper.value)) {
+      const cut = displayCut(
+        value,
+        test === '<' || test === '>=',
+        decimals.get(column),
+      );
+      number = Number(cut.value);
+      const bound = { value: number, strict: upper ? cut.strict : !cut.strict };
+      if (
+        upper &&
+        (entry.upper === undefined ||
+          number < entry.upper.value ||
+          (number === entry.upper.value && bound.strict))
+      ) {
         entry.upper = bound;
       } else if (
         !upper &&
-        (entry.lower === undefined || number > entry.lower.value)
+        (entry.lower === undefined ||
+          number > entry.lower.value ||
+          (number === entry.lower.value && bound.strict))
       ) {
         entry.lower = bound;
       }
@@ -130,7 +194,7 @@ export function ruleIntervals(
           ? `${name} is missing`
           : `${name} has no matching values`;
       const shown = (bound: Bound): string =>
-        formatThreshold(String(bound.value), decimals.get(column));
+        formatThreshold(String(bound.value));
       const parts = words.map((word) => `${name} ${word}`);
       if (lower !== undefined && upper !== undefined) {
         parts.push(
@@ -169,8 +233,11 @@ export function ruleLineParts(
 }
 
 /** The line as plain text for the accessible name and plain-text copies. */
-export function ruleLineText(line: LeafLine): string {
-  const { conditions, answer, rows, agreeing } = ruleLineParts(line);
+export function ruleLineText(
+  line: LeafLine,
+  decimals: ReadonlyMap<string, number> = new Map(),
+): string {
+  const { conditions, answer, rows, agreeing } = ruleLineParts(line, decimals);
   if (answer === null)
     return `${conditions} → no answer (rule unsure): ${rows}`;
   return `${conditions} → ${answer}: ${rows}, ${agreeing}`;

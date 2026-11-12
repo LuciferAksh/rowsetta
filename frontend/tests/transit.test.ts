@@ -3,6 +3,8 @@ import type { LeafLine } from '../src/backend/types';
 import {
   buildTree,
   labelPlace,
+  labelShifts,
+  overlaps,
   layoutMap,
   legs,
   offsetLine,
@@ -88,7 +90,7 @@ describe('line map', () => {
     const root = buildTree(LINES);
     expect(root.split).toMatchObject({
       label: 'flipper length',
-      cut: '206.5 mm',
+      cut: '206.50000762939453 mm',
       left: '≤',
       right: '>',
     });
@@ -157,7 +159,7 @@ describe('line map', () => {
 
   it('reads a row route as the branch each interchange sends it down', () => {
     expect(routeOf(LINES, 5)?.stops).toEqual([
-      'flipper length ≤ 206.5 mm',
+      'flipper length ≤ 206.50000762939453 mm',
       'island = Dream',
     ]);
     expect(routeOf(LINES, 6)?.terminus.label).toBe('Gentoo');
@@ -222,28 +224,22 @@ describe('line map', () => {
     });
   });
 
-  it('names every test with one pair of signs, moving a strict cut one step', () => {
-    const split = (value: string, places?: number): Split | null =>
-      buildTree(
-        [
-          line(1, [['bill_depth_mm', '<', value]], 'Gentoo', [0]),
-          line(2, [['bill_depth_mm', '>=', value]], 'Adelie', [1]),
-        ],
-        places === undefined ? new Map() : new Map([['bill_depth_mm', places]]),
-      ).split;
-    // At one decimal, below 48.8 is at most 48.7.
-    expect(split('48.8', 1)).toMatchObject({
-      left: '≤',
-      right: '>',
-      cut: '48.7 mm',
+  it('keeps strict comparisons for every column precision', () => {
+    const split = (value: string): Split | null =>
+      buildTree([
+        line(1, [['bill_depth_mm', '<', value]], 'Gentoo', [0]),
+        line(2, [['bill_depth_mm', '>=', value]], 'Adelie', [1]),
+      ]).split;
+    expect(split('48.8')).toMatchObject({
+      left: '<',
+      right: '≥',
+      cut: '48.8 mm',
     });
-    // No value at one decimal equals 16.65, so the cut stands.
-    expect(split('16.65', 1)).toMatchObject({
-      left: '≤',
-      right: '>',
+    expect(split('16.65')).toMatchObject({
+      left: '<',
+      right: '≥',
       cut: '16.65 mm',
     });
-    // Without the column's precision the strict signs stay.
     expect(split('48.8')).toMatchObject({ left: '<', right: '≥' });
     expect(buildTree(LINES).children[0]?.split).toMatchObject({
       label: 'island',
@@ -361,4 +357,70 @@ describe('line map', () => {
       clearSpot([200, 0], half, [[0, 0, 400, 300]], [track], size),
     ).toBeNull();
   });
+});
+
+it.each(['<', '<=', '>', '>='] as const)(
+  'map and text preserve SQL %s at and around the boundary',
+  (operator) => {
+    const boundary = '48.80000114440918';
+    const conditions: LeafLine['conditions'] = [['x', operator, boundary]];
+    const lines = [line(1, conditions, 'a', [0])];
+    const map = buildTree(lines).split;
+    expect(map).not.toBeNull();
+    const symbol = operator.startsWith('<') ? map?.left : map?.right;
+    expect(symbol).toBe(operator.replace('<=', '≤').replace('>=', '≥'));
+    expect(Number(map?.cut)).toBe(Number(boundary));
+    expect(routeOf(lines, 0)?.stops).toEqual([`x ${symbol ?? ''} ${boundary}`]);
+    const compare = (x: number, op: string, cut: number): boolean => {
+      switch (op) {
+        case '<':
+          return x < cut;
+        case '≤':
+        case '<=':
+          return x <= cut;
+        case '>':
+          return x > cut;
+        case '≥':
+        case '>=':
+          return x >= cut;
+        default:
+          throw new Error(op);
+      }
+    };
+    for (const input of [
+      48.7,
+      48.8,
+      Number(boundary) - 1e-14,
+      Number(boundary),
+      Number(boundary) + 1e-14,
+      48.9,
+    ]) {
+      expect(compare(input, symbol ?? '', Number(map?.cut))).toBe(
+        compare(input, operator, Number(boundary)),
+      );
+    }
+  },
+);
+
+it('keeps neighbouring readings separate when the glass displaces them', () => {
+  const glass: Rect = [100, 100, 300, 220];
+  const boxes: Rect[] = [
+    [80, 110, 280, 128],
+    [120, 150, 320, 168],
+    [90, 190, 290, 208],
+    [110, 240, 310, 258],
+  ];
+  const shifts = labelShifts(boxes, glass, 400);
+  const moved = boxes.map((box, index): Rect => [
+    box[0],
+    box[1] + (shifts[index] ?? 0),
+    box[2],
+    box[3] + (shifts[index] ?? 0),
+  ]);
+  for (const [index, box] of moved.entries()) {
+    expect(overlaps(box, glass)).toBe(false);
+    for (const other of moved.slice(index + 1))
+      expect(overlaps(box, other)).toBe(false);
+  }
+  expect(shifts[3]).toBe(0);
 });

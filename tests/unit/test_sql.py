@@ -153,8 +153,8 @@ def test_certificate_contains_all_facts_and_ordered_schema_hash() -> None:
         "depth 1, 2 leaves",
         "In-sample agreement: 7/8; coverage 8/10\n",
         "Cross-fitted agreement: 7/8; coverage 8/10; 95% interval [0.5000, 0.9900]",
-        "Rule evaluation accuracy",
-        "Teacher evaluation accuracy",
+        "Rule conditional evaluation accuracy (answered rows)",
+        "Teacher conditional evaluation accuracy (confident predictions)",
         "Direct tree, same settings",
         "Direct tree, tuned",
         "McNemar",
@@ -225,3 +225,14 @@ def test_zero_evaluation_pairs_are_not_measured() -> None:
         "McNemar (rule versus tuned direct tree): not measured"
         in replace(certificate(), comparison=NoDifference(0)).header()
     )
+
+
+def test_certificate_names_accuracy_conditioned_on_confident_predictions() -> None:
+    facts = certificate()
+    header = facts.header()
+    assert (
+        "Teacher conditional evaluation accuracy (confident predictions): 7/8; coverage 8/10"
+        in header
+    )
+    assert "Rule conditional evaluation accuracy (answered rows): 7/8; coverage 8/10" in header
+    assert "Teacher evaluation accuracy:" not in header
