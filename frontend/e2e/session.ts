@@ -9,6 +9,12 @@ export const SLOW_REFIT_DELAY_MS = 1500;
 
 export const SPECIES = ['Adelie', 'Chinstrap', 'Gentoo'] as const;
 
+export async function openSetup(page: Page): Promise<void> {
+  const setup = page.locator('details.setup');
+  if ((await setup.getAttribute('open')) === null)
+    await setup.locator('summary').click();
+}
+
 /** The label buttons of the visible page, in row order. */
 export function labelCells(page: Page): Locator {
   return page.getByRole('table').locator('tbody').getByRole('button');

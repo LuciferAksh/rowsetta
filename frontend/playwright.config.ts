@@ -18,6 +18,7 @@ function serverEnv(server: string): Record<string, string> {
     ROWSETTA_SESSION_TOKEN: E2E_TOKEN,
     ROWSETTA_STATES: '1',
     ROWSETTA_SESSIONS_DIR: join(SESSIONS, server),
+    ROWSETTA_E2E_ERROR_LOG: join(SESSIONS, `${server}.errors.log`),
   };
 }
 
@@ -25,16 +26,18 @@ export default defineConfig({
   testDir: './e2e',
   // Each server holds one workspace, so tests that edit it run one at a time.
   workers: 1,
+  globalTeardown: './e2e/server-errors.ts',
   use: { baseURL: 'http://127.0.0.1:8787' },
   webServer: [
     {
-      command: 'uv run rowsetta demo --no-browser --port 8787',
+      command:
+        'uv run python ../scripts/e2e_server.py demo --no-browser --port 8787',
       url: 'http://127.0.0.1:8787/health',
       env: serverEnv('main'),
       reuseExistingServer: false,
     },
     {
-      command: `uv run rowsetta demo --no-browser --port ${String(SLOW_REFIT_PORT)}`,
+      command: `uv run python ../scripts/e2e_server.py demo --no-browser --port ${String(SLOW_REFIT_PORT)}`,
       url: `http://127.0.0.1:${String(SLOW_REFIT_PORT)}/health`,
       env: {
         ...serverEnv('slow-refit'),

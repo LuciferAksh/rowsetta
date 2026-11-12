@@ -18,6 +18,8 @@ if TYPE_CHECKING:
 
 AUDIT_FOLDS = 5
 AUDIT_SEED = 7
+# Preload before request/refit threads can race sklearn's first transitive imports.
+MODEL_SELECTION = importlib.import_module("sklearn.model_selection")
 
 
 class NeedAuditLabelsError(UserError):
@@ -64,11 +66,9 @@ def audit_labels(teacher: Teacher, table: Table, store: LabelStore) -> list[Susp
     if missing:
         raise NeedAuditLabelsError(missing)
     frame = teacher_frame(table, store).frame.loc[rows]
-    splits: Iterator[tuple[NDArray[np.intp], NDArray[np.intp]]] = (
-        importlib.import_module("sklearn.model_selection")
-        .StratifiedKFold(n_splits=AUDIT_FOLDS, shuffle=True, random_state=AUDIT_SEED)
-        .split(frame, labels)
-    )
+    splits: Iterator[tuple[NDArray[np.intp], NDArray[np.intp]]] = MODEL_SELECTION.StratifiedKFold(
+        n_splits=AUDIT_FOLDS, shuffle=True, random_state=AUDIT_SEED
+    ).split(frame, labels)
     given = [0.0] * len(rows)
     likely = [""] * len(rows)
     for train, held_out in splits:
