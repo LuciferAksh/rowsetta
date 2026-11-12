@@ -1,44 +1,62 @@
 # Rowsetta
 
-Local tabular labelling and rule export.
-
-Label a few rows of a CSV, let a local model propose the rest, check it on
-random rows and export the result as a decision tree in SQL, dbt, Python or
-JSON.
+Label rows in a local CSV and export the learned decision tree as SQL, dbt,
+Python or JSON.
 
 ![The learned rule drawn as a line map, with mislabelled rows riding the wrong line as threads and a glass lens reading a row labelled Chinstrap on the Adelie line](docs/hero.png)
 
-The screenshot is the Palmer penguins demo (`datasets/penguins.csv`) with nine
-species labels changed on purpose by `scripts/mislabel_demo.py`, then checked
-with the label audit and the pinned TabICL model.
+Your data stays on your machine. No account or model token is required.
 
-## Develop
+## Install and try
 
-Use Python 3.13, uv 0.13.7, Node 26 and pnpm 12.16.1. Install gitleaks 8.30.1
-for secret scanning. These commands do not require an account or model token.
+In a source checkout, with Python 3.13, uv 0.13.7, Node 26 and pnpm 12.16.1
+installed, run:
 
 ```sh
 make setup
-make check
-make dev
 ```
 
-`make dev` serves the frontend at <http://127.0.0.1:5173> and forwards API
-requests to a local server on port 8787, which `uv run tabular-studio demo
---no-browser --port 8787` starts. `make build` builds a wheel with the web page
-inside it.
+Start the bundled penguins demo:
 
 ```sh
-uv run tabular-studio --help
-gitleaks git --redact
+uv run rowsetta demo
 ```
 
-See [development notes](docs/development.md),
-[architecture](docs/architecture.md) and [contributing](CONTRIBUTING.md).
+The first run downloads the pinned model weights; startup time depends on your
+connection. Choose `species` to inspect existing labels, or clear them and label
+rows yourself. Review the suggested labels, check the rule on held-out rows and
+export it. To use your own CSV, run `uv run rowsetta open data.csv`.
+
+## Evidence and limits
+
+The screenshot uses the Palmer penguins table with labels deliberately changed
+by `scripts/mislabel_demo.py`. The audit ranks possible mistakes; a suggestion
+is not proof that a label is wrong. Accuracy describes answered evaluation rows;
+coverage describes how many rows receive an answer. Both depend on the sample
+and do not guarantee performance on future data.
+
+[Benchmark measurements](docs/bench.md) name their scripts and settings. The
+committed comparisons are smoke runs, not the full preregistered evidence for
+whether the teacher improves on direct decision trees. Do not infer a general
+performance advantage from them.
+
+Rowsetta handles classification on CSV files. It samples tables above `10,000`
+rows, defaults to a `200 MB` file limit and accepts up to `100` columns
+([limits in code](src/tabular_studio/core/table.py)). Free-text
+columns are skipped. Leak checks find some identifiers and near-copies of the
+target, not every post-outcome column.
+
+## Develop
+
+Run `make check` for the local checks. `make dev` serves the frontend at
+<http://127.0.0.1:5173> and forwards requests to a local server started with
+`uv run rowsetta demo --no-browser --port 8787`. `make build` builds a wheel.
+See [development notes](docs/development.md), [architecture](docs/architecture.md)
+and [contributing](CONTRIBUTING.md).
 
 ## Licence
 
 Code is licensed under [Apache-2.0](LICENSE). Third-party licences and
 attributions are retained in [NOTICE](NOTICE). The bundled datasets and their
 licences are listed in [datasets/CARDS.md](datasets/CARDS.md). Model weights are
-not bundled; the first run of `demo` or `open` downloads them.
+not bundled.

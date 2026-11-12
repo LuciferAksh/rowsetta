@@ -1,12 +1,13 @@
 # Changelog
 
-All notable changes will be documented here following Keep a Changelog.
-Releases will use semantic versioning. The package version is provisional;
-no release has been published.
+All notable changes are documented here following Keep a Changelog.
 
 ## [Unreleased]
 
+## [0.1.0] - Unreleased
+
 ### Added
 
-- Python and Svelte repository skeleton with locked dependencies.
-- Shared checks, contributor guidance and review templates.
+- Local CSV labelling, model proposals and label audit.
+- Held-out evaluation and decision-tree export to SQL, dbt, Python and JSON.
+- Bundled datasets, contributor guidance and reproducible benchmark scripts.

@@ -9,13 +9,13 @@ strict types and tests on both stacks. Model and PostgreSQL tests have separate
 markers; the default check needs neither credentials nor a database.
 
 Keep `uv.lock` and `frontend/pnpm-lock.yaml` with dependency changes. Python 3.13
-is the local default; CI must also cover Python 3.14 once configured.
-Use `make dev` to run the frontend skeleton and `make build` to build artifacts.
+is the local default; CI also covers Python 3.14.
+Use `make dev` to run the frontend and `make build` to build artifacts.
 Do not commit credentials, model weights, local environment files or user data.
 
 Document decisions in `docs/adr/` and measured findings in `docs/`. Before review,
 explain the problem, the resulting behaviour and the checks you ran. Follow the
 [code of conduct](CODE_OF_CONDUCT.md) and [security policy](SECURITY.md).
 
-TODO before public release: configure branch protections, CodeQL default setup and
-hosted workflows. These require the hosted repository. See [development notes](docs/development.md).
+Branch protection and CodeQL default setup require a hosted repository. See
+[development notes](docs/development.md).
