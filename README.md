@@ -6,11 +6,11 @@ Label a few rows of a CSV, let a local model propose the rest, check it on
 random rows and export the result as a decision tree in SQL, dbt, Python or
 JSON.
 
-![The label audit mid-review: a marker stroke, a strike and a delete mark on each suspect row, and a slip in the margin joined to it](docs/hero.png)
+![The learned rule drawn as a line map, with mislabelled rows riding the wrong line as threads and a glass lens reading a row labelled Chinstrap on the Adelie line](docs/hero.png)
 
 The screenshot is the Palmer penguins demo (`datasets/penguins.csv`) with nine
-species labels changed on purpose, then checked with the label audit and the
-pinned TabICL model.
+species labels changed on purpose by `scripts/mislabel_demo.py`, then checked
+with the label audit and the pinned TabICL model.
 
 ## Develop
 
