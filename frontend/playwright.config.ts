@@ -2,7 +2,12 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { defineConfig } from '@playwright/test';
-import { E2E_TOKEN, SLOW_REFIT_DELAY_MS, SLOW_REFIT_PORT } from './e2e/session';
+import {
+  E2E_TOKEN,
+  SLOW_E2E_TOKEN,
+  SLOW_REFIT_DELAY_MS,
+  SLOW_REFIT_PORT,
+} from './e2e/session';
 
 // Sessions go to a scratch directory, never beside a user's own in the home
 // directory. Workers load this file again with the runner's environment, so
@@ -15,7 +20,8 @@ const SESSIONS = process.env.ROWSETTA_E2E_SESSIONS;
 function serverEnv(server: string): Record<string, string> {
   return {
     ROWSETTA_TEACHER: 'fake',
-    ROWSETTA_SESSION_TOKEN: E2E_TOKEN,
+    ROWSETTA_SESSION_TOKEN:
+      server === 'slow-refit' ? SLOW_E2E_TOKEN : E2E_TOKEN,
     ROWSETTA_STATES: '1',
     ROWSETTA_SESSIONS_DIR: join(SESSIONS, server),
     ROWSETTA_E2E_ERROR_LOG: join(SESSIONS, `${server}.errors.log`),

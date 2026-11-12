@@ -86,7 +86,9 @@ test('static demo queues labels, predicts and exports SQL without data egress', 
     page.getByText('Label rows now;', { exact: false }),
   ).toBeVisible();
   release();
-  await expect(page.getByRole('status')).toHaveText('Proposals updated');
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Proposals updated' }),
+  ).toHaveText('Proposals updated');
   await expect(cells.nth(6)).toHaveText(/^(Proposed|Unsure)/);
   await page.getByRole('button', { name: 'Export rule', exact: true }).click();
   const sql = page.locator('pre');

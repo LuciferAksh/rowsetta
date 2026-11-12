@@ -46,7 +46,7 @@ async def event_connection(app: FastAPI) -> AsyncGenerator[asyncio.Queue[str]]:
         "client": ("127.0.0.1", 12345),
         "headers": [
             (b"host", b"127.0.0.1"),
-            (b"cookie", f"rowsetta_session={LAUNCH_CODE}".encode()),
+            (b"cookie", f"rowsetta_session_80={LAUNCH_CODE}".encode()),
         ],
     }
     request_sent = False

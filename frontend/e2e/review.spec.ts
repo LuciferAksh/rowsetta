@@ -28,7 +28,9 @@ async function visibleRowIds(page: Page): Promise<number[]> {
 async function teachPenguins(page: Page): Promise<void> {
   const cells = await openPenguins(page);
   await labelByKeyboard(page, cells, TWO_PER_SPECIES);
-  await expect(page.getByRole('status')).toHaveText('Proposals updated');
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Proposals updated' }),
+  ).toHaveText('Proposals updated');
 }
 
 test.describe('table and target', () => {

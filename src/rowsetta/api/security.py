@@ -46,16 +46,18 @@ class SessionMiddleware(BaseHTTPMiddleware):
         """Keep health public and reject missing or incorrect launch credentials."""
         if request.url.path == "/health":
             return await call_next(request)
+        # Cookies share a host across ports; each listening instance needs its own.
+        cookie_name = f"{COOKIE_NAME}_{request.url.port or 80}"
         token = request.query_params.get("token") if request.url.path == "/" else None
         if token is not None:
             if not secrets.compare_digest(token.encode(), self._security.token.encode()):
                 return _forbidden()
             response = RedirectResponse("/", status_code=303)
-            response.set_cookie(COOKIE_NAME, self._security.token, httponly=True, samesite="strict")
+            response.set_cookie(cookie_name, self._security.token, httponly=True, samesite="strict")
             response.headers["Referrer-Policy"] = "no-referrer"
             response.headers["Cache-Control"] = "no-store"
             return response
-        cookie = request.cookies.get(COOKIE_NAME, "")
+        cookie = request.cookies.get(cookie_name, "")
         if not secrets.compare_digest(cookie.encode(), self._security.token.encode()):
             return _forbidden()
         return await call_next(request)

@@ -11,7 +11,9 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
     await page.emulateMedia({ reducedMotion });
     const cells = await openPenguins(page);
     await labelByKeyboard(page, cells, TWO_PER_SPECIES);
-    await expect(page.getByRole('status')).toHaveText('Proposals updated');
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Proposals updated' }),
+    ).toHaveText('Proposals updated');
     // Scan with the label menu open, so the listbox is checked too.
     await page.keyboard.press('Enter');
     await expect(page.getByRole('listbox')).toBeFocused();

@@ -1,3 +1,4 @@
+import errno
 import os
 import shlex
 import socket
@@ -138,6 +139,9 @@ def _listen(args: Namespace) -> socket.socket:
     try:
         return socket.create_server((args.host, args.port))
     except OSError as error:
+        message = f"Could not bind {args.host}:{args.port}: {error.strerror}."
+        if error.errno != errno.EADDRINUSE:
+            raise UserError(message, "rowsetta demo --host 127.0.0.1") from error
         with socket.create_server((args.host, 0)) as alternative:
             port = alternative.getsockname()[1]
         retry = ["rowsetta", *sys.argv[1:]]
@@ -146,7 +150,6 @@ def _listen(args: Namespace) -> socket.socket:
         else:
             retry = [part for part in retry if not part.startswith("--port=")]
             retry.extend(["--port", str(port)])
-        message = f"Could not bind {args.host}:{args.port}: {error.strerror}."
         raise UserError(message, shlex.join(retry)) from error
 
 

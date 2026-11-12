@@ -201,6 +201,18 @@ def test_export_rejects_an_invalid_session(tmp_path: Path) -> None:
     )
 
 
+def test_export_rejects_a_non_utf8_session(tmp_path: Path) -> None:
+    session = tmp_path / "broken.rowsetta.json"
+    session.write_bytes(b"\xff\xfeinvalid")
+    assert_user_error(run_cli("export", str(session)), what="not a saved session", next_step="open")
+
+
+def test_invalid_host_has_recovery_without_an_alternative_port() -> None:
+    result = run_cli("demo", "--host", "invalid.invalid", "--no-browser")
+    assert_user_error(result, what="Could not bind invalid.invalid", next_step="--host 127.0.0.1")
+    assert "--port" not in result.stderr
+
+
 def test_export_names_a_missing_session(tmp_path: Path) -> None:
     assert_user_error(
         run_cli("export", "absent.rowsetta.json", cwd=tmp_path),

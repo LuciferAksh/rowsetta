@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import {
   SLOW_REFIT_PORT,
+  SLOW_E2E_TOKEN,
   TWO_PER_SPECIES,
   labelByKeyboard,
   openPenguins,
@@ -19,7 +20,9 @@ test.describe('keyboard labelling', () => {
     await expect(cells.nth(0)).toHaveText('Labelled Adelie');
     await expect(cells.nth(2)).toHaveText('Labelled Chinstrap');
     await expect(cells.nth(5)).toHaveText('Labelled Gentoo');
-    await expect(page.getByRole('status')).toHaveText('Proposals updated');
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Proposals updated' }),
+    ).toHaveText('Proposals updated');
     await expect(cells.nth(6)).toHaveText(PROPOSAL_OR_UNSURE);
     await expect(cells.nth(6)).toBeFocused();
   });
@@ -104,7 +107,7 @@ test.describe('during a slow refit', () => {
   test.use({ baseURL: `http://127.0.0.1:${String(SLOW_REFIT_PORT)}` });
 
   test('a keypress moves focus within 100 ms', async ({ page }) => {
-    const cells = await openPenguins(page);
+    const cells = await openPenguins(page, undefined, SLOW_E2E_TOKEN);
     await labelByKeyboard(page, cells, TWO_PER_SPECIES);
     const refit = page.getByRole('progressbar', { name: 'Updating proposals' });
     await expect(refit).toBeVisible();

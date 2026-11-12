@@ -2,6 +2,7 @@ import { expect, type Locator, type Page } from '@playwright/test';
 
 /** The launch token both test servers accept; loopback only. */
 export const E2E_TOKEN = 'e2e-only-token';
+export const SLOW_E2E_TOKEN = 'e2e-slow-refit-token';
 
 /** A second server whose fake teacher takes 1500 ms per prediction, so a refit is still running when the test acts. */
 export const SLOW_REFIT_PORT = 8788;
@@ -24,8 +25,9 @@ export function labelCells(page: Page): Locator {
 export async function openPenguins(
   page: Page,
   classes: readonly string[] = SPECIES,
+  token = E2E_TOKEN,
 ): Promise<Locator> {
-  await page.goto(`/?token=${E2E_TOKEN}`);
+  await page.goto(`/?token=${token}`);
   // An earlier test may have opened another CSV on this server.
   const demo = await page.request.post('/table', {
     data: { demo: 'penguins' },

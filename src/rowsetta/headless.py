@@ -81,6 +81,12 @@ def export_session(session: Path, *, export_format: ExportFormat, dialect: Diale
 def _read_session(session: Path) -> LabelStore:
     try:
         text = session.read_text(encoding="utf-8")
+    except UnicodeError as error:
+        message = f"`{session}` is not a saved session: expected UTF-8 JSON."
+        raise UserError(
+            message,
+            "rowsetta open <the CSV>, then label it again to save a new session",
+        ) from error
     except OSError as error:
         message = f"Could not read `{session}`: {error.strerror}."
         raise UserError(message, "rowsetta export <a saved .rowsetta.json>") from error

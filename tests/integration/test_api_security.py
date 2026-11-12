@@ -78,7 +78,7 @@ def test_health_and_cookie_scope(tmp_path: Path) -> None:
             assert LAUNCH_CODE not in (await client.get("/state")).text
             assert body(await client.get("/state"))["dev_states"] is False
             client.cookies.clear()
-            client.cookies.set("rowsetta_session", "wrong")
+            client.cookies.set("rowsetta_session_80", "wrong")
             wrong = await client.get("/state")
             assert wrong.status_code == 403
             body(wrong)

@@ -7,6 +7,7 @@ import {
   openPenguins,
   openSetup,
   SLOW_REFIT_PORT,
+  SLOW_E2E_TOKEN,
   TWO_PER_SPECIES,
 } from './session';
 
@@ -219,7 +220,7 @@ test('audit waits for every class, retries failure after a label, and counts onl
 test.describe('export during refit', () => {
   test.use({ baseURL: `http://127.0.0.1:${String(SLOW_REFIT_PORT)}` });
   test('Export remains disabled until refit completes', async ({ page }) => {
-    const cells = await openPenguins(page);
+    const cells = await openPenguins(page, undefined, SLOW_E2E_TOKEN);
     await labelByKeyboard(page, cells, TWO_PER_SPECIES);
     const button = page.getByRole('button', { name: 'Export rule' });
     await expect(button).toBeDisabled();
