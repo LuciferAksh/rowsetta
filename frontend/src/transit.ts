@@ -206,7 +206,6 @@ function walk(root: TransitNode): TransitNode[] {
   return [root, ...root.children.flatMap(walk)];
 }
 
-/** A polyline moved sideways by `offset`, mitred at each bend so parallel bands stay parallel. */
 /** Each consecutive pair of points: the legs of a line. */
 export function legs(points: readonly Point[]): [Point, Point][] {
   const out: [Point, Point][] = [];

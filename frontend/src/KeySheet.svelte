@@ -39,6 +39,6 @@
     {/each}
   </dl>
   <form method="dialog">
-    <button type="submit">Close</button>
+    <button type="submit" class="button">Close</button>
   </form>
 </dialog>

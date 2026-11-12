@@ -4,6 +4,7 @@
   import type { Point } from './transit';
   import { fade } from 'svelte/transition';
   import { lineColour } from './palette';
+  import SvgLabel from './SvgLabel.svelte';
   import { typeLines, type Station, type TransitMap } from './transit';
   let {
     m,
@@ -79,7 +80,7 @@
     <rect x="0" y="0" width={m.width * reveal} height={m.height} />
   </clipPath>
 </defs>
-<g font-family={font}>
+<g class="tracks" font-family={font}>
   <g clip-path={reveal < 1 ? `url(#${id})` : undefined}>
     {#each bands as band (band.key)}
       {@const moving = band.row !== null && fixing.has(band.row)}
@@ -173,37 +174,40 @@
           />
           {#if !narrow}
             {@const [, upper, lower] = typeLines(station.split, station.upLeft)}
-            <text
+            <SvgLabel
+              text={`${station.split.label} ${station.split.cut}`}
+              maxWidth={Math.max(0, station.label.name[0] - 8)}
               class="halo"
-              style:transform={nudge(station, 0)}
+              style={`transform: ${nudge(station, 0) ?? 'none'}`}
               x={station.label.name[0]}
               y={station.label.name[1]}
               text-anchor="end"
               font-size="12"
               font-weight="700"
               fill={shade}
-              >{station.split.label}<tspan font-weight="400" dx="4"
-                >{station.split.cut}</tspan
-              ></text
-            >
-            <text
+            />
+            <SvgLabel
+              text={upper}
+              maxWidth={Math.max(0, m.width - station.label.up[0] - 8)}
               class="halo"
-              style:transform={nudge(station, 1)}
+              style={`transform: ${nudge(station, 1) ?? 'none'}`}
               x={station.label.up[0]}
               y={station.label.up[1]}
               font-size={14}
               font-weight="700"
-              fill={shade}>{upper}</text
-            >
-            <text
+              fill={shade}
+            />
+            <SvgLabel
+              text={lower}
+              maxWidth={Math.max(0, m.width - station.label.down[0] - 8)}
               class="halo"
-              style:transform={nudge(station, 2)}
+              style={`transform: ${nudge(station, 2) ?? 'none'}`}
               x={station.label.down[0]}
               y={station.label.down[1]}
               font-size={14}
               font-weight="700"
-              fill={shade}>{lower}</text
-            >
+              fill={shade}
+            />
           {/if}
         </g>
       {/each}
@@ -235,15 +239,16 @@
           />
           {@render roundel(terminus.x + 20 * ink, terminus.y, answer, ink)}
           {#if !narrow}
-            <text
+            <SvgLabel
+              text={answer ?? 'No answer'}
+              maxWidth={Math.max(0, m.width - terminus.x - 44)}
               x={terminus.x + 36}
               y={terminus.y - 1}
               font-size="14"
               font-weight="700"
               fill="#0d0d0d"
               text-decoration={ghost === undefined ? undefined : 'line-through'}
-              >{answer ?? 'No answer'}</text
-            >
+            />
             {@const counts = ghost
               ? `merges into ${ghost.into.label ?? 'no answer'}, ${String(ghost.into.row_ids.length)} rows`
               : `${String(terminus.line.row_ids.length)} rows${terminus.counts
@@ -251,16 +256,18 @@
                   .map(([cls, n]) => `, ${String(n)} ${cls}`)
                   .join('')}`}
             {#key counts}
-              <text
-                class:tick={fixedCount > 0}
-                style:--flash={answer === null
-                  ? '#0d0d0d'
-                  : lineColour(classes, answer)}
+              <SvgLabel
+                text={counts}
+                maxWidth={Math.max(0, m.width - terminus.x - 44)}
+                class={fixedCount > 0 ? 'tick' : undefined}
+                style={`--flash: ${
+                  answer === null ? '#0d0d0d' : lineColour(classes, answer)
+                }`}
                 x={terminus.x + 36}
                 y={terminus.y + 13}
                 font-size="11.5"
-                fill="#4f5257">{counts}</text
-              >
+                fill="#4f5257"
+              />
             {/key}
           {/if}
         </g>
@@ -311,11 +318,11 @@
 
 <style>
   @media (prefers-reduced-motion: reduce) {
-    .halo {
+    .tracks :global(.halo) {
       transition: none;
     }
   }
-  .tick {
+  .tracks :global(.tick) {
     animation: tick 900ms var(--ease-out);
   }
   @keyframes tick {
@@ -335,7 +342,7 @@
     animation-timing-function: cubic-bezier(0.5, 0, 0.2, 1);
     animation-fill-mode: forwards;
   }
-  .halo {
+  .tracks :global(.halo) {
     paint-order: stroke;
     stroke: #ffffff;
     stroke-width: 4px;

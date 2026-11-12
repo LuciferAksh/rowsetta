@@ -6,6 +6,7 @@
   import type { Studio } from './state.svelte';
   import { columnWords, routeOf, type Doubt } from './transit';
   import { lineColour } from './palette';
+  import SvgLabel from './SvgLabel.svelte';
   let {
     studio,
     table,
@@ -107,7 +108,7 @@
           {:else}
             <span class="what"
               >{@render bullet(s.given)}<span class="given">{s.given}</span
-              >{@render arrow()}{s.likely}</span
+              >{@render arrow()}<span>{s.likely}</span></span
             >
           {/if}
           <span class="pct">{percent(s.given_probability)}</span>
@@ -139,15 +140,16 @@
                 stroke="#0d0d0d"
                 stroke-width="2"
               />
-              <text
+              <SvgLabel
+                text={stop}
+                maxWidth={n > 1 ? 290 / (n - 1) : 290}
                 x={xs[i]}
                 y={i % 2 === 0 ? 14 : 54}
                 font-size="11"
                 font-family={FONT}
                 fill="#4f5257"
                 text-anchor={i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}
-                >{stop}</text
-              >
+              />
             {/each}
             <rect x="320" y="20" width="5" height="20" fill="#0d0d0d" />
             {@render roundel(343, 30, route.terminus.label)}
@@ -215,7 +217,7 @@
   .doubt > button {
     appearance: none;
     display: grid;
-    grid-template-columns: 1.5rem 4.2rem 1fr auto;
+    grid-template-columns: 1.5rem 4.2rem minmax(0, 1fr) auto;
     align-items: center;
     gap: var(--space-2);
     width: 100%;
@@ -225,7 +227,7 @@
     text-align: left;
     font-size: var(--step--1);
     cursor: pointer;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
   }
   .doubt > button:hover:not(:disabled),
   .doubt.on > button {
@@ -243,11 +245,14 @@
   }
   .what {
     display: inline-flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 0.3rem;
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow-wrap: anywhere;
+  }
+  .what > span {
+    min-width: 0;
   }
   .given {
     color: var(--ink-2);
@@ -288,6 +293,8 @@
     padding: var(--space-2) 0.25rem var(--space-3) 2.2rem;
     font-size: var(--step--1);
     box-shadow: inset 3px 0 0 var(--ink);
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
   .claim {
     font-size: var(--step-0);
@@ -303,9 +310,8 @@
   }
   .cells div {
     position: relative;
-    display: flex;
-    flex-direction: row-reverse;
-    justify-content: flex-end;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     align-items: baseline;
     gap: var(--space-3);
   }
@@ -319,15 +325,28 @@
     background: var(--ink);
   }
   .cells dd {
-    min-width: 6.5rem;
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
     font-size: var(--step--1);
     font-weight: 700;
-    white-space: nowrap;
   }
   .cells dt {
+    grid-column: 2;
+    grid-row: 1;
     font-size: var(--step--1);
     color: var(--ink-2);
-    white-space: nowrap;
+  }
+  .acts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+  .acts .button {
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
   .thin {
     font-size: var(--step--1);
@@ -338,7 +357,6 @@
     width: 100%;
     height: auto;
     margin: 0.1rem 0 var(--space-2);
-    overflow: visible;
   }
   @media (max-width: 40rem) {
     .reading {
