@@ -60,7 +60,7 @@
   /** One fixed precision per column, so decimals line up down the page. */
   function show(value: Cell | undefined, column: string): string {
     const places = decimals.get(column);
-    return typeof value === 'number' && places !== undefined
+    return typeof value === 'number' && places !== undefined && places <= 12
       ? value.toFixed(places)
       : display(value);
   }
@@ -217,6 +217,9 @@
               id={`row-${String(rowId)}`}
               aria-rowindex={first + index + 2}
               class:suspect={drawn && info.state === 'open'}
+              class:disagrees={drawn &&
+                info.state === 'open' &&
+                info.suspect.given !== info.suspect.likely}
               class:selected={studio.selectedRow === rowId}
               class:filtered={studio.filter !== null}
             >
@@ -274,7 +277,7 @@
                     {#if mode.kind === 'evaluate' && mode.row === rowId}
                       <span class="note">Evaluation row: label it blind</span>
                     {/if}
-                    {#if ruleLines.has(rowId)}
+                    {#if ruleLines.has(rowId) && !(mode.kind === 'evaluate' && mode.row === rowId)}
                       <span class="note"
                         >Rule line {ruleLines.get(rowId)} disagrees</span
                       >
@@ -621,7 +624,7 @@
     font-weight: 700;
     vertical-align: middle;
   }
-  tr.suspect .word {
+  tr.disagrees .word {
     text-decoration: line-through;
     text-decoration-thickness: 2px;
   }

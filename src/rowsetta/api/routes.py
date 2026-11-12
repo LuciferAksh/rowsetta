@@ -126,7 +126,11 @@ def table_router(runtime: WorkspaceRuntime, *, max_rows: int, dev_states: bool) 
         frame = table.frame.iloc[page * size : (page + 1) * size].copy()
         if workspace.store is not None:
             frame[workspace.store.target] = None
-        rows = TypeAdapter(list[dict[str, Cell]]).validate_json(frame.to_json(orient="records"))
+        rows = TypeAdapter(list[dict[str, Cell]]).validate_python(
+            frame.astype(object)
+            .where(frame.notna() & ~frame.isin([float("inf"), -float("inf")]), None)
+            .to_dict(orient="records")
+        )
         return TablePage(
             rows=rows,
             row_ids=frame.index.tolist(),

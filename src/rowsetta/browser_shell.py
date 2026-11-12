@@ -123,7 +123,9 @@ class BrowserShell:
         if w.store:
             frame[w.store.target] = None
         return {
-            "rows": json.loads(frame.to_json(orient="records")),
+            "rows": frame.astype(object)
+            .where(frame.notna() & ~frame.isin([float("inf"), -float("inf")]), None)
+            .to_dict(orient="records"),
             "row_ids": frame.index.tolist(),
             "columns": [asdict(c) for c in table.columns],
             "total": len(table.frame),
@@ -155,12 +157,15 @@ class BrowserShell:
                 message,
                 "Use fewer labelled rows or features, or open the table in the local app.",
             )
+        frame = frame.astype(object).where(
+            frame.notna() & ~frame.isin([float("inf"), -float("inf")]), None
+        )
         return json.dumps(
             {
                 "generation": w.generation,
-                "train": json.loads(frame.loc[list(labels)].to_json(orient="values")),
+                "train": frame.loc[list(labels)].values.tolist(),
                 "labels": list(labels.values()),
-                "test": json.loads(frame.to_json(orient="values")),
+                "test": frame.values.tolist(),
             }
         )
 

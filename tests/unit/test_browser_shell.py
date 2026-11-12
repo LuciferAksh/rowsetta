@@ -1,4 +1,5 @@
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -165,3 +166,68 @@ def test_browser_rejected_empty_load_preserves_labels(shell: BrowserShell, csv: 
     assert response["ok"] is False
     assert "at least one data row" in response["error"]["error"]
     assert shell.workspace.require_store().to_json() == before
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        [1e-12, 2e-12, 3e-12, 4e-12, 5e-12, 6e-12],
+        [1.2345678901234567, -2.345678901234567, 1e-100, 1e100, 0.0, -1e-100],
+    ],
+)
+def test_numeric_cells_round_trip_for_training_prediction_and_display(values: list[float]) -> None:
+    shell = BrowserShell(None, browser_metadata("2026-11-12"))
+    data = "x,y\n" + "".join(
+        f"{value!r},{'a' if i < 3 else 'b'}\n" for i, value in enumerate(values)
+    )
+    shell.workspace.load(data.encode(), "numbers.csv", max_rows=2000)
+    shell.workspace.set_target_from_column("y")
+    frame = shell.workspace.require_table().frame
+    expected = frame.x.tolist()
+    assert expected == values
+    inputs = json.loads(shell.refit_input())
+    assert inputs["train"] == [[value] for value in expected]
+    assert inputs["test"] == [[value] for value in expected]
+    page = json.loads(json.dumps(shell.table_page(0, 100)))
+    assert [row["x"] for row in page["rows"]] == expected
+
+
+@pytest.mark.native
+def test_refit_input_round_trips_through_javascript(shell: BrowserShell) -> None:
+    shell.workspace.load(b"x,y\n1e-12,a\n2e-12,a\n3e-12,b\n4e-12,b\n", "numbers.csv", max_rows=2000)
+    shell.workspace.set_target_from_column("y")
+    encoded = shell.refit_input()
+    node = shutil.which("node")
+    assert node is not None
+    transported = subprocess.run(
+        [
+            node,
+            "-e",
+            (
+                "let text=''; process.stdin.on('data', chunk => text += chunk); "
+                "process.stdin.on('end', () => "
+                "process.stdout.write(JSON.stringify(JSON.parse(text))));"
+            ),
+        ],
+        input=encoded,
+        text=True,
+        capture_output=True,
+        check=True,
+    ).stdout
+    inputs = json.loads(transported)
+    assert inputs == json.loads(encoded)
+    assert inputs["train"] == [[1e-12], [2e-12], [3e-12], [4e-12]]
+    assert inputs["test"] == inputs["train"]
+
+
+def test_browser_json_keeps_missing_and_nonfinite_cells_null(shell: BrowserShell) -> None:
+    shell.workspace.load(b"x,y\ninf,a\n-inf,a\n,b\n1e-12,b\n", "missing.csv", max_rows=2000)
+    shell.workspace.set_target_from_column("y")
+    expected = [[None], [None], [None], [1e-12]]
+    payload = json.loads(shell.refit_input())
+    assert payload["train"] == expected
+    assert payload["test"] == expected
+    page = shell.table_page(0, 100)
+    assert json.loads(json.dumps(page, allow_nan=False))["rows"] == [
+        {"x": row[0], "y": None} for row in expected
+    ]

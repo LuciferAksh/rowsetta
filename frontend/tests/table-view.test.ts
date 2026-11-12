@@ -218,3 +218,27 @@ describe('label menu', () => {
     expect(body).toContain('Clear label');
   });
 });
+
+it('keeps distinct small numbers readable and numerically exact', async () => {
+  const values = [1e-8, 1.2e-7, 1e-12, 1e-100];
+  const studio = await studioWith([STATE], {
+    ...PAGE,
+    rows: values.map((x) => ({ bill_length_mm: x })),
+  });
+  const body = show(studio);
+  for (const value of values) expect(body).toContain(String(value));
+});
+
+it('crosses out only labels that disagree with the suggested class', async () => {
+  const studio = await studioWith([STATE]);
+  const suspect = {
+    row_id: 100,
+    given: 'Chinstrap',
+    likely: 'Chinstrap',
+    given_probability: 0.999,
+  };
+  studio.suspects = [suspect];
+  expect(show(studio)).not.toMatch(/class="[^"]*disagrees/);
+  studio.suspects = [{ ...suspect, likely: 'Gentoo' }];
+  expect(show(studio)).toMatch(/class="[^"]*disagrees/);
+});

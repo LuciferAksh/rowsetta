@@ -282,3 +282,21 @@ def test_dbt_target_validation_precedes_missing_fit(tmp_path: Path) -> None:
             assert body(await client.get("/state")) == before
 
     asyncio.run(flow())
+
+
+def test_http_table_preserves_numeric_values_and_missing_cells(tmp_path: Path) -> None:
+    async def flow() -> None:
+        values = [1e-12, 1.2345678901234567, -1e-100, 1e100]
+        csv = "x,category\n" + "".join(f"{value!r},a\n" for value in values) + ",b\ninf,b\n-inf,b\n"
+        async with api(tmp_path) as (_, client):
+            await authenticate(client)
+            loaded = await client.post(
+                "/table", files={"file": ("numbers.csv", csv.encode(), "text/csv")}
+            )
+            assert loaded.status_code == 200, loaded.text
+            response = await client.get("/table")
+            rows = TypeAdapter(list[dict[str, JsonValue]]).validate_python(body(response)["rows"])
+            assert [row["x"] for row in rows] == [*values, None, None, None]
+            assert [row["category"] for row in rows] == ["a", "a", "a", "a", "b", "b", "b"]
+
+    asyncio.run(flow())
