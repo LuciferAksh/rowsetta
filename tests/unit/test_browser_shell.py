@@ -1,4 +1,6 @@
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -63,6 +65,10 @@ def test_browser_sql_certificate_names_the_actual_teacher(shell: BrowserShell) -
     assert "not executed" in sql.lower()
     assert "browser demo" in sql
     assert 'AS "predicted_species"' in sql
+    assert isinstance(shell.execute(BrowserRequest(action="audit")), dict)
+    assert isinstance(shell.execute(BrowserRequest(action="export", format="json")), str)
+    assert isinstance(shell.execute(BrowserRequest(action="export", format="python")), str)
+    assert isinstance(shell.execute(BrowserRequest(action="export", format="dbt")), dict)
 
 
 def test_browser_rejects_column_prefill_and_invalid_label(shell: BrowserShell) -> None:
@@ -126,3 +132,15 @@ def test_read_only_call_does_not_retry_a_failed_external_refit(shell: BrowserShe
     assert response["refit"] == "null"
     assert "rows" in response["value"]
     assert shell.workspace.proposals is None
+
+
+@pytest.mark.native
+def test_browser_startup_does_not_import_optional_routes() -> None:
+    code = """
+import sys
+import rowsetta.browser_shell
+for name in ('rowsetta.core.export.dbt', 'rowsetta.core.export.json',
+             'rowsetta.core.export.python', 'rowsetta.core.leaks'):
+    assert name not in sys.modules, name
+"""
+    subprocess.run([sys.executable, "-c", code], check=True)

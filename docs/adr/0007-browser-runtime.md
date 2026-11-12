@@ -38,6 +38,9 @@ Export execution is still explicitly `NotExecuted("browser demo")`.
 
 `make browser` packages the core wheel, Pyodide 314.0.7 and its locked scientific
 and Pydantic packages, verified fp16 ONNX weights and ONNX Runtime Web 1.31.1.
+The wheel carries checked-hash bytecode compiled by that Pyodide version for
+the core and the verified pandas and scikit-learn sources, and export formats
+and leak analysis import only when requested.
 Everything is served from the same static origin, including the ONNX runtime's
 WASM support files. No account, weight mirror, upload or external service is
 required. Relative URLs support a repository subpath. Use HTTP(S), not `file://`.

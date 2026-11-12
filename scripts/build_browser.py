@@ -1,16 +1,22 @@
 """Package only the browser core and pinned runtime, never local model/server code."""
 
+import base64
 import hashlib
 import json
 import shutil
+import subprocess
+import sys
 from pathlib import Path
+
+if __package__ is None:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from urllib.request import urlopen
 from zipfile import ZIP_DEFLATED, ZipFile
 
-from mirror_onnx import stage
-
 from rowsetta.browser_shell import BrowserShell, browser_metadata
 from rowsetta.core.lite_teacher import LiteTeacher
+from scripts.mirror_onnx import stage
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = ROOT / "frontend/public/browser"
@@ -19,7 +25,7 @@ PACKAGES = ("numpy", "pandas", "scipy", "scikit-learn", "pydantic", "micropip")
 WHEEL = "rowsetta_browser_core-0.1.0-py3-none-any.whl"
 
 
-def package_core() -> None:
+def package_core(dependencies: tuple[Path, ...]) -> None:
     """Build a pure wheel without invoking the full application's frontend hook."""
     package = ROOT / "src/rowsetta"
     files = [
@@ -27,9 +33,59 @@ def package_core() -> None:
         package / "browser_shell.py",
         *sorted((package / "core").rglob("*.py")),
     ]
+    sources = {str(path.relative_to(ROOT / "src")): path.read_text() for path in files}
+    for dependency in dependencies:
+        with ZipFile(dependency) as archive:
+            for name in archive.namelist():
+                if (
+                    name.startswith(("pandas/", "sklearn/"))
+                    and name.endswith(".py")
+                    and "/tests/" not in name
+                ):
+                    sources[name] = archive.read(name).decode("utf-8")
+    # Compile with Pyodide itself so bytecode matches its pinned Python ABI.
+    compiler = r"""
+import { loadPyodide } from './frontend/node_modules/pyodide/pyodide.mjs';
+const py = await loadPyodide({indexURL: './frontend/node_modules/pyodide/'});
+let sources = '';
+for await (const chunk of process.stdin) sources += chunk;
+py.globals.set('sources_json', sources);
+console.log(py.runPython(`
+import base64, importlib.util, json, pathlib, py_compile
+sources = json.loads(sources_json)
+root = pathlib.Path('/tmp/rowsetta-compile')
+result = {}
+for name, source in sources.items():
+    path = root / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(source)
+    cache = importlib.util.cache_from_source(name)
+    output = root / cache
+    output.parent.mkdir(parents=True, exist_ok=True)
+    py_compile.compile(str(path), cfile=str(output), dfile=name, doraise=True,
+                       invalidation_mode=py_compile.PycInvalidationMode.CHECKED_HASH)
+    result[cache] = base64.b64encode(output.read_bytes()).decode('ascii')
+json.dumps(result)
+`));
+"""
+    node = shutil.which("node")
+    if node is None:
+        msg = "Node.js is required to compile the browser wheel"
+        raise FileNotFoundError(msg)
+    compiled = subprocess.run(  # noqa: S603 -- Node and script are fixed build inputs.
+        [node, "--input-type=module", "-e", compiler],
+        input=json.dumps(sources),
+        stdout=subprocess.PIPE,
+        text=True,
+        check=True,
+        cwd=ROOT,
+    )
+    bytecode = json.loads(compiled.stdout)
     with ZipFile(PUBLIC / WHEEL, "w", ZIP_DEFLATED) as wheel:
         for path in files:
             wheel.write(path, path.relative_to(ROOT / "src"))
+        for name, encoded in bytecode.items():
+            wheel.writestr(name, base64.b64decode(encoded))
         metadata = "rowsetta_browser_core-0.1.0.dist-info"
         for name in ("LICENSE", "NOTICE"):
             wheel.write(ROOT / name, f"{metadata}/licenses/{name}")
@@ -59,7 +115,6 @@ def stage_teacher() -> None:
 def main() -> None:
     """Stage a self-contained runtime so visitor data never needs a remote service."""
     PUBLIC.mkdir(parents=True, exist_ok=True)
-    package_core()
     stage_teacher()
     runtime = ROOT / "frontend/node_modules/pyodide"
     lock = json.loads((runtime / "pyodide-lock.json").read_text())
@@ -101,6 +156,11 @@ def main() -> None:
             msg = f"Runtime checksum mismatch: {path}"
             raise ValueError(msg)
         shutil.copyfile(path, destination / path.name)
+    package_core(
+        tuple(
+            destination / lock["packages"][name]["file_name"] for name in ("pandas", "scikit-learn")
+        )
+    )
     shutil.copyfile(ROOT / "src/rowsetta/datasets/penguins.csv", PUBLIC / "penguins.csv")
     shell = BrowserShell(LiteTeacher(), browser_metadata("2026-11-11"))
     shell.workspace.load((PUBLIC / "penguins.csv").read_bytes(), "penguins.csv", max_rows=2000)

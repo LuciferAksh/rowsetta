@@ -10,12 +10,8 @@ from pydantic import BaseModel, Field
 
 from rowsetta.core.distill import disagreements, leaf_summary
 from rowsetta.core.errors import UserError, WorkspaceError
-from rowsetta.core.export.dbt import to_dbt
-from rowsetta.core.export.json import to_json
-from rowsetta.core.export.python import to_python
 from rowsetta.core.export.sql import NotExecuted, to_sql
 from rowsetta.core.features import teacher_frame
-from rowsetta.core.leaks import find_leaks
 from rowsetta.core.teacher import Teacher, predict_table, proposals_from_proba
 from rowsetta.core.workspace import ExportMetadata, Workspace
 
@@ -225,6 +221,8 @@ class BrowserShell:
                     "generation": w.generation,
                 }
             case "audit":
+                from rowsetta.core.leaks import find_leaks  # noqa: PLC0415 -- Optional route.
+
                 result = {
                     "leaks": [asdict(h) for h in find_leaks(w.require_table(), w.require_store())]
                 }
@@ -250,10 +248,16 @@ class BrowserShell:
             raise WorkspaceError(msg)
         match request.format:
             case "json":
+                from rowsetta.core.export.json import to_json  # noqa: PLC0415 -- Optional route.
+
                 return to_json(student, certificate=facts)
             case "python":
+                from rowsetta.core.export.python import to_python  # noqa: PLC0415 -- Optional route.
+
                 return facts.header().replace("-- ", "# ") + to_python(student)
             case "dbt":
+                from rowsetta.core.export.dbt import to_dbt  # noqa: PLC0415 -- Optional route.
+
                 return to_dbt(
                     student, source="source_data", certificate=facts, dialect=request.dialect
                 )
