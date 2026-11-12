@@ -7,11 +7,12 @@ from numpy.typing import NDArray
 
 from rowsetta.core.distill import direct_trees
 from rowsetta.core.features import teacher_frame
+from rowsetta.core.lite_teacher import LiteTeacher
 from rowsetta.core.session import LabelStore
 from rowsetta.core.table import Table
 from rowsetta.teachers.tabicl import TabICLTeacher
 
-LEARNERS = ("tabicl", "tabpfn", "forest", "logistic", "label_spreading", "self_training")
+LEARNERS = ("tabicl", "tabpfn", "forest", "lite", "logistic", "label_spreading", "self_training")
 STRATEGIES = ("ours", "random", "margin")
 FOREST_TREES = 300
 
@@ -39,8 +40,8 @@ def probabilities(name: str, table: Table, store: LabelStore, seed: int) -> NDAr
         student = direct_trees(table, store).tuned.student
         leaves = student.tree.apply(student.feature_spec.transform(frame))
         return np.asarray(student.tree.tree_.value[leaves, 0], dtype=np.float64)
-    if name == "tabicl":
-        teacher = TabICLTeacher()
+    if name in ("tabicl", "lite"):
+        teacher = TabICLTeacher() if name == "tabicl" else LiteTeacher()
         teacher.fit(frame.loc[rows], pd.Series(store.human).loc[rows])
         predictions = teacher.predict_proba(frame)
         return predictions[:, [teacher.classes.index(label) for label in store.classes]]

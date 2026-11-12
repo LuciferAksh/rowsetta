@@ -268,6 +268,41 @@ Settings: budgets=50; datasets=penguins; device=auto; learners=tabicl, tree; num
 | strategy | random |
 | total | hi=103.000000; lo=103.000000; mean=103.000000 |
 
+## Cold Start
+
+```json
+{
+  "browser": {
+    "git_sha": "b1c94232ca8c71d813862204ef95d65928efc39b",
+    "machine": "Darwin arm64 Python 3.13.16",
+    "results": [
+      {
+        "bytes": 43047823,
+        "first_proposals_seconds": 22.413567875000002,
+        "table_seconds": 1.1319136660000004,
+        "visit": "cold"
+      },
+      {
+        "bytes": 0,
+        "first_proposals_seconds": 14.081790749999996,
+        "table_seconds": 0.2017998340000013,
+        "visit": "warm"
+      }
+    ],
+    "script": "scripts/cold_start.py",
+    "settings": {
+      "device": "auto",
+      "numpy": "2.5.4",
+      "scikit_learn": "1.9.1",
+      "source_sha256": "4d8bb3ee0277b2a3dd26db216e5065a8ae7c7cf472b2d02b8790314fc0b2d129",
+      "teacher": "lite model",
+      "url": "http://127.0.0.1:4174/"
+    },
+    "wall_seconds": 70.23163066600682
+  }
+}
+```
+
 ## Distill
 
 Script: `scripts/bench_distill.py`. Revision: `b246830ff6fd88edbcc4dfe9483393e91f0a5a79`. Machine: Darwin arm64 Python 3.13.16. Wall seconds: 0.048176.
