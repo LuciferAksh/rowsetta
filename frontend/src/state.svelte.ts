@@ -75,6 +75,9 @@ export class Studio {
   refit = $state.raw<RefitProgress | null>(null);
   /** The last refused request or broken response; cleared by the next success. */
   problem = $state.raw<ErrorBody | null>(null);
+  runtimeFailure = $state.raw<ErrorBody | null>(null);
+  exportProblem = $state.raw<ErrorBody | null>(null);
+  tableContext = $state(0);
   connection = $state.raw<Connection>('connecting');
   page = $state.raw<TablePage | null>(null);
   /** Rows in the working table, from the last unfiltered page. */
@@ -116,6 +119,17 @@ export class Studio {
   constructor(backend: Backend) {
     this.#backend = backend;
     this.recovery = backend.recovery ?? null;
+  }
+
+  get refitting(): boolean {
+    const workspace = this.workspace;
+    return (
+      this.refit !== null ||
+      (workspace !== null &&
+        workspace.target !== null &&
+        workspace.refit_generation !== workspace.generation &&
+        Object.keys(workspace.missing).length === 0)
+    );
   }
 
   /** Follow server events, loading the state on each connection; returns a function that stops. */
@@ -184,6 +198,7 @@ export class Studio {
       this.#backend.uploadCsv(file),
       (next) => {
         this.#forgetTable();
+        this.tableContext += 1;
         this.page = null;
         this.proposals = NO_PROPOSALS;
         this.fileName = file.name;
@@ -200,6 +215,7 @@ export class Studio {
     await this.#settle(
       this.#backend.setTarget(input),
       (next) => {
+        this.tableContext += 1;
         this.#wholeTable = null;
         this.proposals = NO_PROPOSALS;
         this.#show(next);
@@ -224,11 +240,14 @@ export class Studio {
       (rule) => {
         this.rule = rule;
       },
+      true,
+      'export',
     );
   }
 
   /** Fit the rule at a depth, then export it in the chosen format with its certificate. */
   async exportRule(maxDepth: number): Promise<void> {
+    if (this.refitting) return;
     const context = this.#context;
     const workspace = this.workspace;
     this.exported = null;
@@ -238,7 +257,7 @@ export class Studio {
       context === this.#context &&
       workspace?.target === this.workspace?.target &&
       workspace?.generation === this.workspace?.generation &&
-      this.problem === null
+      this.exportProblem === null
     ) {
       await this.showExport(this.exportQuery);
     }
@@ -246,22 +265,30 @@ export class Studio {
 
   /** Show the fitted rule in another format or dialect. */
   showExport(query: ExportQuery): Promise<void> {
+    if (this.refitting) return Promise.resolve();
     this.exportQuery = query;
-    return this.#settle(this.#backend.exportRule(query), async (artifact) => {
-      // A slower answer for a format the user has already left is dropped.
-      if (this.exportQuery !== query) return;
-      this.exported = artifact;
-      const figures = certificateFigures(artifact);
-      if (figures.length > 0) this.certificate = figures;
-      if (this.certificate.length > 0) return;
-      // JSON carries the certificate as data; the SQL export states it as lines.
-      await this.#settle(
-        this.#backend.exportRule({ format: 'sql', dialect: 'duckdb' }),
-        (sql) => {
-          this.certificate = certificateFigures(sql);
-        },
-      );
-    });
+    return this.#settle(
+      this.#backend.exportRule(query),
+      async (artifact) => {
+        // A slower answer for a format the user has already left is dropped.
+        if (this.exportQuery !== query) return;
+        this.exported = artifact;
+        const figures = certificateFigures(artifact);
+        if (figures.length > 0) this.certificate = figures;
+        if (this.certificate.length > 0) return;
+        // JSON carries the certificate as data; the SQL export states it as lines.
+        await this.#settle(
+          this.#backend.exportRule({ format: 'sql', dialect: 'duckdb' }),
+          (sql) => {
+            this.certificate = certificateFigures(sql);
+          },
+          true,
+          'export',
+        );
+      },
+      true,
+      'export',
+    );
   }
 
   checkLeaks(): Promise<void> {
@@ -386,6 +413,7 @@ export class Studio {
     this.mode = { kind: 'label' };
     this.rule = null;
     this.exported = null;
+    this.exportProblem = null;
     this.certificate = [];
     this.leaks = [];
     this.suspects = null;
@@ -417,23 +445,32 @@ export class Studio {
     request: Promise<T>,
     take: (value: T) => void | Promise<void>,
     checkInputs = true,
+    scope: 'operation' | 'export' = 'operation',
   ): Promise<void> {
     const context = this.#context;
     const target = this.workspace?.target;
     const generation = this.workspace?.generation;
+    const query = this.exportQuery;
     const current = (): boolean =>
       context === this.#context &&
+      (scope !== 'export' || query === this.exportQuery) &&
       (!checkInputs ||
         (target === this.workspace?.target &&
           generation === this.workspace?.generation));
     try {
       const value = await request;
       if (!current()) return;
-      this.problem = null;
+      if (scope === 'export') this.exportProblem = null;
+      else this.problem = null;
       await take(value);
     } catch (error) {
       if (!(error instanceof BackendError)) throw error;
-      if (current()) this.problem = error.body;
+      if (current()) {
+        if (scope === 'export') {
+          this.exportProblem = error.body;
+          this.exported = null;
+        } else this.problem = error.body;
+      }
     }
   }
 
@@ -446,6 +483,7 @@ export class Studio {
         // A restarted server counts generations from zero again, so the
         // state after a reconnection replaces whatever was shown.
         void this.#settle(this.#backend.state(), (next) => {
+          this.runtimeFailure = next.failure;
           this.#show(next);
         });
         break;
@@ -464,7 +502,7 @@ export class Studio {
         void this.refresh();
         break;
       case 'malformed':
-        this.problem = event.failure;
+        this.runtimeFailure = event.failure;
         break;
     }
   }

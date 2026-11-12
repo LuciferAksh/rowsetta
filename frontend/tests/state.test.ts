@@ -67,6 +67,52 @@ function settled(): Promise<void> {
 }
 
 describe('following the server', () => {
+  it('keeps dbt operation errors separate from model health and recovers with SQL', async () => {
+    const error = {
+      error: 'Invalid dbt identifier: Risk category',
+      next_step: 'Choose SQL or Python.',
+    };
+    const studio = new Studio(
+      fakeBackend([], {
+        exportRule: (query) =>
+          query.format === 'dbt'
+            ? Promise.reject(new BackendError('rejected', error, 400))
+            : Promise.resolve({ format: 'sql', text: '-- SQL' }),
+      }).backend,
+    );
+    await studio.apply(Promise.resolve(at(2, 2)));
+    await studio.showExport({ format: 'dbt', dialect: 'duckdb' });
+    expect(studio.exportProblem).toEqual(error);
+    expect(studio.problem).toBeNull();
+    expect(studio.workspace?.failure).toBeNull();
+    await studio.showExport({ format: 'sql', dialect: 'duckdb' });
+    expect(studio.exportProblem).toBeNull();
+    expect(studio.exported).toEqual({ format: 'sql', text: '-- SQL' });
+  });
+
+  it('does not request an export or distillation during refit', async () => {
+    let requests = 0;
+    const studio = new Studio(
+      fakeBackend([], {
+        distill: () => {
+          requests += 1;
+          return Promise.resolve({
+            generation: 2,
+            leaf_summary: [],
+            disagreements: [],
+          });
+        },
+        exportRule: () => {
+          requests += 1;
+          return Promise.resolve({ format: 'sql', text: '-- SQL' });
+        },
+      }).backend,
+    );
+    await studio.apply(Promise.resolve(at(2, 1)));
+    await studio.exportRule(4);
+    await studio.showExport({ format: 'sql', dialect: 'duckdb' });
+    expect(requests).toBe(0);
+  });
   it('loads the state once the event stream connects', async () => {
     const server = fakeBackend([() => Promise.resolve(at(1))]);
     const studio = new Studio(server.backend);
@@ -153,7 +199,7 @@ describe('following the server', () => {
     expect(studio.workspace).toEqual(at(0));
   });
 
-  it('shows an event that broke the contract as the current problem', () => {
+  it('shows a broken event stream as a runtime failure', () => {
     const server = fakeBackend([]);
     const studio = new Studio(server.backend);
     studio.start();
@@ -165,7 +211,8 @@ describe('following the server', () => {
 
     server.send({ kind: 'malformed', failure });
 
-    expect(studio.problem).toEqual(failure);
+    expect(studio.runtimeFailure).toEqual(failure);
+    expect(studio.problem).toBeNull();
   });
 });
 
