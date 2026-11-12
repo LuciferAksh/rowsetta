@@ -444,6 +444,9 @@
     text-overflow: ellipsis;
   }
   thead th {
+    max-width: 22ch;
+    white-space: normal;
+    overflow-wrap: anywhere;
     position: sticky;
     top: 0;
     z-index: 3;

@@ -216,6 +216,7 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: end;
+    min-width: 0;
     gap: var(--space-2) var(--space-3);
     padding-top: var(--space-3);
     border-top: 1px solid var(--line);
@@ -226,6 +227,10 @@
   .stack:has(input[type='text']) label:first-of-type,
   .stack:has(input[type='text']) .field-error {
     grid-column: 1 / -1;
+  }
+  .stack fieldset {
+    min-width: 0;
+    max-width: 100%;
   }
   .target-line {
     font-weight: 600;
@@ -246,6 +251,7 @@
      fields as lines to write on, not a stack of boxes. */
   @media (max-width: 40rem) {
     .stack {
+      grid-template-columns: minmax(0, 1fr);
       border-top: 0;
       padding-top: var(--space-4);
     }

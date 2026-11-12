@@ -80,6 +80,13 @@ select {
   border-right: 1px solid #3d3f43;
 }
 
+.runtime-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .facts {
   display: flex;
   align-items: center;
@@ -91,6 +98,13 @@ select {
 
 .facts > * {
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.appbar .pill-button {
+  flex: none;
 }
 
 .facts .file {
@@ -104,7 +118,6 @@ select {
   color: var(--on-ink-quiet);
 }
 
-/* A short run of track: solid when the model is current, broken while it refits. */
 /* The model's state is a short line that reaches its terminus bar when the
    model is current, and runs broken while it refits. */
 .facts .state::before {
@@ -226,11 +239,11 @@ kbd {
   grid-template-columns: minmax(0, 1fr) minmax(0, 26rem);
   grid-template-areas:
     'alert alert'
+    'target target'
     'map map'
     'table table'
     'export eval'
-    'export target'
-    'leak target';
+    'leak eval';
   column-gap: var(--space-6);
   padding-bottom: var(--space-6);
 }
@@ -246,8 +259,7 @@ kbd {
   margin-right: 0;
 }
 
-.shell > .panel--eval,
-.shell > .panel--target {
+.shell > .panel--eval {
   margin-left: 0;
 }
 
@@ -384,7 +396,10 @@ input[type='range'] {
 }
 .segments label {
   position: relative;
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   margin: 0 -2px -2px 0;
   border: 2px solid var(--ink);
   padding: 0.3rem 0.7rem;
@@ -402,7 +417,8 @@ input[type='range'] {
 .segments input {
   position: absolute;
   opacity: 0;
-  inset: 0;
+  width: 1px;
+  height: 1px;
   margin: 0;
   cursor: pointer;
 }
@@ -563,8 +579,8 @@ progress:indeterminate {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
       'alert'
-      'map'
       'target'
+      'map'
       'table'
       'export'
       'eval'
