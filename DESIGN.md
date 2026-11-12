@@ -51,25 +51,30 @@ The glass rests with the doubted thread through its middle, and never on a
 station. When a row is picked the glass rides its thread from the origin and
 rests mid-route on the thread at the first point where it covers no capsule,
 no terminus, not the origin's count and not the key, and, if it can, no type
-either (`restAlong` in `frontend/src/transit.ts`). Where only type is in the
+either (`restAlong` in `frontend/src/transit.ts`); of the points that pass, it
+takes the one whose flat middle shows the most separate bands, where the
+bands part. Where only type is in the
 way, the type moves, not the glass: a station's name, or its two signs
 together, step just clear of the glass, up or down, whichever is shorter, and
 step back when it moves on. Only when no point on the thread passes does the
 glass slide off it (`restNear`). The glass is 184 by 128 px, sized so every
 doubted row in the demo has such a point. During Fix all the glass lifts off
 between drops (90 ms) and sets down at the next rest, so on no frame of the
-ride does it cross type. All map type carries a 4 px white knockout, and steps
+ride does it cross type. With nothing selected, after a ride or once a row is
+let go, the glass lifts off and leaves the map clear; picking a row, the arrow
+keys or a drag bring it back. All map type carries a 4 px white knockout, and steps
 back by colour rather than opacity, so no thread strikes through it.
 
 The middle is the live vector map, scaled. Around it a WebGL shader draws an
 18 px bevel of clear glass from the same enlarged picture of the map, painted
 on a canvas in the same frame. Toward the rim the bevel reads the map farther
-and farther out, up to 2.6 bevel widths (as the steepening face of a thick
-edge does), so every band that reaches the edge bends into it and crowds
-together there, with red, green and blue a pixel apart. The face toward the
+and farther out, up to 1.2 bevel widths (as the steepening face of a thick
+edge does), and blurs what it reads as it goes, so every band that reaches the
+edge bends into it and crowds softly together there, with red, green and blue
+a pixel apart. The face toward the
 top-left light brightens, the opposite face darkens, a bright specular line
-runs just inside the rim, strongest toward the light, a faint seam marks
-where the flat middle begins, and a hairline ink edge closes it
+runs just inside the rim, strongest toward the light, the bevel fades into
+the flat middle over two pixels, and a hairline ink edge closes it
 (`frontend/src/lens.ts`). Without WebGL, and until the shader is ready, a flat
 window with an ink ring stands in. While dragged, the glass stretches along
 its motion and springs back.
@@ -80,8 +85,10 @@ interchange it says how many rows meet there and which way they go, in words:
 it gives the line's counts and its first rows. A doubted row opens in place in
 the list with one sentence, "Labelled Chinstrap, it rides the Adelie line. The
 model reads it as Adelie.", each label with its line roundel, then the row's
-values as stops on one ruled line, a tick at each, the value above and its
-column's name below, and Fix and Keep.
+values as stops down one ruled line, as on a strip map: a tick at each, the
+value with its unit ("3900 g"), then the column's name, and Fix and Keep.
+Columns are named the same way everywhere: "bill length" on the map and in the
+row, "bill length mm" where no value carries the unit.
 
 ## Second moment: the re-route
 
@@ -98,21 +105,24 @@ through the doubts in rank order. The first three drops take about 0.8 s each,
 so the first is believed; the rest follow 250 ms apart. The drops run on the
 page; the labels go to the server one by one behind them, and the map holds
 the rule it had until the server has refitted on every new label and the new
-rule is in. Until then the headline counts the drops as they land, "9 fixed.
-Refitting…", and Finish now goes once the last drop is down. While the map steps
-back, each terminus taking a row stays in full ink and its count flashes its
+rule is in. Each fixed thread stays whole in its new line's colour, cased, at
+full strength, until then. The headline counts the drops as they land, "9
+fixed. Refitting…", and Finish now goes once the last drop is down. While the
+server refits, the glass lifts off, a progress line runs under the headline,
+and the lede says what is happening: "All 9 labels are in. The server is
+fitting the rule again on them; the map changes when it lands." Each sentence
+of the headline starts its own line, and a number never leaves its noun.
+While the map steps back, each terminus taking a row stays in full ink and its count flashes its
 line's colour as it changes, and the notice column stays on the list. Esc, or
-the button, now "Finish now", lands the rest at once. When the ride ends, and
-again once the refitted map lands, the glass settles on the nearest stretch of
-track that passes the same test (`clearSpot`), else on the nearest white with
-no track under it (`openSpot`). When the refitted rule lands, each old
+the button, now "Finish now", lands the rest at once. When the refitted rule lands, each old
 terminus whose rows now mostly reach a line that a larger old terminus also
-reaches was retired. It stays as a dashed bar where it stood, and the notice
-column lists it struck through, "Chinstrap, 5 rows merges into Chinstrap, 51
-rows", from the old and new rules. Two seconds after the new map is laid, the
-bars fold into their lines one after another and a count over the list runs
-down with each, 13 to 9. The headline then reports the change, for example
-"9 fixed, 4 fewer termini."
+reaches was retired. On the old map, still in place, each is struck through
+and its counts read "merges into Chinstrap, 51 rows", from the old and new
+rules. After two seconds they fold, one after another, into the terminus that
+takes their rows, while a count over the notice's merge list runs down with
+each, 13 to 9. Only then is the new map laid. The merge list stays until the
+next ride or check. The headline then reports the change: "9 fixed. 4 fewer
+termini."
 
 ## Tokens
 
@@ -181,17 +191,17 @@ against all the track, the capsules, the origin's count and the type already
 set (`labelChoices` and `layoutMap` in `frontend/src/transit.ts`), and the map
 is drawn narrower until every station's type ends before the roundel column.
 Termini take two lines: the answer, then the counts. The branch signs are set
-at 14 px, the names at 12. Rank roundels stand in
-their own column 24 px before the terminus bar, stacked about the terminus so
-they touch neither each other nor the bar, each joined to its thread by a
-short ink leader. Rows the audit doubts
+at 14 px, the names at 12. Rank roundels, 15 px across, stand in their own
+column 24 px before the terminus bar, each rank in its own slot 18 px from the
+next, stacked about the terminus, each joined to its thread by a short ink
+leader. Rows the audit doubts
 but that have too few values to place are listed under the doubts, not drawn,
 so the headline and the list count the same rows.
 
 Under 40rem the headline leads, with a still overview of the whole map under
 it: laid out at desk size without type and scaled to the column, with no glass.
-Its termini and rank roundels keep their desk size, initials and numbers at
-11 px, the ranks side by side before their terminus. An opened row's values sit
+Its termini and rank roundels keep their desk size, the ranks side by side
+before their terminus in the same 18 px slots. An opened row's values sit
 16 px in from its rule.
 Each doubted row then carries its own strip map, as in a train car: its
 label's line, a stop per test, the terminus bar and the roundel of the line it
