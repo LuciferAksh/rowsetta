@@ -42,7 +42,7 @@ const server = spawn(
   },
 );
 const headers = {
-  Cookie: `rowsetta_session=${token}`,
+  Cookie: `rowsetta_session_${new URL(origin).port}=${token}`,
   "Content-Type": "application/json",
 };
 async function request(path, options = {}) {
@@ -89,7 +89,7 @@ try {
     viewport: { width: 1280, height: 720 },
   });
   await context.addCookies([
-    { name: "rowsetta_session", value: token, url: origin },
+    { name: `rowsetta_session_${new URL(origin).port}`, value: token, url: origin },
   ]);
   const page = await context.newPage();
   let holdState = false;

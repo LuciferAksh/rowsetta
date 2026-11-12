@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createRequire } from "node:module";
@@ -60,7 +60,7 @@ try {
   const response = await fetch(`${origin}/target`, {
     method: "POST",
     headers: {
-      Cookie: `rowsetta_session=${token}`,
+      Cookie: `rowsetta_session_${new URL(origin).port}=${token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ target: "species" }),
@@ -76,7 +76,11 @@ try {
     reducedMotion: "reduce",
   });
   await context.addCookies([
-    { name: "rowsetta_session", value: token, url: origin },
+    {
+      name: `rowsetta_session_${new URL(origin).port}`,
+      value: token,
+      url: origin,
+    },
   ]);
   const page = await context.newPage();
   const errors = [];
@@ -111,9 +115,33 @@ try {
       timeout: 900_000,
     });
     await expect(page.getByText(/wrong line|Fix all 9/)).toHaveCount(0);
+    await page.evaluate(
+      () =>
+        new Promise((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(resolve)),
+        ),
+    );
     await page.evaluate(() => scrollTo(0, 0));
     await page.screenshot({ path: `docs/${name}.png`, animations: "disabled" });
     console.log(`Captured docs/${name}.png (${width}×${height})`);
+  }
+  const shots = process.env.ROWSETTA_FIX_SHOTS;
+  if (shots !== undefined) {
+    await mkdir(shots, { recursive: true });
+    for (const [width, height] of [
+      [1440, 900],
+      [390, 844],
+    ]) {
+      await page.setViewportSize({ width, height });
+      await page.evaluate(() => {
+        document.documentElement.style.zoom = "1";
+      });
+      await page.evaluate(() => scrollTo(0, 0));
+      await page.screenshot({
+        path: join(shots, `rule-${width}x${height}.png`),
+        animations: "disabled",
+      });
+    }
   }
   expect(errors).toEqual([]);
 } finally {
