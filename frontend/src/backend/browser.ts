@@ -34,7 +34,6 @@ export function createBrowserBackend(): Backend {
     for (const listener of listeners) listener(event);
   };
   let sequence = 0;
-  let lastMutation = 0;
   let snapshot: WorkspaceState;
   let firstPage: TablePage;
   let runtimeFailure: ErrorBody | null = null;
@@ -56,7 +55,8 @@ export function createBrowserBackend(): Backend {
       'rejected',
       {
         error: message,
-        next_step: 'Reload this page to retry the browser runtime.',
+        next_step:
+          'Browser labels are held in memory and will be lost if you reload or close this tab. Reload to retry the runtime only after recording any labels you need.',
       },
       null,
     );
@@ -138,29 +138,15 @@ export function createBrowserBackend(): Backend {
 
   async function mutate(
     message: Record<string, unknown>,
-    optimistic?: (state: WorkspaceState) => WorkspaceState,
   ): Promise<WorkspaceState> {
     await initial;
-    const mutation = ++lastMutation;
-    const queued = !runtimeLoading.ready && optimistic !== undefined;
-    if (queued) snapshot = optimistic(snapshot);
-    const result = call(message).then((value) => {
-      const state = decode.workspaceState(value, 'state');
-      if (mutation === lastMutation) {
-        runtimeFailure = null;
-        snapshot = state;
-        emit({ kind: 'refit_done', generation: state.generation });
-      }
-      return state;
-    });
-    if (!queued) return result;
-    void result.catch((error: unknown) => {
-      const failure =
-        error instanceof BackendError ? error.body : failed(String(error)).body;
-      runtimeFailure = failure;
-      emit({ kind: 'refit_failed', failure });
-    });
-    return snapshot;
+    const state = decode.workspaceState(await call(message), 'state');
+    if (state.generation >= snapshot.generation) {
+      runtimeFailure = null;
+      snapshot = state;
+      emit({ kind: 'refit_done', generation: state.generation });
+    }
+    return state;
   }
 
   return {
@@ -217,49 +203,8 @@ export function createBrowserBackend(): Backend {
       );
     },
     setTarget: (input) =>
-      mutate(
-        { action: 'target', ...input, classes: input.classes ?? [] },
-        (state) => ({
-          ...state,
-          target: input.target,
-          classes: input.classes ?? [],
-          human: {},
-          proposals: {},
-          confidence: {},
-          generation: state.generation + 1,
-          refit_generation: null,
-          missing: Object.fromEntries(
-            (input.classes ?? []).map((label) => [label, 2]),
-          ),
-        }),
-      ),
-    setLabel: (row, input) =>
-      mutate({ action: 'label', row, ...input }, (state) => {
-        const human: Record<string, string> = Object.fromEntries(
-          Object.entries(state.human).filter(([key]) => key !== String(row)),
-        );
-        if (input.label !== null) human[String(row)] = input.label;
-        const missing = Object.fromEntries(
-          state.classes
-            .map((label): [string, number] => [
-              label,
-              Math.max(
-                0,
-                2 -
-                  Object.values(human).filter((value) => value === label)
-                    .length,
-              ),
-            ])
-            .filter(([, count]) => count !== 0),
-        );
-        return {
-          ...state,
-          human,
-          missing,
-          generation: state.generation + 1,
-          refit_generation: null,
-        };
-      }),
+      mutate({ action: 'target', ...input, classes: input.classes ?? [] }),
+    setLabel: (row, input) => mutate({ action: 'label', row, ...input }),
     undo: () => mutate({ action: 'undo' }),
     nextEvalRow: async () =>
       decode.nextEvalRow(await call({ action: 'eval' }), 'eval'),

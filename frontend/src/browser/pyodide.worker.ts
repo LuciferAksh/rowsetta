@@ -192,16 +192,16 @@ onmessage = (event: MessageEvent<Start | Command>) => {
         }
       }
       postMessage({ kind: 'result', id: data.id, value });
-    } catch (error) {
+    } catch {
       postMessage({
         kind: 'result',
         id: data.id,
         value: JSON.stringify({
           ok: false,
           error: {
-            error: error instanceof Error ? error.message : String(error),
+            error: 'The browser runtime could not complete this operation.',
             next_step:
-              'Reload the page. Labels can be saved with Save session before reloading.',
+              'Try the operation again. Browser labels are held in memory and will be lost if you reload or close this tab.',
           },
         }),
       });
