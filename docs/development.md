@@ -90,9 +90,9 @@ Sources: `https://pypi.org/pypi/<package>/json` and
 - `make browser` builds the static demo in `site/`. Chromium with WebGPU uses
   TabICLv2; other browsers use the labelled lite-model fallback. See ADR 0003,
   ADR 0007 and ADR 0009 for the runtime decisions.
-- Browser-demo labels live in memory and are lost on reload or when the tab
-  closes. The local app saves labels in its existing session storage; reopening
-  the same CSV restores its session.
+- The browser demo saves labels in the browser's local storage. Reopen the same
+  CSV and target to restore or discard saved labels. The local app saves labels
+  in its session storage; reopening the same CSV restores its session.
 - `make demo-gif` records and validates `docs/demo.gif`.
 - Release runs on a `v*` tag; Pages and the install smoke run only when
   dispatched or called by the release.

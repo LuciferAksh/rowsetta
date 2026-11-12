@@ -30,7 +30,7 @@ bytes, teachers, random generators and persistence in.
 | `table.py` | `load_csv` parses CSV bytes into a `Table`, samples files above the row cap with seed 7 and infers each column's kind. |
 | `errors.py` | `UserError` and its subclasses, each with `what` and `next_step`. |
 | `session.py` | `LabelStore`: classes, human labels, the blind evaluation sample, undo history and threshold, serialized as the session file (`docs/session.schema.json`). |
-| `features.py` | `teacher_frame` drops the target, excluded columns and free-text columns. |
+| `features.py` | `teacher_frame` drops the target, excluded columns and text columns inferred as free text with more than half of values distinct. |
 | `teacher.py` | The `Teacher` protocol, `predict_table` (fit on human labels, predict the rest in batches) and `proposals_from_proba` (abstain below the threshold). |
 | `active.py` | `next_row`, the active-learning choice of the next row to label. |
 | `evaluation.py` | Accuracy, balanced accuracy and per-class recall on the served evaluation rows. |

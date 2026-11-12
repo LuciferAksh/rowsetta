@@ -15,7 +15,6 @@ The 3 fps contact sheets below were inspected at 640 px per frame:
 - `demo-sheet-02.png`: the SQL panel and certificate caption remain visible in
   both sampled frames. Blank tiles are padding after the end of the GIF.
 
-Captions remain inside the frame and no spinner appears. The product's SQL
-panel scrolls horizontally, so the long `SELECT` line is clipped at its right
-edge; this is a remaining limitation against the no-clipped-text review gate.
+Captions remain inside the frame and no spinner appears. The SQL wraps in the
+panel, keeping the long `SELECT` line visible.
 The first session's evaluation and the audit export are separate real runs.

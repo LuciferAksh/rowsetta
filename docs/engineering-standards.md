@@ -68,9 +68,11 @@ here so contributors work to the same bar.
 - TypeScript: `strict` with `noUncheckedIndexedAccess` and
   `exactOptionalPropertyTypes`; typescript-eslint `strictTypeChecked`; Prettier;
   Vitest for units; Playwright and axe-core for the interface.
-- Pre-commit hooks run format, lint, type check and gitleaks. `make check` runs
-  all of them plus the tests and the copy check; CI runs the same on every pull
-  request, and `main` stays green.
+- Pre-commit hooks run format, lint, type checks and gitleaks for matching files.
+  `make check` runs Ruff format and lint checks, Pyright, pytest excluding model
+  and PostgreSQL tests, the OpenAPI comparison, the copy check, and frontend
+  Prettier, ESLint, Svelte, TypeScript and Vitest checks. It does not run
+  gitleaks or Playwright.
 
 ## 5. Repository hygiene
 

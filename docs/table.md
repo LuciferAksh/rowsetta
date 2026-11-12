@@ -10,12 +10,10 @@ aliases.
 Every CLI-facing `next_step` starts with a named executable command. When a fix
 happens outside the product, the smallest concrete external command comes first
 and the recovery sentence follows it. `BadCsvError` starts with
-`iconv -f WINDOWS-1252 -t UTF-8 data.csv > data.csv.utf8.csv`, then
-"Save it as UTF-8 CSV with a comma, semicolon or tab separator, then run
-`rowsetta open data.csv`". WINDOWS-1252 is a concrete conversion
-example; replace it with the actual source encoding. Conversion writes a
-separate file. Save the corrected CSV under the original name before running
-the open command. Encoding conversion alone cannot repair malformed CSV
+`iconv -f WINDOWS-1252 -t UTF-8 data.csv > data.csv.utf8.csv && rowsetta open data.csv.utf8.csv`.
+WINDOWS-1252 is a concrete conversion example; replace it with the actual source
+encoding. Conversion writes and opens a separate file. Encoding conversion
+alone cannot repair malformed CSV
 records; those still need correction or re-export. File and output names are
 shell-quoted.
 
