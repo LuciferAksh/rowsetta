@@ -1071,7 +1071,7 @@
         : `${String(fixedCount)} fixed. Every doubted label rides its own line.`;
     }
     return studio.suspects === null
-      ? `${String(termini)} lines carry every row.`
+      ? `${String(termini)} ${termini === 1 ? 'line carries' : 'lines carry'} every row.`
       : 'No doubted label disagrees with the teacher.';
   });
   /** The headline's sentences, each set on its own line; the spaces stay for reading aloud. */
