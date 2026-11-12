@@ -7,15 +7,13 @@ names satisfy Ruff N818 without exclusions: `FileTooLargeError`,
 `TooManyColumnsError` and `BadCsvError` in `core/errors.py`. There are no
 aliases.
 
-Every CLI-facing `next_step` starts with a named executable command. When a fix
-happens outside the product, the smallest concrete external command comes first
-and the recovery sentence follows it. `BadCsvError` starts with
+Recovery text gives the smallest concrete repair for the failure. Header-only
+CSV asks for at least one data row; malformed records ask for correction or
+re-export. Encoding failures give a conversion example:
 `iconv -f WINDOWS-1252 -t UTF-8 data.csv > data.csv.utf8.csv && rowsetta open data.csv.utf8.csv`.
-WINDOWS-1252 is a concrete conversion example; replace it with the actual source
-encoding. Conversion writes and opens a separate file. Encoding conversion
-alone cannot repair malformed CSV
-records; those still need correction or re-export. File and output names are
-shell-quoted.
+WINDOWS-1252 is an example; replace it with the actual source encoding.
+Conversion writes and opens a separate file, with shell-quoted names. It
+cannot repair malformed records. Not every repair starts with an executable.
 
 ## Acquisition and provenance
 

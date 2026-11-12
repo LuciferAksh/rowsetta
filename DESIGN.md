@@ -29,7 +29,8 @@ it answers with its row counts beside it. Each band is split into parallel lines
 by the label the rows carry, in that label's line colour, proposals paler than
 a person's labels.
 
-The label audit runs as soon as ten rows are labelled. A row whose label the
+The label audit runs once every class has at least five human labels.
+Proposals and the rule start at two labels per class. A row whose label the
 model doubts rides the map as a thin thread in its given label's colour, cased
 in ink, on the line the rule sends it down, with its rank in a roundel at the
 terminus. A Chinstrap thread on the Adelie line is visible at a glance. The
@@ -58,9 +59,8 @@ way, the type moves, not the glass: a station's name, or its two signs
 together, step just clear of the glass, up or down, whichever is shorter, and
 step back when it moves on. Only when no point on the thread passes does the
 glass slide off it (`restNear`). The glass is 184 by 128 px, sized so every
-doubted row in the demo has such a point. During Fix all the glass lifts off
-between drops (90 ms) and sets down at the next rest, so on no frame of the
-ride does it cross type. With nothing selected, after a ride or once a row is
+doubted row in the demo has such a point. Each suggested change is reviewed
+individually with Change to or Keep in the row’s reading. With nothing selected, after a ride or once a row is
 let go, the glass lifts off and leaves the map clear; picking a row, the arrow
 keys or a drag bring it back. All map type carries a 4 px white knockout, and steps
 back by colour rather than opacity, so no thread strikes through it.
@@ -86,13 +86,13 @@ it gives the line's counts and its first rows. A doubted row opens in place in
 the list with one sentence, "Labelled Chinstrap, it rides the Adelie line. The
 model reads it as Adelie.", each label with its line roundel, then the row's
 values as stops down one ruled line, as on a strip map: a tick at each, the
-value with its unit ("3900 g"), then the column's name, and Fix and Keep.
+value with its unit ("3900 g"), then the column's name, and Change to and Keep.
 Columns are named the same way everywhere: "bill length" on the map and in the
 row, "bill length mm" where no value carries the unit.
 
 ## Second moment: the re-route
 
-Press Fix and the glass moves onto the thread first. The rest of the map steps
+Press Change to and the glass moves onto the thread first. The rest of the map steps
 back to a fifth of its strength, and the moving thread is drawn 6 px wide in
 ink casing. The new label's colour runs along the thread from the origin to its
 terminus at an even speed, edged in white so it reads over a band of the same
@@ -100,21 +100,13 @@ colour (900 ms). Then, inside the glass, the lifted thread slides across the
 band's hairlines into its new colour group (760 ms), the glass following the
 thread as it goes, and the map comes back. The terminus it reaches, left in
 plain view, ticks its count over once. If the fix changes the rule's shape, the old map lifts (220 ms) and the
-new rule is laid from the origin rightward (1100 ms). Fix all is one ride
-through the doubts in rank order. The first three drops take about 0.8 s each,
-so the first is believed; the rest follow 250 ms apart. The drops run on the
-page; the labels go to the server one by one behind them, and the map holds
-the rule it had until the server has refitted on every new label and the new
-rule is in. Each fixed thread stays whole in its new line's colour, cased, at
-full strength, until then. The headline counts the drops as they land, "9
-fixed. Refitting…", and Finish now goes once the last drop is down. While the
-server refits, the glass lifts off, a progress line runs under the headline,
-and the lede says what is happening: "All 9 labels are in. The server is
-fitting the rule again on them; the map changes when it lands." Each sentence
-of the headline starts its own line, and a number never leaves its noun.
-While the map steps back, each terminus taking a row stays in full ink and its count flashes its
-line's colour as it changes, and the notice column stays on the list. Esc, or
-the button, now "Finish now", lands the rest at once. When the refitted rule lands, each old
+new rule is laid from the origin rightward (1100 ms). Each change requires an
+individual review: Change to applies the suggested class, and Keep leaves the
+human label in place. There is no bulk correction. While the server refits,
+the glass lifts off and the map holds its previous rule until the new one
+lands. A progress line and the lede explain the update. Each sentence of the
+headline starts its own line, and a number never leaves its noun.
+When the refitted rule lands, each old
 terminus whose rows now mostly reach a line that a larger old terminus also
 reaches was retired. On the old map, still in place, each is struck through
 and its counts read "merges into Chinstrap, 51 rows", from the old and new
@@ -158,7 +150,7 @@ after first paint, in its own chunk. Device pixel ratio is capped at 2, and at 1
 under 640 px wide.
 
 Under `prefers-reduced-motion`, the map and lens appear finished, the lens does
-not stretch, and Fix changes the label at once. Without WebGL the lens is an ink
+not stretch, and Change to changes the label at once. Without WebGL the lens is an ink
 ring around the same hairline view, so every reading still works.
 
 ## Layout
@@ -167,12 +159,13 @@ An ink app bar names the file, target and row count, and shows the model's
 state as a short run of track ending at a terminus bar: solid when current,
 broken while it refits. The
 keyboard sheet opens from a quiet "Shortcuts" link with a `?` key cap,
-the cap alone on a phone. Below it, the notice column (23rem) and
-the map share one viewport, with Fix all and Check again directly under the
-lede so they sit in the first viewport at 1440 by 900. The key to widths and
-threads sits in the map's empty lower left, left-aligned to the origin. Below
-that: the table, then export and the rule's lines on the left, with accuracy
-and the file and target form on the right, then the leak list. Each of the
+the cap alone on a phone. Table and target setup comes next, expanded until
+a target is selected, then collapsed behind Change table or target. The notice
+column (23rem) and the map share the next viewport, with Check again and
+individual Change to / Keep actions in each opened reading. The key to widths
+and threads sits in the map's empty lower left, aligned to the origin. Below
+that: the table, then export and the rule's lines beside accuracy, then the
+leak list. Each of the
 rule's lines is a vertical strip map in its line colour: a stop per test, then
 the terminus bar and the answer's roundel, so each line of SQL matches a
 terminus on the map. The file input is the map's origin: an ink dot and its
@@ -190,7 +183,10 @@ precision so the sign set stays the same (`bill length < 48.8` reads
 against all the track, the capsules, the origin's count and the type already
 set (`labelChoices` and `layoutMap` in `frontend/src/transit.ts`), and the map
 is drawn narrower until every station's type ends before the roundel column.
-Termini take two lines: the answer, then the counts. The branch signs are set
+Termini take two lines: the answer, then the counts. SVG labels are measured
+in the rendered font and truncated to the available width, with full text in
+a title. Phone route stops use the same measured truncation. Reading fields
+and Change to / Keep buttons wrap, including unbroken class names. The branch signs are set
 at 14 px, the names at 12. Rank roundels, 15 px across, stand in their own
 column 24 px before the terminus bar, each rank in its own slot 18 px from the
 next, stacked about the terminus, each joined to its thread by a short ink
@@ -257,9 +253,11 @@ and the glass loupe are used by no sibling.
 Connecting (a running line), no table (the open-a-file panel alone), an error
 (an ink-bordered banner with its next step), refit in progress (the map waits
 for the refit and says so, and "model updating" in the app bar), a table with
-no target, fewer than ten labels (the map says to label a few rows), a rule with no
+no target, insufficient class support (the audit names the missing labels), a rule with no
 doubts, every doubt fixed or kept, a doubted row with most values missing
 (listed with its count of missing values, not drawn as a thread), long labels
-and long names (ellipsis with the full text in a title), and many columns. In
+and long names (wrapped readings and controls; measured SVG ellipses with
+full text in a title), and many columns. The 24-row long-value audit fixture
+is checked at 390×844 and 1440×900. In
 the dev server, `/?state=empty`, `error`, `refit` and `loading` show the ones
 the demo server cannot hold still.
