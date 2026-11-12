@@ -1,11 +1,10 @@
 <script lang="ts">
-  import AuditList from './AuditList.svelte';
   import { createBackend } from './backend/http';
   import EvalPanel from './EvalPanel.svelte';
   import ExportPanel from './ExportPanel.svelte';
   import KeySheet from './KeySheet.svelte';
+  import Interchange from './Interchange.svelte';
   import LeakList from './LeakList.svelte';
-  import Leaders from './Leaders.svelte';
   import { Studio } from './state.svelte';
   import TableView from './TableView.svelte';
   import TargetPicker from './TargetPicker.svelte';
@@ -68,9 +67,7 @@
         studio.keySheetOpen = true;
       }}
     >
-      <span class="pill-long">Keyboard shortcuts&nbsp;</span><span
-        class="pill-key">(?)</span
-      >
+      <span class="pill-long">Shortcuts</span><kbd class="pill-key">?</kbd>
     </button>
   {/if}
 </header>
@@ -88,13 +85,15 @@
       <p>Connecting to the local server.</p>
     </div>
   {:else}
+    {#if loaded && workspace.target !== null}
+      <Interchange {studio} />
+    {/if}
     <TargetPicker {studio} />
     {#if loaded}
       <!-- Above the table in reading order, so a filter that shortens the table
       never moves a line under a resting pointer and changes the filter again. -->
       <ExportPanel {studio} />
       <TableView {studio} />
-      <AuditList {studio} />
       <EvalPanel {studio} />
       <LeakList {studio} />
     {/if}
@@ -103,5 +102,4 @@
   <p role="status" class="visually-hidden">
     {#key studio.announcement}{studio.announcement?.text ?? ''}{/key}
   </p>
-  <Leaders {studio} />
 </main>

@@ -51,7 +51,7 @@ test.describe('table and target', () => {
     await expect(page.getByText('Opened bank_leak.csv.')).toBeVisible();
     await expect(page.getByRole('table')).toContainText('of 5000');
 
-    await page.getByLabel('Existing column').selectOption('y');
+    await page.getByRole('radio', { name: /^y\b/ }).check();
     await page
       .getByRole('button', { name: 'Use its values as labels' })
       .click();
@@ -98,7 +98,7 @@ test.describe('table and target', () => {
   }) => {
     const cells = await openPenguins(page);
 
-    await page.getByLabel('Existing column').selectOption('species');
+    await page.getByRole('radio', { name: /^species\b/ }).check();
     await page
       .getByRole('button', { name: 'Use its values as labels' })
       .click();

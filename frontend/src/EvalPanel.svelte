@@ -103,7 +103,7 @@
   .recall {
     display: grid;
     gap: var(--space-1);
-    font-family: var(--font-data);
+    font-family: var(--font-ui);
     font-size: var(--step--1);
     border-top: 1px solid var(--line);
     padding-top: var(--space-2);

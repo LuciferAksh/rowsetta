@@ -95,15 +95,15 @@ export class Studio {
   leaks = $state.raw<readonly LeakHint[]>([]);
   /** `null` until the labels are checked, and again once they change. */
   suspects = $state.raw<readonly Suspect[] | null>(null);
-  /** Suspect rows the marker pass has reached, which the margin then shows. */
-  marked = $state.raw<ReadonlySet<number>>(new SvelteSet());
   /** Suspect rows the user chose to let stand (stet). */
   kept = $state.raw<ReadonlySet<number>>(new SvelteSet());
-  /** The suspect row whose slip and row are joined, or `null`. */
+  /** The doubted row the map's lens is reading, or `null`. */
   selectedRow = $state.raw<number | null>(null);
   /** The file last opened in this tab; the server does not name a table. */
   fileName = $state.raw<string | null>(null);
   keySheetOpen = $state.raw(false);
+  /** The depth the shown rule was fitted at, so a redraw keeps it. */
+  ruleDepth = $state.raw(DEFAULT_RULE_DEPTH);
 
   readonly #backend: Backend;
   #requestedPage = 0;
@@ -173,7 +173,8 @@ export class Studio {
     return this.apply(this.#backend.setExcluded(column, { excluded }));
   }
 
-  showRule(maxDepth: number = DEFAULT_RULE_DEPTH): Promise<void> {
+  showRule(maxDepth: number = this.ruleDepth): Promise<void> {
+    this.ruleDepth = maxDepth;
     return this.#settle(
       this.#backend.distill({ max_depth: maxDepth }),
       (rule) => {
@@ -224,9 +225,13 @@ export class Studio {
     return this.#settle(this.#backend.suspects(), (ranked) => {
       this.kept = new SvelteSet();
       this.selectedRow = null;
-      this.marked = new SvelteSet();
       this.suspects = ranked;
     });
+  }
+
+  /** Every working row by id, fetched once per table. */
+  wholeTable(): Promise<WholeTable> {
+    return this.#table();
   }
 
   /** Let a flagged label stand (stet), or take that back. */
@@ -329,7 +334,6 @@ export class Studio {
     this.certificate = [];
     this.leaks = [];
     this.suspects = null;
-    this.marked = new SvelteSet();
     this.kept = new SvelteSet();
     this.selectedRow = null;
     if (this.filter !== null) void this.filterRows(null);

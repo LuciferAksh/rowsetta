@@ -51,14 +51,20 @@
 <section class="panel panel--export" aria-labelledby="export-heading">
   <h2 id="export-heading">Export</h2>
   <div class="controls">
-    <label>
-      Tree depth
-      <select bind:value={depth}>
-        {#each RULE_DEPTHS as option (option)}
-          <option value={option}>{option}</option>
-        {/each}
-      </select>
-    </label>
+    <fieldset class="segments">
+      <legend>Tree depth</legend>
+      {#each RULE_DEPTHS as option (option)}
+        <label>
+          <input
+            type="radio"
+            name="rule-depth"
+            value={option}
+            bind:group={depth}
+          />
+          {option}
+        </label>
+      {/each}
+    </fieldset>
     <button
       type="button"
       class="button button-solid"
@@ -134,11 +140,9 @@
 <style>
   .controls {
     display: flex;
+    flex-wrap: wrap;
     align-items: flex-end;
     gap: var(--space-3);
-  }
-  .controls label {
-    flex: 0 0 7rem;
   }
   .certificate {
     display: grid;
@@ -146,45 +150,8 @@
     border: 2px solid var(--ink);
     background: var(--sheet-quiet);
     padding: var(--space-3);
-    font-family: var(--font-data);
+    font-family: var(--font-ui);
     font-size: var(--step--1);
     overflow-wrap: anywhere;
-  }
-  .segments {
-    flex-wrap: nowrap;
-    gap: var(--space-2);
-  }
-  .segments legend {
-    float: none;
-    width: 100%;
-    margin-bottom: var(--space-1);
-  }
-  .segments {
-    display: flex;
-    flex-wrap: wrap;
-  }
-  .segments label {
-    position: relative;
-    border: 1.5px solid var(--edge);
-    border-radius: 6px;
-    padding: 0.35rem 0.75rem;
-    cursor: pointer;
-    font-weight: 600;
-  }
-  .segments label:has(:checked) {
-    background: var(--ink);
-    border-color: var(--ink);
-    color: var(--on-ink);
-  }
-  .segments label:has(:focus-visible) {
-    outline: 2px solid var(--ink);
-    outline-offset: 2px;
-  }
-  .segments input {
-    position: absolute;
-    opacity: 0;
-    inset: 0;
-    margin: 0;
-    cursor: pointer;
   }
 </style>

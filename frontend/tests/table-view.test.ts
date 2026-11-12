@@ -172,9 +172,11 @@ describe('table view', () => {
     const firstPage = show(await studioWith([STATE], { ...PAGE, page: 0 }));
     const lastPage = show(await studioWith([STATE], { ...PAGE, page: 3 }));
 
-    expect(firstPage).toMatch(/<button[^>]*disabled[^>]*>\s*Previous page/);
-    expect(firstPage).not.toMatch(/disabled[^>]*>\s*Next page/);
-    expect(lastPage).toMatch(/<button[^>]*disabled[^>]*>\s*Next page/);
+    expect(firstPage).toMatch(
+      /<button[^>]*disabled[^>]*aria-label="Previous page"/,
+    );
+    expect(firstPage).not.toMatch(/disabled[^>]*aria-label="Next page"/);
+    expect(lastPage).toMatch(/<button[^>]*disabled[^>]*aria-label="Next page"/);
   });
 
   it('renders no table until a page arrives', async () => {

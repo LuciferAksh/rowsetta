@@ -12,12 +12,12 @@ import EvalPanel from '../src/EvalPanel.svelte';
 import { evaluationText, recallText } from '../src/evaluation';
 import { certificateFigures } from '../src/certificate';
 import ExportPanel from '../src/ExportPanel.svelte';
-import AuditList from '../src/AuditList.svelte';
 import LeakList from '../src/LeakList.svelte';
 import { disagreementLines, lineFilter, ruleLineText } from '../src/rule';
 import RuleView from '../src/RuleView.svelte';
 import { Studio } from '../src/state.svelte';
 import TableView from '../src/TableView.svelte';
+import Interchange from '../src/Interchange.svelte';
 import TargetPicker from '../src/TargetPicker.svelte';
 import { fakeBackend } from './fake-backend';
 
@@ -270,7 +270,7 @@ describe('panels', () => {
     expect(body).toContain('Include column y_after');
   });
 
-  it('lists flagged labels in table order and marks one already changed', async () => {
+  it('lists doubted labels in rank order and marks one already changed', async () => {
     const studio = new Studio(
       fakeBackend([], {
         suspects: () =>
@@ -281,13 +281,13 @@ describe('panels', () => {
       }).backend,
     );
     await studio.apply(Promise.resolve(STATE));
-    const before = render(AuditList, { props: { studio } }).body;
+    const before = render(Interchange, { props: { studio } }).body;
     expect(before).not.toContain('Row 1');
     await studio.checkLabels();
-    const { body } = render(AuditList, { props: { studio } });
-    expect(body.indexOf('Row 0')).toBeLessThan(body.indexOf('Row 1'));
-    expect(text(body)).toContain('Row 1 · no → yes (4%)');
-    expect(body).toContain('(now yes)');
+    const { body } = render(Interchange, { props: { studio } });
+    expect(body.indexOf('Row 1')).toBeLessThan(body.indexOf('Row 0'));
+    expect(text(body)).toContain('Row 1 now yyes 4.0%');
+    expect(text(body)).toMatch(/Row 0 nno\sto\sno 90\.0%/);
   });
 
   it('lists the rule as numbered buttons', async () => {
@@ -377,8 +377,11 @@ describe('export panel', () => {
     const { body } = render(ExportPanel, {
       props: { studio: await studioWith() },
     });
-    expect(body.match(/<option /g)).toHaveLength(5);
-    expect(body).toMatch(/<option value="4"[^>]* selected/);
+    const depths = body.match(/<input[^>]*name="rule-depth"[^>]*>/g) ?? [];
+    expect(depths).toHaveLength(5);
+    expect(depths.filter((input) => input.includes('checked'))).toEqual([
+      expect.stringContaining('value="4"'),
+    ]);
     expect(body).not.toContain('<pre>');
   });
 

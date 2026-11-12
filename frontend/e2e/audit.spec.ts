@@ -1,11 +1,9 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { openPenguins } from './session';
 
-test('checking an existing column lists a wrong label first and opens its row', async ({
-  page,
-}) => {
+async function labelSpeciesWithOneWrong(page: Page): Promise<Locator> {
   const cells = await openPenguins(page);
-  await page.getByLabel('Existing column').selectOption('species');
+  await page.getByRole('radio', { name: /^species\b/ }).check();
   await page.getByRole('button', { name: 'Use its values as labels' }).click();
   await expect(cells.first()).toHaveText('Labelled Adelie');
   const relabel = await page.request.put('/labels/0', {
@@ -14,36 +12,41 @@ test('checking an existing column lists a wrong label first and opens its row', 
   expect(relabel.ok()).toBe(true);
   await page.reload();
   await expect(cells.first()).toHaveText('Labelled Gentoo');
+  return cells;
+}
 
-  await page.getByRole('button', { name: 'Check these' }).click();
-
-  const list = page.getByRole('region', { name: 'Check existing labels' });
-  const suspects = list.getByRole('listitem');
-  await expect(suspects).toHaveCount(10);
-  const first = suspects.first().locator('button.main');
-  await expect(first).toContainText('Row 0 · Gentoo →');
-
-  await first.click();
-  const focused = page.locator('tbody tr', {
-    has: page.locator('button:focus'),
-  });
-  await expect(focused.getByRole('rowheader')).toHaveText('0');
-});
-
-test('interrupting the marker pass shows every slip at once', async ({
+test('the audit lists a wrong label first and the lens reads its row', async ({
   page,
 }) => {
-  await openPenguins(page);
-  await page.getByLabel('Existing column').selectOption('species');
-  await page.getByRole('button', { name: 'Use its values as labels' }).click();
-  await page.request.put('/labels/0', {
-    data: { label: 'Gentoo', mode: 'human' },
-  });
-  await page.reload();
-  await page.getByRole('button', { name: 'Check these' }).click();
-  const list = page.getByRole('region', { name: 'Check existing labels' });
-  await expect(list.getByRole('listitem').first()).toBeVisible();
-  await page.keyboard.press('Shift');
-  // The full pass takes several seconds; an interrupt must not wait for it.
-  await expect(list.getByRole('listitem').last()).toBeVisible({ timeout: 400 });
+  await labelSpeciesWithOneWrong(page);
+
+  const list = page.getByRole('list', { name: 'Labels the model doubts most' });
+  const first = list.getByRole('listitem').first().getByRole('button').first();
+  await expect(first).toContainText('Row 0', { timeout: 60_000 });
+  await expect(first).toContainText('Gentoo to');
+
+  // The most doubted row opens by itself; its button folds and unfolds it.
+  await expect(first).toHaveAttribute('aria-expanded', 'true');
+  await first.click();
+  await expect(first).toHaveAttribute('aria-expanded', 'false');
+  await first.click();
+  const card = page.locator('#interchange .reading');
+  await expect(card).toContainText(/Gentoo, it rides the \w+ line/);
+  await expect(card.getByRole('button', { name: /^Fix to / })).toBeVisible();
+});
+
+test('fixing a doubted label re-routes it onto its line', async ({ page }) => {
+  const cells = await labelSpeciesWithOneWrong(page);
+
+  const list = page.getByRole('list', { name: 'Labels the model doubts most' });
+  const first = list.getByRole('listitem').first().getByRole('button').first();
+  await expect(first).toContainText('Row 0', { timeout: 60_000 });
+  await expect(first).toHaveAttribute('aria-expanded', 'true');
+  const fix = page.getByRole('button', { name: /^Fix to / });
+  const likely = ((await fix.textContent()) ?? '').replace('Fix to ', '');
+  await fix.click();
+
+  // The new label follows its line roundel, whose initial is part of the text.
+  await expect(first).toContainText(`now ${likely.slice(0, 1)}${likely}`);
+  await expect(cells.first()).toHaveText(`Labelled ${likely}`);
 });

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { SvelteSet } from 'svelte/reactivity';
   import { tick, untrack } from 'svelte';
   import type { Cell } from './backend/types';
   import { shownSuspects } from './audit';
@@ -10,6 +9,7 @@
     rowLabelText,
     tableCommand,
   } from './labelling';
+  import { lineColour } from './palette';
   import { columnDecimals, disagreementLines } from './rule';
   import type { Studio } from './state.svelte';
 
@@ -34,87 +34,6 @@
   let active = $state(0);
   let menuRow = $state<number | null>(null);
   const cells: (HTMLButtonElement | null)[] = [];
-
-  // The marker pass: a finished audit tours its worst rows in rank order, one
-  // stroke after another. Any input interrupts it, and the rest are marked at once.
-  const TOUR_ROWS = 6;
-  const SCROLL_MS = 420;
-  const STROKE_MS = 520;
-  const INTERRUPTS = ['wheel', 'keydown', 'pointerdown'] as const;
-  let pass: AbortController | null = null;
-
-  function wait(ms: number, signal: AbortSignal): Promise<void> {
-    return new Promise((resolve) => {
-      const timer = setTimeout(resolve, ms);
-      signal.addEventListener(
-        'abort',
-        () => {
-          clearTimeout(timer);
-          resolve();
-        },
-        { once: true },
-      );
-    });
-  }
-
-  async function runPass(): Promise<void> {
-    pass?.abort();
-    const control = new AbortController();
-    const interrupted = () => control.signal.aborted;
-    pass = control;
-    const ranked = [...suspects.values()]
-      .filter((item) => item.state === 'open')
-      .sort((a, b) => a.rank - b.rank);
-    const everyRow = new SvelteSet(ranked.map((item) => item.suspect.row_id));
-    if (ranked.length === 0) return;
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      studio.marked = everyRow;
-      return;
-    }
-    const stop = (): void => {
-      control.abort();
-    };
-    for (const type of INTERRUPTS) {
-      addEventListener(type, stop, { once: true, passive: true });
-    }
-    document.addEventListener('visibilitychange', stop, { once: true });
-    let done = new SvelteSet<number>();
-    studio.marked = done;
-    const onPage = ranked.filter((item) =>
-      page?.row_ids.includes(item.suspect.row_id),
-    );
-    if (onPage.length === 0 && studio.filter === null) {
-      const [first] = ranked;
-      if (first) await studio.goToRow(first.suspect.row_id);
-    }
-    for (const { suspect } of onPage.slice(0, TOUR_ROWS)) {
-      if (control.signal.aborted) break;
-      const row = document.getElementById(`row-${String(suspect.row_id)}`);
-      if (!row) continue;
-      row.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      await wait(SCROLL_MS, control.signal);
-      if (interrupted()) break;
-      done = new SvelteSet(done).add(suspect.row_id);
-      studio.marked = done;
-      await wait(STROKE_MS, control.signal);
-    }
-    for (const type of INTERRUPTS) removeEventListener(type, stop);
-    document.removeEventListener('visibilitychange', stop);
-    // A newer pass or a reset owns `marked` now; do not overwrite it.
-    if (pass === control) studio.marked = everyRow;
-  }
-
-  $effect(() => {
-    // Only a new audit result starts a pass, never a relabelled row.
-    if (studio.suspects === null) {
-      pass?.abort();
-      pass = null;
-      return;
-    }
-    untrack(() => {
-      void runPass();
-    });
-  });
 
   function chipText(state: ReturnType<typeof rowLabel>): {
     lead: string;
@@ -146,11 +65,13 @@
       : display(value);
   }
 
+  /** Read a doubted row on the map: the lens travels to its thread. */
   function pick(rowId: number): void {
     studio.selectedRow = rowId;
+    const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
     document
-      .getElementById(`slip-${String(rowId)}`)
-      ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      .getElementById('interchange')
+      ?.scrollIntoView({ block: 'start', behavior: calm ? 'auto' : 'smooth' });
   }
 
   $effect(() => {
@@ -289,23 +210,22 @@
         <tbody>
           {#each page.row_ids as rowId, index (rowId)}
             {@const info = suspects.get(rowId)}
-            {@const drawn =
-              info !== undefined &&
-              info.state !== 'fixed' &&
-              studio.marked.has(rowId)}
+            {@const drawn = info !== undefined && info.state !== 'fixed'}
             {@const label = rowLabel(rowId, human, studio.proposals)}
             {@const text = chipText(label)}
             <tr
               id={`row-${String(rowId)}`}
               aria-rowindex={first + index + 2}
               class:suspect={drawn && info.state === 'open'}
-              class:stetted={drawn && info.state === 'stet'}
               class:selected={studio.selectedRow === rowId}
               class:filtered={studio.filter !== null}
-              style:--rank={info?.rank}
-              data-rough={(info?.rank ?? 0) % 3}
             >
-              <th scope="row" class="id">{rowId}</th>
+              <th scope="row" class="id"
+                >{rowId}{#if drawn && info.state === 'open'}<span
+                    class="rank"
+                    aria-hidden="true">{info.rank + 1}</span
+                  >{/if}</th
+              >
               {#each columns as column (column.name)}
                 {@const value = page.rows[index]?.[column.name]}
                 <td
@@ -342,9 +262,14 @@
                       onkeydown={(event) => {
                         onCellKey(event, index, rowId);
                       }}
-                      ><span class="visually-hidden">{text.lead}</span><span
-                        class="word">{text.word}</span
-                      ><span class="visually-hidden">{text.tail}</span></button
+                      ><span class="visually-hidden">{text.lead}</span
+                      >{#if label.kind === 'human' || label.kind === 'proposed'}<span
+                          class="dot"
+                          style:--route={lineColour(classes, label.label)}
+                          aria-hidden="true"
+                        ></span>{/if}<span class="word">{text.word}</span><span
+                        class="visually-hidden">{text.tail}</span
+                      ></button
                     >
                     {#if mode.kind === 'evaluate' && mode.row === rowId}
                       <span class="note">Evaluation row: label it blind</span>
@@ -360,20 +285,24 @@
                         class="mark"
                         class:mark--stet={info.state === 'stet'}
                         tabindex="-1"
-                        aria-label={`Show the note for row ${String(rowId)}`}
+                        aria-label={`Read row ${String(rowId)} on the map`}
                         onclick={() => {
                           pick(rowId);
                         }}
                       >
                         {#if info.state === 'stet'}
-                          <span class="stet-word">stet</span>
+                          kept
                         {:else}
-                          <svg viewBox="0 0 38 20" aria-hidden="true">
-                            <path
-                              pathLength="1"
-                              d="M4 16 C1 7 15 2 15 9 C15 15 6 14 9 8 C12 3 23 7 35 5"
-                            />
-                          </svg>
+                          reads <span
+                            class="bullet"
+                            style:background={lineColour(
+                              classes,
+                              info.suspect.likely,
+                            )}
+                            aria-hidden="true"
+                            >{info.suspect.likely.slice(0, 1)}</span
+                          >
+                          {info.suspect.likely}
                         {/if}
                       </button>
                     {/if}
@@ -415,8 +344,9 @@
         onclick={() => {
           showPage(page.page - 1);
         }}
+        aria-label="Previous page"
       >
-        Previous page
+        Previous
       </button>
       <button
         type="button"
@@ -425,8 +355,9 @@
         onclick={() => {
           showPage(page.page + 1);
         }}
+        aria-label="Next page"
       >
-        Next page
+        Next
       </button>
       <span class="where"
         >Rows {first + 1} to {first + page.row_ids.length} of {page.total}</span
@@ -438,9 +369,6 @@
 <style>
   .sheet {
     --header-height: 2.25rem;
-    --rough-0: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 10' preserveAspectRatio='none'%3E%3Cpath d='M0 .4 L96 .2 L98.6 1.6 L97 3 L99.6 4.6 L97.8 6 L99.2 7.6 L96.5 8.8 L97.4 9.7 L0 9.6Z'/%3E%3C/svg%3E");
-    --rough-1: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 10' preserveAspectRatio='none'%3E%3Cpath d='M0 .2 L97.5 .6 L99 2.2 L96.8 3.8 L98.4 5.2 L99.8 6.8 L97 8.2 L98.8 9.8 L0 9.5Z'/%3E%3C/svg%3E");
-    --rough-2: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 10' preserveAspectRatio='none'%3E%3Cpath d='M0 .5 L95 .3 L97.6 2 L99.2 3.4 L96.4 5 L98.6 6.6 L96 8 L98 9.6 L0 9.8Z'/%3E%3C/svg%3E");
     grid-area: table;
     background: var(--sheet);
     border: 2px solid var(--ink);
@@ -491,7 +419,7 @@
     border-spacing: 0;
     width: 100%;
     min-width: max-content;
-    font-family: var(--font-data);
+    font-family: var(--font-ui);
     font-size: var(--step--1);
     font-variant-numeric: tabular-nums;
   }
@@ -554,7 +482,7 @@
   }
   thead .label-col {
     z-index: 4;
-    font-family: var(--font-data);
+    font-family: var(--font-ui);
     border-left: 0;
   }
   tbody tr:hover > * {
@@ -567,17 +495,20 @@
     gap: var(--space-2);
   }
 
-  /* A label is its class and nothing else; the outline says a person gave it. */
+  /* A label is its class on its line's mark: a solid dot when a person gave
+     it, a ring when the rule proposed it, a dashed ring when the rule is unsure. */
   .chip {
     appearance: none;
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
     font-family: var(--font-ui);
     font-size: var(--step--1);
     font-weight: 600;
     line-height: 1.1;
-    padding: 0.26rem 0.55rem;
-    border-radius: 4px;
-    border: 1px solid transparent;
+    padding: 0.26rem 0.2rem;
+    border: 0;
     background: transparent;
     color: var(--ink);
     max-width: 14rem;
@@ -586,8 +517,20 @@
     white-space: nowrap;
     vertical-align: middle;
   }
-  .chip--human {
-    border-color: var(--edge);
+  .dot {
+    flex: none;
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 50%;
+    background: var(--route);
+  }
+  .chip--proposed .dot {
+    background: transparent;
+    border: 2px solid var(--route);
+  }
+  .chip:hover .word {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
   }
   .chip--proposed {
     color: var(--ink-2);
@@ -595,16 +538,27 @@
     font-style: italic;
   }
   .chip--unsure {
-    border-style: dashed;
-    border-color: var(--edge);
     color: var(--ink-2);
     font-weight: 500;
+  }
+  .chip--unsure::before {
+    content: '';
+    flex: none;
+    width: 0.7rem;
+    height: 0.7rem;
+    box-sizing: border-box;
+    border-radius: 50%;
+    border: 2px dashed var(--ink-3);
   }
   .chip--unlabelled {
     color: var(--ink-3);
   }
+  /* No label yet: a short stretch of track with no line colour. */
   .chip--unlabelled::before {
-    content: '—';
+    content: '';
+    width: 0.9rem;
+    height: 2px;
+    background: currentColor;
   }
   .chip--stale {
     opacity: 0.8;
@@ -628,6 +582,16 @@
     padding: var(--space-2) var(--space-3);
     border-top: 1px solid var(--line);
   }
+  /* Paging is a pair of words on a rule, not two more boxes. */
+  nav .button {
+    border-width: 0 0 2px;
+    background: transparent;
+    padding: 0.2rem 0;
+    margin-right: var(--space-3);
+  }
+  nav .button:disabled {
+    border-color: var(--line);
+  }
   .where {
     margin-left: auto;
     font-size: var(--step--1);
@@ -635,52 +599,28 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /*
-   * The marker pass, on transform and opacity only. One stroke is dragged
-   * across the row from the left; its edge is ragged, and later strokes are
-   * thinner and paler as the marker runs dry. The strike is drawn through the
-   * class word, then the proofreader's loop is written in the margin.
-   */
-  tr {
-    --rough: var(--rough-0);
-  }
-  tr[data-rough='1'] {
-    --rough: var(--rough-1);
-  }
-  tr[data-rough='2'] {
-    --rough: var(--rough-2);
-  }
-  tr.suspect {
-    position: relative;
-  }
-  tr.suspect::after {
-    content: '';
-    position: absolute;
-    inset: calc(1px + var(--rank, 0) * 0.8px) 0;
-    background: var(--mark-stroke);
-    mix-blend-mode: multiply;
-    opacity: calc(0.95 - var(--rank, 0) * 0.04);
-    -webkit-mask: var(--rough) center / 100% 100% no-repeat;
-    mask: var(--rough) center / 100% 100% no-repeat;
-    pointer-events: none;
-    z-index: 2;
-    transform-origin: left center;
-    animation: stroke var(--sweep-ms) cubic-bezier(0.2, 0.8, 0.2, 1) both;
-  }
-  tr.suspect .word::after {
-    content: '';
-    position: absolute;
-    left: -2px;
-    right: -2px;
-    top: 52%;
-    height: 2.5px;
-    background: var(--mark-text);
-    transform-origin: left center;
-    animation: strike 220ms cubic-bezier(0.6, 0, 0.2, 1) 220ms both;
-  }
+  /* A doubted row: its rank roundel, and the line the model reads it on. */
   tr.suspect > .id {
     color: var(--ink);
     font-weight: 700;
+  }
+  .rank {
+    display: inline-grid;
+    place-items: center;
+    width: 1.35rem;
+    height: 1.35rem;
+    margin-left: 0.45rem;
+    border-radius: 50%;
+    background: var(--ink);
+    color: var(--on-ink);
+    font-family: var(--font-ui);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    vertical-align: middle;
+  }
+  tr.suspect .word {
+    text-decoration: line-through;
+    text-decoration-thickness: 2px;
   }
   tr.selected > * {
     box-shadow:
@@ -692,54 +632,36 @@
   }
   .mark {
     appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
     background: transparent;
     border: 0;
-    padding: 0;
+    padding: 0.2rem 0;
     cursor: pointer;
-    color: var(--mark-text);
-    line-height: 0;
-  }
-  .mark svg {
-    width: 2.3rem;
-    height: 1.2rem;
-    overflow: visible;
-  }
-  .mark path {
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 1.8;
-    stroke-linecap: round;
-    stroke-dasharray: 1;
-    animation: scribble 380ms cubic-bezier(0.5, 0, 0.2, 1) 260ms both;
-  }
-  .stet-word {
     font-family: var(--font-ui);
-    font-style: italic;
     font-size: var(--step--1);
+    font-weight: 500;
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+  .mark:hover {
+    color: var(--ink);
+    text-decoration: underline;
+  }
+  .mark--stet {
     font-weight: 700;
     color: var(--ink);
-    border-bottom: 2px dotted var(--ink);
-    animation: note-in 220ms ease-out both;
   }
-  @keyframes stroke {
-    from {
-      transform: scaleX(0);
-    }
-  }
-  @keyframes strike {
-    from {
-      transform: scaleX(0);
-    }
-  }
-  @keyframes scribble {
-    from {
-      stroke-dashoffset: 1;
-    }
-  }
-  @keyframes note-in {
-    from {
-      opacity: 0;
-    }
+  .bullet {
+    display: inline-grid;
+    place-items: center;
+    width: 1.1rem;
+    height: 1.1rem;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 0.625rem;
+    font-weight: 700;
   }
 
   @media (max-width: 62rem) {

@@ -71,7 +71,7 @@
     border: 1px solid var(--line);
   }
   .name {
-    font-family: var(--font-data);
+    font-family: var(--font-ui);
     font-weight: 700;
     overflow-wrap: anywhere;
   }

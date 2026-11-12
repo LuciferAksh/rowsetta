@@ -87,9 +87,12 @@
     }}
   >
     <h3 id="drop-heading">Open a CSV</h3>
-    <label>
-      Choose or drop a CSV file
+    <!-- The file is where every row enters, so it is drawn as the map's origin. -->
+    <label class="origin">
+      <span class="dot" aria-hidden="true"></span>
+      <span>Choose or drop a CSV file</span>
       <input
+        class="visually-hidden"
         type="file"
         accept=".csv,text/csv"
         onchange={(event) => {
@@ -125,15 +128,21 @@
     {/if}
 
     <form class="stack" onsubmit={useColumn}>
-      <label>
-        Existing column
-        <select bind:value={column}>
-          <option value={undefined} disabled>Choose a column</option>
-          {#each columns as option (option.name)}
-            <option value={option.name}>{option.name} ({option.kind})</option>
-          {/each}
-        </select>
-      </label>
+      <fieldset class="segments">
+        <legend>Existing column</legend>
+        {#each columns as option (option.name)}
+          <label>
+            <input
+              type="radio"
+              name="target-column"
+              value={option.name}
+              bind:group={column}
+            />
+            {option.name}
+            <span class="visually-hidden">({option.kind})</span>
+          </label>
+        {/each}
+      </fieldset>
       <button type="submit" class="button">Use its values as labels</button>
     </form>
 
@@ -163,16 +172,44 @@
   .drop {
     display: grid;
     gap: var(--space-2);
-    padding: var(--space-3) var(--space-4);
-    border: 2px dashed var(--edge);
-    background: var(--sheet-quiet);
-  }
-  .drop:hover,
-  .drop:focus-within {
-    border-color: var(--ink);
   }
   .drop h3 {
     font-size: var(--step-0);
+  }
+  .origin {
+    flex-direction: row;
+    align-items: center;
+    gap: 0;
+    font-size: var(--step-0);
+    font-weight: 700;
+    cursor: pointer;
+  }
+  /* An origin dot with its first stretch of track. */
+  .dot {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--ink);
+  }
+  .dot::after {
+    content: '';
+    display: block;
+    width: 2.5rem;
+    height: 5px;
+    margin: 4.5px 0 0 12px;
+    background: var(--ink);
+  }
+  .origin .dot {
+    margin-right: 3.2rem;
+  }
+  .origin:hover span:last-of-type {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+  .origin:focus-within {
+    outline: 2px solid var(--ink);
+    outline-offset: 4px;
   }
   .stack {
     display: grid;
@@ -202,5 +239,54 @@
     color: var(--ink-2);
     font-size: var(--step-1);
     line-height: 1.4;
+  }
+
+  /* On a phone the columns to choose from read as stops on one line, and the
+     fields as lines to write on, not a stack of boxes. */
+  @media (max-width: 40rem) {
+    .stack {
+      border-top: 0;
+      padding-top: var(--space-4);
+    }
+    .stack fieldset {
+      flex-direction: column;
+      align-items: stretch;
+      flex-wrap: nowrap;
+      margin-left: 6px;
+      border-left: 3px solid var(--ink);
+    }
+    .stack fieldset legend {
+      margin: 0 0 var(--space-2) calc(-6px - 3px);
+    }
+    .stack fieldset label {
+      margin: 0;
+      border: 0;
+      padding: 0.45rem 0 0.45rem var(--space-4);
+      background: none;
+      color: var(--ink);
+    }
+    .stack fieldset label::before {
+      content: '';
+      position: absolute;
+      left: -10.5px;
+      top: 50%;
+      width: 12px;
+      height: 12px;
+      margin-top: -6px;
+      border: 2.5px solid var(--ink);
+      border-radius: 50%;
+      background: var(--sheet);
+    }
+    .stack fieldset label:has(:checked) {
+      background: none;
+      color: var(--ink);
+    }
+    .stack fieldset label:has(:checked)::before {
+      background: var(--ink);
+    }
+    .stack input[type='text'] {
+      border-width: 0 0 2px;
+      padding-inline: 0;
+    }
   }
 </style>
