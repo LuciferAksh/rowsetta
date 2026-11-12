@@ -2,3 +2,5 @@ allowBuilds:
   protobufjs: true
 minimumReleaseAgeExclude:
   - vite@8.3.6
+patchedDependencies:
+  forecast-web: patches/forecast-web.patch

@@ -1,4 +1,7 @@
 import { loadPyodide } from 'pyodide';
+import { loadTeacher } from './teacher';
+import { predictRefit } from './refit';
+import { supportsBrowserTeacher } from './config';
 
 interface Command {
   id: number;
@@ -42,8 +45,10 @@ async function start({ base, today }: Start) {
     throw new Error('Cannot load the runtime manifest. Reload this page.');
   const assets = manifest(await response.json());
   const cache = await caches.open('rowsetta-browser-v1');
-  const total = Object.values(assets).reduce(
-    (sum, asset) => sum + asset.bytes,
+  const isModel = (name: string) =>
+    name.startsWith('weights/') || name.startsWith('ort/');
+  const total = Object.entries(assets).reduce(
+    (sum, [name, asset]) => sum + (isModel(name) ? 0 : asset.bytes),
     0,
   );
   let done = 0;
@@ -79,7 +84,7 @@ async function start({ base, today }: Start) {
       if (result === null) throw new Error(`Runtime checksum mismatch: ${url}`);
       await cache.put(url, result.clone());
     }
-    if (!counted.has(url)) {
+    if (!isModel(url.slice(base.length)) && !counted.has(url)) {
       counted.add(url);
       done += asset.bytes;
     }
@@ -96,6 +101,26 @@ async function start({ base, today }: Start) {
       throw error;
     });
   postMessage({ kind: 'loading', done, total });
+  const browserNavigator: { gpu?: GPU } = navigator;
+  const adapter = supportsBrowserTeacher(navigator.userAgent)
+    ? ((await browserNavigator.gpu?.requestAdapter()) ?? null)
+    : null;
+  const model = adapter
+    ? loadTeacher(`${base}weights`, 4, {
+        wasmPaths: `${base}ort/`,
+        onProgress: (progress) => {
+          postMessage({ kind: 'model-loading', progress });
+        },
+      })
+    : Promise.resolve(null);
+  // Observe model failures while runtime packages are still loading.
+  void model.catch((error: unknown) => {
+    postMessage({ kind: 'fatal', error: String(error) });
+  });
+  postMessage({
+    kind: 'teacher',
+    fullModel: adapter !== null,
+  });
   const py = await loadPyodide({ indexURL: `${base}runtime/` });
   await py.loadPackage([
     'numpy',
@@ -110,7 +135,7 @@ import micropip
 await micropip.install(${JSON.stringify(`${base}rowsetta_browser_core-0.1.0-py3-none-any.whl`)}, deps=False)
 from rowsetta.browser_shell import BrowserShell, browser_metadata
 from rowsetta.core.lite_teacher import LiteTeacher
-browser = BrowserShell(LiteTeacher(), browser_metadata(${JSON.stringify(today)}))
+browser = BrowserShell(${adapter ? 'None' : 'LiteTeacher()'}, browser_metadata(${JSON.stringify(today)}, full_model=${adapter ? 'True' : 'False'}))
 `);
   const csvResponse = await fetch(`${base}penguins.csv`);
   const csv = await csvResponse.text();
@@ -118,8 +143,11 @@ browser = BrowserShell(LiteTeacher(), browser_metadata(${JSON.stringify(today)})
 browser.workspace.load(${JSON.stringify(csv)}.encode(), 'penguins.csv', max_rows=2000)
 browser.workspace.set_target('species', ('Adelie', 'Chinstrap', 'Gentoo'))
 `);
+  const teacher = await model;
+  if (teacher !== null && teacher.backend !== 'webgpu')
+    throw new Error('Expected the WebGPU teacher');
   postMessage({ kind: 'ready' });
-  return py;
+  return { py, teacher };
 }
 
 let runtime: ReturnType<typeof start> | undefined;
@@ -140,11 +168,29 @@ onmessage = (event: MessageEvent<Start | Command>) => {
   commands = commands.then(async () => {
     try {
       if (started === undefined) throw new Error('Runtime has not started');
-      const py = await started;
-      const value: unknown = await py.runPythonAsync(
-        `browser.call(${JSON.stringify(data.message)})`,
+      const { py, teacher } = await started;
+      let value: unknown = await py.runPythonAsync(
+        `browser.call(${JSON.stringify(data.message)}, refit=${teacher === null ? 'True' : 'False'})`,
       );
       if (typeof value !== 'string') throw new Error('Invalid Python response');
+      const response: unknown = JSON.parse(value);
+      if (
+        teacher !== null &&
+        typeof response === 'object' &&
+        response !== null &&
+        'ok' in response &&
+        response.ok === true &&
+        'refit' in response &&
+        typeof response.refit === 'string'
+      ) {
+        const result = await predictRefit(teacher, response.refit);
+        if (result !== null) {
+          await py.runPythonAsync(
+            `browser.publish_refit(${JSON.stringify(result)})`,
+          );
+          value = await py.runPythonAsync(`browser.call('{"action":"state"}')`);
+        }
+      }
       postMessage({ kind: 'result', id: data.id, value });
     } catch (error) {
       postMessage({

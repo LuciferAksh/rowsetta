@@ -5,6 +5,7 @@ from dataclasses import asdict, replace
 from datetime import date
 from typing import Literal
 
+import numpy as np
 from pydantic import BaseModel, Field
 
 from rowsetta.core.distill import disagreements, leaf_summary
@@ -13,8 +14,9 @@ from rowsetta.core.export.dbt import to_dbt
 from rowsetta.core.export.json import to_json
 from rowsetta.core.export.python import to_python
 from rowsetta.core.export.sql import NotExecuted, to_sql
+from rowsetta.core.features import teacher_frame
 from rowsetta.core.leaks import find_leaks
-from rowsetta.core.teacher import Teacher, predict_table
+from rowsetta.core.teacher import Teacher, predict_table, proposals_from_proba
 from rowsetta.core.workspace import ExportMetadata, Workspace
 
 BROWSER_MAX_ROWS = 2_000
@@ -68,10 +70,18 @@ class BrowserRequest(BaseModel):
     file_name: str = "data.csv"
 
 
+class BrowserPrediction(BaseModel):
+    """Validate asynchronous WebGPU output before publishing proposals."""
+
+    generation: int
+    classes: tuple[str, ...]
+    probabilities: list[list[float]]
+
+
 class BrowserShell:
     """Own a tab's workspace, leaving runtime loading and messages to JavaScript."""
 
-    def __init__(self, teacher: Teacher, metadata: ExportMetadata) -> None:
+    def __init__(self, teacher: Teacher | None, metadata: ExportMetadata) -> None:
         self.workspace = Workspace(max_bytes=BROWSER_MAX_BYTES)
         self.teacher = teacher
         self.metadata = metadata
@@ -127,8 +137,49 @@ class BrowserShell:
     def refit(self) -> None:
         """Only human rows train the teacher; evaluation rows remain predictions."""
         w = self.workspace
-        if w.store is not None and not w.missing_labels():
+        if self.teacher is not None and w.store is not None and not w.missing_labels():
             w.publish(predict_table(self.teacher, w.require_table(), w.store), w.generation)
+
+    def refit_input(self) -> str:
+        """Send only human labels to the tab-local WebGPU worker."""
+        w = self.workspace
+        if (
+            w.store is None
+            or w.missing_labels()
+            or (w.proposals is not None and w.proposals.generation == w.generation)
+        ):
+            return "null"
+        labels = w.store.training_rows()
+        frame = teacher_frame(w.require_table(), w.store).frame.loc[list(w.store.source.row_ids())]
+        if not within_browser_fit_limit(len(labels), len(frame.columns)):
+            message = "This fit exceeds the browser model's 20,000-cell limit."
+            raise WorkspaceError(
+                message,
+                "Use fewer labelled rows or features, or open the table in the local app.",
+            )
+        return json.dumps(
+            {
+                "generation": w.generation,
+                "train": json.loads(frame.loc[list(labels)].to_json(orient="values")),
+                "labels": list(labels.values()),
+                "test": json.loads(frame.to_json(orient="values")),
+            }
+        )
+
+    def publish_refit(self, message: str) -> None:
+        """Reject stale or malformed probabilities at the worker boundary."""
+        result = BrowserPrediction.model_validate_json(message)
+        w = self.workspace
+        if result.generation != w.generation:
+            message = "Model result has a stale generation."
+            raise ValueError(message)
+        proposals = proposals_from_proba(
+            np.asarray(result.probabilities, dtype=np.float64),
+            result.classes,
+            w.require_store(),
+            generation=result.generation,
+        )
+        w.publish(proposals, result.generation)
 
     def mutate(self, request: BrowserRequest) -> None:
         """Change only inputs; all derived results are invalidated by Workspace."""
@@ -155,7 +206,7 @@ class BrowserShell:
                 msg = f"Not an input mutation: {request.action}"
                 raise ValueError(msg)
 
-    def execute(self, request: BrowserRequest) -> object:
+    def execute(self, request: BrowserRequest, *, refit: bool = True) -> object:
         """Apply one validated command and return its public result."""
         w = self.workspace
         result: object
@@ -184,7 +235,8 @@ class BrowserShell:
             case _:
                 if request.action != "state":
                     self.mutate(request)
-                    self.refit()
+                    if refit:
+                        self.refit()
                 result = self.state()
         return result
 
@@ -208,22 +260,35 @@ class BrowserShell:
             case "sql":
                 return to_sql(student, dialect=request.dialect, certificate=facts)
 
-    def call(self, message: str) -> str:
+    def call(self, message: str, *, refit: bool = True) -> str:
         """Keep structured recovery errors intact across the worker boundary."""
         try:
-            result = self.execute(BrowserRequest.model_validate_json(message))
-            return json.dumps({"ok": True, "value": result}, allow_nan=False)
+            request = BrowserRequest.model_validate_json(message)
+            result = self.execute(request, refit=refit)
+            pending = "null"
+            if not refit and request.action in {
+                "load",
+                "target",
+                "label",
+                "undo",
+                "exclude",
+                "threshold",
+            }:
+                pending = self.refit_input()
+            return json.dumps({"ok": True, "value": result, "refit": pending}, allow_nan=False)
         except UserError as error:
             return json.dumps(
                 {"ok": False, "error": {"error": error.what, "next_step": error.next_step}}
             )
 
 
-def browser_metadata(today: str) -> ExportMetadata:
+def browser_metadata(today: str, *, full_model: bool = False) -> ExportMetadata:
     """Use the browser-supplied date rather than hiding a clock in core."""
     return ExportMetadata(
         date.fromisoformat(today),
         "0.1.0",
-        "lite model (random forest), not TabICLv2",
-        "not applicable (lite model)",
+        "TabICLv2 (WebGPU)" if full_model else "lite model (random forest), not TabICLv2",
+        "bdc7dbd5e4ff21f8f0456fcf90c6b7cdf72dbea960f2d05b19bec19f9b3d4ed0"
+        if full_model
+        else "not applicable (lite model)",
     )

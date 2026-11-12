@@ -162,13 +162,16 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  forecast-web: 086bfb13f452f4489dc965c1a2374be88d82625f761289d3fc57b20a50c213a2
+
 importers:
 
   .:
     dependencies:
       forecast-web:
         specifier: file:vendor/forecast-web-1.0.0.tgz
-        version: file:vendor/forecast-web-1.0.0.tgz
+        version: file:vendor/forecast-web-1.0.0.tgz(patch_hash=086bfb13f452f4489dc965c1a2374be88d82625f761289d3fc57b20a50c213a2)
       svelte:
         specifier: 5.57.3
         version: 5.57.3(@typescript-eslint/types@8.72.1)
@@ -2215,7 +2218,7 @@ snapshots:
 
   flatted@3.4.4: {}
 
-  forecast-web@file:vendor/forecast-web-1.0.0.tgz:
+  forecast-web@file:vendor/forecast-web-1.0.0.tgz(patch_hash=086bfb13f452f4489dc965c1a2374be88d82625f761289d3fc57b20a50c213a2):
     dependencies:
       onnxruntime-web: 1.31.1
 

@@ -72,3 +72,57 @@ def test_browser_rejects_column_prefill_and_invalid_label(shell: BrowserShell) -
     response = json.loads(shell.call('{"action":"label","row":99999,"label":"Adelie"}'))
     assert response["ok"] is False
     assert shell.workspace.max_bytes == BROWSER_MAX_BYTES
+
+
+def test_external_teacher_keeps_eval_rows_out_of_training(shell: BrowserShell) -> None:
+    assert shell.refit_input() == "null"
+    rows = shell.workspace.require_table().frame.groupby("species").groups
+    for label, ids in rows.items():
+        for row in ids[:2]:
+            shell.call(
+                json.dumps({"action": "label", "row": int(row), "label": str(label)}), refit=False
+            )
+    reserved = shell.workspace.next_eval()
+    assert reserved is not None
+    shell.workspace.set_label(reserved, "Adelie", "eval")
+    data = json.loads(shell.refit_input())
+    assert len(data["train"]) == 6
+    assert len(data["test"]) == 344
+    assert len(data["labels"]) == 6
+    result = {
+        "generation": data["generation"],
+        "classes": ["Adelie", "Chinstrap", "Gentoo"],
+        "probabilities": [[0.2, 0.3, 0.5]] * 344,
+    }
+    shell.publish_refit(json.dumps(result))
+    public = shell.state()["proposals"]
+    assert isinstance(public, dict)
+    assert reserved not in public
+    assert shell.workspace.require_proposals().proba.loc[reserved].to_numpy().tolist() == [
+        0.2,
+        0.3,
+        0.5,
+    ]
+    assert shell.refit_input() == "null"
+    result["probabilities"] = [[0.2, 0.3, 0.4]] * 344
+    with pytest.raises(ValueError, match="sum to one"):
+        shell.publish_refit(json.dumps(result))
+    result["generation"] = -1
+    with pytest.raises(ValueError, match="generation"):
+        shell.publish_refit(json.dumps(result))
+
+
+def test_full_model_certificate_metadata() -> None:
+    metadata = browser_metadata("2026-11-11", full_model=True)
+    assert metadata.teacher_version == "TabICLv2 (WebGPU)"
+
+
+def test_read_only_call_does_not_retry_a_failed_external_refit(shell: BrowserShell) -> None:
+    rows = shell.workspace.require_table().frame.groupby("species").groups
+    for label, ids in rows.items():
+        for row in ids[:2]:
+            shell.workspace.set_label(int(row), str(label), "human")
+    response = json.loads(shell.call('{"action":"table"}', refit=False))
+    assert response["refit"] == "null"
+    assert "rows" in response["value"]
+    assert shell.workspace.proposals is None

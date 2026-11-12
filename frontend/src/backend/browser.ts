@@ -8,7 +8,7 @@ import type {
   TablePage,
 } from './types';
 import { BROWSER_ASSETS } from '../browser/config';
-import { runtimeLoading } from '../browser/loading.svelte';
+import { runtimeLoading, teacherName } from '../browser/loading.svelte';
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -81,6 +81,17 @@ export function createBrowserBackend(): Backend {
     ) {
       runtimeLoading.done = data.done;
       runtimeLoading.total = data.total;
+    } else if (data.kind === 'teacher' && typeof data.fullModel === 'boolean') {
+      runtimeLoading.fullModel = data.fullModel;
+      runtimeLoading.model = teacherName(data.fullModel);
+    } else if (
+      data.kind === 'model-loading' &&
+      isObject(data.progress) &&
+      typeof data.progress.loaded === 'number' &&
+      typeof data.progress.total === 'number'
+    ) {
+      runtimeLoading.modelDone = data.progress.loaded;
+      runtimeLoading.modelTotal = data.progress.total;
     } else if (data.kind === 'ready') {
       runtimeLoading.ready = true;
       readyResolve();
