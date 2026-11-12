@@ -26,7 +26,7 @@ test('a runtime download failure preserves early labels and offers recovery', as
   await expect(first).toHaveText('Labelled Adelie');
 });
 
-test('static lite demo queues labels, predicts and exports SQL without data egress', async ({
+test('static demo queues labels, predicts and exports SQL without data egress', async ({
   page,
 }, testInfo) => {
   const requests: { method: string; url: string; data: string | null }[] = [];
@@ -88,7 +88,31 @@ test('static lite demo queues labels, predicts and exports SQL without data egre
   await page.getByRole('button', { name: 'Export rule', exact: true }).click();
   const sql = page.locator('pre');
   await expect(sql).toContainText('SELECT');
-  await expect(sql).toContainText('lite model (random forest), not TabICLv2');
+  const fullModel =
+    (await page
+      .locator('.appbar')
+      .getByText('TabICLv2 (WebGPU)', { exact: true })
+      .count()) > 0;
+  if (testInfo.project.name === 'chromium') expect(fullModel).toBe(true);
+  await expect(sql).toContainText(
+    fullModel
+      ? 'TabICLv2 (WebGPU)'
+      : 'lite model (random forest), not TabICLv2',
+  );
+  if (fullModel) {
+    expect(
+      await page.evaluate(async () =>
+        Boolean(await navigator.gpu.requestAdapter()),
+      ),
+    ).toBe(true);
+    expect(
+      requests.some((request) => request.url.includes('/weights/onnx/')),
+    ).toBe(true);
+  } else {
+    expect(requests.some((request) => request.url.includes('/weights/'))).toBe(
+      false,
+    );
+  }
   await expect(sql).toContainText('browser demo');
   await page.screenshot({
     path: testInfo.outputPath('browser-demo.png'),
@@ -105,6 +129,6 @@ test('static lite demo queues labels, predicts and exports SQL without data egre
     expect(request.data).toBeNull();
     expect(new URL(request.url).origin).toBe('http://127.0.0.1:4173');
     expect(new URL(request.url).search).toBe('');
-    expect(request.url).not.toMatch(/huggingface|hf\.co|spike|weights/);
+    expect(request.url).not.toMatch(/huggingface|hf\.co|spike/);
   }
 });

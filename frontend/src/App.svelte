@@ -1,7 +1,8 @@
 <script lang="ts">
   import { createBackend } from './backend/http';
   import { createBrowserBackend } from './backend/browser';
-  import { BROWSER, LITE_MODEL } from './browser/config';
+  import { BROWSER } from './browser/config';
+  import { runtimeLoading } from './browser/loading.svelte';
   import LoadPanel from './LoadPanel.svelte';
   import EvalPanel from './EvalPanel.svelte';
   import ExportPanel from './ExportPanel.svelte';
@@ -43,7 +44,7 @@
 
 <header class="appbar">
   <h1 class="wordmark">Rowsetta</h1>
-  {#if BROWSER}<span>{LITE_MODEL}</span>{/if}
+  {#if BROWSER}<span>{runtimeLoading.model}</span>{/if}
   {#if workspace !== null && loaded}
     <p class="facts">
       <span class="file">{studio.fileName ?? 'demo table'}</span>

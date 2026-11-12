@@ -7,8 +7,8 @@ Python or JSON.
 
 Your data stays on your machine. No account or model token is required.
 
-The static browser demo uses a **lite model (random forest), not TabICLv2**.
-The full model runs in the local app. Build and serve the browser demo with
+The static browser demo uses **TabICLv2 on Chromium with WebGPU**, with a clearly
+labelled lite random forest fallback on other browsers. Build and serve it with
 `make browser` and `uv run python -m http.server --directory site`.
 
 ## Install and try

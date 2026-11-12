@@ -12,7 +12,9 @@ export default defineConfig({
       name: 'chromium',
       use: {
         browserName: 'chromium',
+        headless: false,
         launchOptions: {
+          args: ['--enable-unsafe-webgpu'],
           executablePath:
             process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ??
             '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',

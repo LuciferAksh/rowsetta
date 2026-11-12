@@ -24,6 +24,7 @@
     "tests/**/*.ts",
     "e2e/**/*.ts",
     "e2e-browser/**/*.ts",
+    "e2e-parity/**/*.ts",
     "*.ts",
     "*.js"
   ]

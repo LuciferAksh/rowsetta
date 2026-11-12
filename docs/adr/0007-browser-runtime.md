@@ -1,101 +1,103 @@
-# 0007: A static, self-contained Pyodide demo
+# 0007: A static, self-contained Pyodide and WebGPU demo
 
-Status: implemented; final acceptance results recorded below.
+Status: implemented; local acceptance on 2026-11-11.
 
 ## Teacher and shared core
 
-ADR 0003 records the probability-parity failure: four-estimator maximum
-differences are 0.216487, 0.591745 and 0.286585; at eight they are 0.124360,
-0.506147 and 0.504155. These exceed 0.002 despite passing latency (penguins
-0.4028 / 0.6834 s at four/eight; bank 3.1846 / 5.2866 s, budget 10 s).
+[ADR 0003](0003-browser-demo.md) supersedes the original parity no-go. The
+four-estimator browser TabICLv2 now uses the native seed 7 and 500-row prediction
+chunks. Maximum errors are 0.000508 on penguins, 0.001682 on bank and 0.001328 on
+adult, below 0.002, with no stable-margin flips. The Python teacher is unchanged.
 
-The browser uses `LiteTeacher`, a seeded 200-tree random forest with training-only
-ordinal category encoding, unknown categories treated as missing, and native
-NaN routing. The six-label penguins protocol scores 0.866864 versus a 0.443787
-majority baseline. Header, accuracy panel, certificates and README all identify
-the lite model (random forest), not TabICLv2. The benchmark runner exposes it as
-the `lite` learner. No ONNX teacher worker or model download ships in this build.
+The full browser path requires Chromium and an actual WebGPU adapter in the
+worker. ONNX Runtime's [browser support matrix](https://onnxruntime.ai/docs/get-started/with-javascript/web.html)
+does not support its WebGPU provider on Safari or Firefox. This matters in
+practice: local WebKit exposed an adapter but never completed the six-label demo
+prediction within 240 seconds. Adapter presence alone is not sufficient.
+Safari/WebKit, Firefox and Chromium without an adapter use `LiteTeacher`, the
+existing seeded 200-tree random forest. The header, evaluation panel, loading
+panel and exported certificate identify the teacher actually selected.
 
-`browser_shell.py` owns an in-memory `Workspace` and calls the existing core for
-labels, evaluation, selection, leaks, distillation, sessions and every export
-format. No model logic is reimplemented in JavaScript. Export execution is
-`NotExecuted("browser demo")`; DuckDB, torch and FastAPI are never packaged or
-loaded in the browser. Full-model fit-limit boundaries remain independently
-tested at 1,250 x 16 and 1,251 x 16, but do not restrict the lite teacher.
+The Pyodide worker owns both the in-memory `BrowserShell` and the asynchronous
+ONNX session. This keeps tables inside one worker and avoids copying them through
+the page or a network service. Runtime and model downloads start concurrently.
+The browser shell prepares `teacher_frame` and human-only training labels;
+JavaScript fits and predicts locally, then Python validates probability shapes,
+classes, finite values, row sums and generation before publishing through the
+shared core. Evaluation rows never enter training and remain hidden in the UI.
+A stale result cannot publish over a newer workspace generation.
 
-## Build and loading
+Only the full teacher enforces the reviewed fit limits: 5,000 labelled rows,
+100 features and 20,000 labelled cells. The lite path retains its existing
+behavior. CSV upload is limited to 50 MB, with the shared seeded 2,000-row cap.
+Existing-column prefill and label-audit controls remain local-app features.
+DuckDB, torch and FastAPI are neither packaged nor loaded in the browser.
+Export execution is still explicitly `NotExecuted("browser demo")`.
 
-`make browser` packages the core into a pure wheel, stages Pyodide 314.0.7 and
-its locked scientific/Pydantic packages, then builds the existing SPA to `site/`.
-The existing Pages workflow already builds and deploys that directory. Relative
-asset URLs allow a repository subpath. No account or model mirror is
-needed to build or use the static files; opening the site requires an HTTP(S)
-origin, as workers cannot run from `file://`.
+## Build, loading and privacy
 
-Unlike the CDN download, runtime packages are hosted with the page.
-This keeps runtime availability tied to the same deploy, without changing any
-package version. Package bytes are checked against Pyodide's lock at build time.
-A build manifest pins the staged assets. Worker fetches verify SHA-256 on both
-Cache Storage hits and downloads; corrupt hits are discarded and fetched again.
-JavaScript modules use ordinary browser module caching. Runtime progress reports
-verified bytes; there is no model progress line on the lite path.
+`make browser` packages the core wheel, Pyodide 314.0.7 and its locked scientific
+and Pydantic packages, verified fp16 ONNX weights and ONNX Runtime Web 1.31.1.
+Everything is served from the same static origin, including the ONNX runtime's
+WASM support files. No account, weight mirror, upload or external service is
+required. Relative URLs support a repository subpath. Use HTTP(S), not `file://`.
 
-The shell first paints a target-masked static copy of penguins. Runtime loading
-starts in parallel; the backend optimistically records early labels and queues
-worker commands in order, then publishes only the latest mutation's state.
-The queue lives in the browser backend rather than adding a second queue to
-the shared UI state. This preserves the local app and finished visual design.
+The staging script checks weights against immutable SHA-256 pins on download
+and cached reads. A build manifest pins local assets; the worker verifies
+Cache Storage hits and fresh downloads. Corrupt cache entries are discarded.
+Forecast-web also verifies the graph and external weights. JavaScript module
+imports use ordinary browser module caching. The diagnostic fp32 graph and full
+tensor captures stay in the ignored spike directory and never enter `site/`.
 
-Uploads are limited to 50 MB and use the same seeded loader with a 2,000-row
-cap. UTF-8 decoding is strict and preserves a BOM for source fingerprints.
-Existing-column prefill and label-audit controls are hidden in the browser;
-new targets teach from scratch. The CSP permits only the origin and jsDelivr
-for connections, with no Hugging Face hosts, analytics, or form submissions.
+The shell paints a target-masked penguins table before startup finishes. Early
+labels queue in order and only the latest mutation updates the page. The loading
+panel reports runtime bytes and, on the full-model path, model bytes separately.
+The fp16 model download is about 56 MB. Runtime fetch failure stops the worker,
+preserves displayed labels and offers reload recovery.
 
-## Verification and task boxes
+The CSP permits same-origin scripts/workers/assets and retains the existing
+jsDelivr connection allowance; the shipped flow needs only same-origin GETs.
+No request carries table data. No Hugging Face host, telemetry or form submission
+is needed by the shipped build.
 
-The unit runner mounts source and unit tests in Pyodide under Node. Native-only
-modules that import shell dependencies during collection are ignored before
-collection, and native tests are deselected. Hypothesis and jsonschema are
-test-only packages, not included in the site. An initial collection failure and
-a transient jsonschema download failure were repaired rather than being treated
-as evidence that the core could not run in Pyodide.
+## Verification
 
-The source-mounted Pyodide suite passes: **239 passed, 31 native tests
-deselected**.
-The browser suite passes **six tests**: queued labels, proposals and SQL export,
-plus failed-WASM-download recovery, in Chromium, Firefox and WebKit. The network
-assertion permits only same-origin GETs without request bodies or query strings.
-The frontend suite passes **205 tests**, with zero lint or type errors.
+The dedicated parity Playwright config runs the actual browser teacher in headed
+Chromium, asserts an adapter and `webgpu` backend, and enforces the probability
+and stable-margin gates on all three complete tables. Unit regression tests
+cover seed forwarding, bounded batches preserving row order, browser-runtime
+selection, human-only context, evaluation masking, malformed/stale predictions
+and cached diagnostic-weight checksum verification.
 
-The failure probe found that Emscripten can leave startup pending after a failed
-WASM fetch. The worker now reports fetch failures directly and the backend stops
-the failed worker, preserves displayed early labels and presents a recovery step.
+The static browser suite exercises queued labels, proposals and SQL export plus
+failed-runtime-download recovery in Chromium, Firefox and WebKit. Chromium must
+use TabICLv2; unsupported runtimes must use the lite model with no weight fetch.
+Every observed request must be a same-origin GET without body or query string.
 
-The unbudgeted clean-profile smoke uses headed Chromium on the M5 at 50 Mbit/s
-down, 10 Mbit/s up and 40 ms latency. It records the milestones before waiting
-for lazy assets to settle, so startup timing and first-visit bytes are distinct.
-Cached responses with negative Playwright body-size sentinels count as zero.
-The frozen source is `cold_start.browser` in `docs/bench.json`; `docs/bench.md`
-is regenerated from it.
+```sh
+make check
+make browser
+pnpm --dir frontend exec playwright test --config playwright.browser.config.ts
+pnpm --dir frontend exec playwright test --config playwright.parity.config.ts
+```
 
-| Visit | Table labelable | First proposals | Response body bytes transferred |
+The final local run on 2026-11-11 passed `make check` (472 Python tests,
+12 deselected, and 207 frontend tests), `make browser`, all six browser
+smoke tests and the headed WebGPU parity test. Svelte reported zero errors
+and warnings. Chromium and WebKit rendered states were inspected.
+
+## Historical startup measurements
+
+The public `cold_start.browser` numbers in `docs/bench.json` remain frozen. They
+were measured with the earlier lite-only build and do not describe the larger
+TabICLv2 download. They have not been replaced by this parity investigation.
+
+| Visit, earlier lite build | Table labelable | First proposals | Response bytes |
 | --- | --- | --- | --- |
 | Cold | 1.131914 s | 22.413568 s | 43047823 |
 | Warm | 0.201800 s | 14.081791 s | 0 |
 
-The `--no-budget` smoke passes. The warm visit misses its 6 s target, although the cold visit meets the 10 s table / 30 s
-proposal targets. The script enforces browser budgets separately from the
-local-install 180 s / 15 s budgets; boundary tests cover both browser milestones.
-The figures were measured locally under concurrent machine load, not on a
-published Pages URL. No public cold-start promise is made from these numbers.
-
-`make check` exited 0: 467 Python tests passed, 12 model/PostgreSQL tests were
-deselected, and 205 frontend tests passed across 13 files. Ruff formatting and
-lint, Pyright, Prettier, ESLint, Svelte/TypeScript, OpenAPI drift and copy checks
-all passed. Both `make browser` and the ordinary local-app frontend build exited
-0. The browser smoke command is:
-
-```sh
-pnpm --dir frontend exec playwright test --config playwright.browser.config.ts
-```
+That source-mounted Pyodide suite had 239 passes and 31 native exclusions. Its
+six browser smoke tests passed, as did 467 Python and 205 frontend tests. Those
+counts are historical; the parity changes add separate regressions. No new
+public cold-start promise follows from the local parity or smoke results.
