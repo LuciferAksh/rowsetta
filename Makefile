@@ -40,5 +40,6 @@ browser:
 	cp -R frontend/public/browser site/browser
 
 demo-gif:
-	@printf '%s\n' '$@ is not implemented yet; see docs/development.md.'
-	@exit 2
+	pnpm --dir frontend build
+	node scripts/record_demo.mjs
+	scripts/check_demo_gif.sh docs/demo.gif

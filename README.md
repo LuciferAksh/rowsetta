@@ -5,6 +5,11 @@ Python or JSON.
 
 ![The learned rule drawn as a line map, with mislabelled rows riding the wrong line as threads and a glass lens reading a row labelled Chinstrap on the Adelie line](docs/hero.png)
 
+<picture>
+  <source media="(prefers-reduced-motion: reduce)" srcset="docs/hero.png">
+  <img src="docs/demo.gif" alt="Six penguin rows are labelled, the model suggests labels and marks unsure rows, and random rows check its accuracy. An audit then follows a doubtful label with a glass lens before showing the SQL certificate.">
+</picture>
+
 Your data stays on your machine. No account or model token is required.
 
 The static browser demo uses **TabICLv2 on Chromium with WebGPU**, with a clearly
