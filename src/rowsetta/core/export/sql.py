@@ -86,7 +86,11 @@ class Certificate:
     def header(self) -> str:
         """Render facts as SQL comments, including untrusted multiline names."""
         verdict = (
-            f"no difference ({self.comparison.n} jointly answered)"
+            (
+                f"no difference ({self.comparison.n} jointly answered)"
+                if self.comparison.n
+                else "not measured (0 jointly answered)"
+            )
             if isinstance(self.comparison, NoDifference)
             else f"{self.comparison.kind}, p={self.comparison.p:.6g}"
         )
@@ -159,6 +163,15 @@ class UnsupportedDatetimeSplitError(UserError):
         )
 
 
+def _split_sql(column: str, operator: str, literal: str) -> str:
+    name = _identifier(column)
+    if operator in ("IS NULL", "IS NOT NULL"):
+        return f"{name} {operator}"
+    if operator.startswith("IS NULL OR "):
+        return f"({name} IS NULL OR {name} {operator.rsplit(maxsplit=1)[-1]} {literal})"
+    return f"{name} {operator.rsplit(maxsplit=1)[-1]} {literal}"
+
+
 def tree_to_sql(
     tree: TreeClassifier,
     *,
@@ -209,11 +222,7 @@ def tree_to_sql(
             left=True,
             missing_left=bool(structure.missing_go_to_left[node]),
         )
-        name = _identifier(column)
-        if operator.startswith("IS NULL OR "):
-            condition = f"({name} IS NULL OR {name} {operator.split()[-1]} {literal})"
-        else:
-            condition = f"{name} {operator.split()[-1]} {literal}"
+        condition = _split_sql(column, operator, literal)
         left_values = visit(left)
         right_values = visit(int(structure.children_right[node]))
         return (

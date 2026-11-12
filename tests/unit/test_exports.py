@@ -12,12 +12,13 @@ import pandas as pd
 import pytest
 from pydantic import TypeAdapter
 
-from rowsetta.core.distill import Feature, FeatureSpec, fit_student
+from rowsetta.core.distill import Feature, FeatureSpec, TreeClassifier, fit_student, leaf_summary
+from rowsetta.core.export.dbt import to_dbt
 from rowsetta.core.export.json import Export, to_json
 from rowsetta.core.export.python import to_python
-from rowsetta.core.export.sql import Executed, UnsupportedDatetimeSplitError
+from rowsetta.core.export.sql import Executed, UnsupportedDatetimeSplitError, to_sql
 from tests.integration.test_sql_export import DEMO_TARGETS, demo_student
-from tests.sql_support import certificate
+from tests.sql_support import certificate, engine, predictions
 from tests.unit.test_distill import FourLeafTree, labelled, ten_rows
 
 
@@ -150,3 +151,46 @@ def test_python_matches_the_used_datetime_split_restriction() -> None:
     )
     with pytest.raises(UnsupportedDatetimeSplitError, match="event time"):
         to_python(student)
+
+
+def test_four_row_missing_only_split_across_exports(tmp_path: Path) -> None:
+    frame = pd.DataFrame({"x": [0.0, 1.0, None, None], "answer": ["a", "a", "b", "b"]})
+    tree: TreeClassifier = importlib.import_module("sklearn.tree").DecisionTreeClassifier(
+        random_state=7
+    )
+    tree.fit(frame[["x"]].to_numpy(), frame["answer"])
+    assert np.isinf(tree.tree_.threshold[0])
+    student = replace(
+        fit_student(*labelled(frame)),
+        tree=tree,
+        feature_spec=FeatureSpec((Feature("x", "numeric"),)),
+        leaf_purity={1: 1.0, 2: 1.0},
+        threshold=0,
+    )
+    expected = student.predict(frame)
+    facts = certificate()
+    for dialect in ("duckdb", "sqlite", "postgres"):
+        sql = to_sql(student, dialect=dialect, certificate=facts)
+        assert "inf" not in sql
+        # PostgreSQL's CASE and CAST syntax is also executable in DuckDB.
+        execution_dialect = "duckdb" if dialect == "postgres" else dialect
+        assert predictions(engine(execution_dialect).execute(sql, frame)) == expected
+        files = to_dbt(student, source="t", certificate=facts, dialect=dialect)
+        dbt_sql = files["models/answer_rule.sql"].replace("{{ ref('t') }}", '"t"')
+        assert predictions(engine(execution_dialect).execute(dbt_sql, frame)) == expected
+    predict = compiled_predict(to_python(student), tmp_path / "missing_rule.py")
+    assert [predict({"x": x}) for x in [0.0, 1.0, None, float("nan")]] == expected
+    payload = to_json(student, certificate=facts)
+    document = TypeAdapter(Export).validate_json(payload)
+    assert "null" not in json.dumps(json.loads(payload)["tree"]["nodes"][0])
+    results: list[str | None] = []
+    for row in document.preprocessing.transform(frame).astype(np.float32):
+        node = document.tree.nodes[0]
+        while node.kind == "split":
+            value = row[node.feature_index]
+            goes_left = node.missing_go_to_left if np.isnan(value) else value <= node.threshold
+            node = document.tree.nodes[node.left if goes_left else node.right]
+        results.append(node.prediction)
+    assert results == expected
+    conditions = [line.conditions[0][1:] for line in leaf_summary(student, frame)]
+    assert conditions == [("IS NOT NULL", ""), ("IS NULL", "")]

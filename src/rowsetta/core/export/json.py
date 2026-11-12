@@ -3,6 +3,7 @@
 from dataclasses import dataclass, field
 from typing import Literal
 
+import numpy as np
 from pydantic import TypeAdapter
 
 from rowsetta.core.distill import FeatureSpec, Student, TreeSettings
@@ -67,7 +68,8 @@ def to_json(student: Student, *, certificate: Certificate) -> str:
                 Split(
                     node,
                     int(structure.feature[node]),
-                    float(structure.threshold[node]),
+                    # The largest finite float32 routes every nonmissing input left.
+                    min(float(structure.threshold[node]), float(np.finfo(np.float32).max)),
                     bool(structure.missing_go_to_left[node]),
                     left,
                     int(structure.children_right[node]),

@@ -192,7 +192,7 @@ describe('evaluation text', () => {
 describe('rule lines', () => {
   it('reads as conditions, answer, rows and agreement', () => {
     expect(ruleLineText(ANSWERING)).toBe(
-      'duration ≤ 524.5 · poutcome is success → yes: 2 rows, 1 agree with the model',
+      '(duration ≤ 524.5 or duration is missing) · poutcome is success → yes: 2 rows, 1 agree with the model',
     );
   });
 

@@ -72,7 +72,7 @@ interface Bound {
 /**
  * A rule line's tests as one short phrase per column: the numeric bounds on a
  * column merge into an interval, `flipper length ≤ 206.5 · 40.75 < bill length ≤ 42.35`.
- * Which side missing values take is left to the exported SQL.
+ * Missing alternatives stay explicit when bounds on the same column merge.
  */
 export function ruleIntervals(
   conditions: readonly Condition[],
@@ -80,14 +80,33 @@ export function ruleIntervals(
 ): string {
   const phrases = new Map<
     string,
-    { lower?: Bound; upper?: Bound; words: string[] }
+    {
+      lower?: Bound;
+      upper?: Bound;
+      words: string[];
+      missing: boolean;
+      missingOnly: boolean;
+    }
   >();
   for (const [column, operator, value] of conditions) {
-    const entry = phrases.get(column) ?? { words: [] };
+    const entry = phrases.get(column) ?? {
+      words: [],
+      missing: true,
+      missingOnly: false,
+    };
     phrases.set(column, entry);
+    if (operator === 'IS NULL') {
+      entry.missingOnly = true;
+      continue;
+    }
+    entry.missing &&= operator.startsWith('IS NULL OR ');
+    if (operator === 'IS NOT NULL') {
+      entry.words.push('is not missing');
+      continue;
+    }
     const test = operator.replace(MISSING_PREFIX, '');
     const number = Number(value);
-    if (Number.isFinite(number)) {
+    if (['<', '<=', '>', '>='].includes(test) && Number.isFinite(number)) {
       const upper = test === '<=' || test === '<';
       const bound = { value: number, strict: test === '<' || test === '>' };
       if (upper && (entry.upper === undefined || number < entry.upper.value)) {
@@ -104,8 +123,12 @@ export function ruleIntervals(
     }
   }
   return [...phrases]
-    .map(([column, { lower, upper, words }]) => {
+    .map(([column, { lower, upper, words, missing, missingOnly }]) => {
       const name = column.replace(UNIT_SUFFIX, '').replaceAll('_', ' ');
+      if (missingOnly)
+        return missing
+          ? `${name} is missing`
+          : `${name} has no matching values`;
       const shown = (bound: Bound): string =>
         formatThreshold(String(bound.value), decimals.get(column));
       const parts = words.map((word) => `${name} ${word}`);
@@ -118,7 +141,8 @@ export function ruleIntervals(
       } else if (lower !== undefined) {
         parts.push(`${name} ${lower.strict ? '>' : '≥'} ${shown(lower)}`);
       }
-      return parts.join(' · ');
+      const phrase = parts.join(' · ');
+      return missing ? `(${phrase} or ${name} is missing)` : phrase;
     })
     .join(' · ');
 }

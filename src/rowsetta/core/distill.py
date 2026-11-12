@@ -543,6 +543,8 @@ def split_condition(
     if feature.kind == "categorical":
         literal = "'" + feature.value.replace("'", "''") + "'"
         return feature.column, "IS NULL OR <>" if left else "=", literal
+    if np.isposinf(threshold):
+        return feature.column, "IS NOT NULL" if left else "IS NULL", ""
     lower = np.float32(threshold)
     if float(lower) > threshold:
         lower = np.nextafter(lower, np.float32(-np.inf))

@@ -47,7 +47,9 @@ describe('threshold formatting', () => {
     };
     expect(
       ruleLineParts(line, new Map([['flipper_length_mm', 0]])).conditions,
-    ).toBe('flipper length ≤ 206.5 · island is Dream');
+    ).toBe(
+      '(flipper length ≤ 206.5 or flipper length is missing) · island is Dream',
+    );
   });
 
   it('merges bounds on one column into an interval', () => {
@@ -61,6 +63,31 @@ describe('threshold formatting', () => {
         ],
         new Map([['bill_length_mm', 1]]),
       ),
-    ).toBe('40.75 < bill length ≤ 42.35 · island is not Dream');
+    ).toBe(
+      '40.75 < bill length ≤ 42.35 · (island is not Dream or island is missing)',
+    );
   });
+});
+
+it('shows missing-only routing without a numeric threshold', () => {
+  expect(ruleIntervals([['x', 'IS NULL', '']])).toBe('x is missing');
+  expect(ruleIntervals([['x', 'IS NOT NULL', '']])).toBe('x is not missing');
+});
+
+it('keeps a missing alternative only when every bound permits it', () => {
+  expect(
+    ruleIntervals([
+      ['x', 'IS NULL OR >', '1'],
+      ['x', 'IS NULL OR <=', '5'],
+    ]),
+  ).toBe('(1 < x ≤ 5 or x is missing)');
+});
+
+it('simplifies a missing-only branch inside a nullable numeric interval', () => {
+  expect(
+    ruleIntervals([
+      ['x', 'IS NULL OR <=', '5'],
+      ['x', 'IS NULL', ''],
+    ]),
+  ).toBe('x is missing');
 });

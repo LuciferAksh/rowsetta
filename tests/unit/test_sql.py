@@ -9,6 +9,7 @@ import pytest
 from rowsetta.core.distill import (
     Feature,
     FeatureSpec,
+    NoDifference,
     OtherBetter,
     RuleBetter,
     fit_student,
@@ -217,3 +218,10 @@ def test_unused_datetime_feature_does_not_block_export() -> None:
     spec = FeatureSpec((*student.feature_spec.features, Feature("event time", "datetime")))
     exported = tree_to_sql(student.tree, feature_spec=spec, target="answer", dialect="duckdb")
     assert "event time" not in exported
+
+
+def test_zero_evaluation_pairs_are_not_measured() -> None:
+    assert (
+        "McNemar (rule versus tuned direct tree): not measured"
+        in replace(certificate(), comparison=NoDifference(0)).header()
+    )

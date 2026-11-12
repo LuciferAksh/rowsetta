@@ -34,12 +34,15 @@ def to_python(student: Student) -> str:
                 left=True,
                 missing_left=bool(structure.missing_go_to_left[node]),
             )
-            comparison = f"{value} {operator.split()[-1]} {literal}"
-            condition = (
-                f"{missing} or {comparison}"
-                if structure.missing_go_to_left[node]
-                else f"not {missing} and {comparison}"
-            )
+            if operator in ("IS NULL", "IS NOT NULL"):
+                condition = missing if operator == "IS NULL" else f"not {missing}"
+            else:
+                comparison = f"{value} {operator.split()[-1]} {literal}"
+                condition = (
+                    f"{missing} or {comparison}"
+                    if structure.missing_go_to_left[node]
+                    else f"not {missing} and {comparison}"
+                )
         return [
             f"{indent}if {condition}:",
             *visit(left, depth + 1),
