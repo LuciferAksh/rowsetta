@@ -1,12 +1,14 @@
 <script lang="ts">
   import { BROWSER } from './browser/config';
-  import { untrack } from 'svelte';
+  import { onDestroy, untrack } from 'svelte';
   import { MediaQuery, SvelteMap } from 'svelte/reactivity';
   import AuditControls from './AuditControls.svelte';
   import AuditProgress from './AuditProgress.svelte';
-  import { fade } from 'svelte/transition';
-  import { shownSuspects } from './audit';
-  import type { ByRow, Cell, LeafLine } from './backend/types';
+  import InterchangeTracks from './InterchangeTracks.svelte';
+  import type { Drawn, Ghost } from './interchange';
+  import InterchangeReadings from './InterchangeReadings.svelte';
+  import { missingAuditLabels, shownSuspects } from './audit';
+  import type { ByRow, LeafLine } from './backend/types';
   import Loupe from './Loupe.svelte';
   import { bandColour, lineColour } from './palette';
   import { columnDecimals, lineFilter } from './rule';
@@ -17,12 +19,10 @@
     legs,
     offsetLine,
     branchSentence,
-    columnWords,
     restNear,
     restAlong,
     nearestOn,
     overlaps,
-    routeOf,
     typeLines,
     typeWidth,
     type Rect,
@@ -36,27 +36,19 @@
 
   let { studio }: { studio: Studio } = $props();
 
-  /** Below this many labelled rows there is no rule worth drawing. */
   const MIN_LABELLED = 10;
   const DYE_MS = 900;
   const MORPH_MS = 760;
   const LIFT_MS = 220;
-  /** The ≤ and > signs read small for their size, so they are set larger than the names. */
+  // The signs read smaller than station names at the same font size.
   const SIGN_SIZE = 14;
-  /** Rank roundels, 15 px across, sit in slots this far apart. */
-  const RANK_SLOT = 18;
-  /** The glass's bevel; it must match the Loupe's shape. */
+  // Must match Loupe.svelte's bevel.
   const BEVEL = 18;
-  /** Map type while the ride re-routes rows: stepped back, still legible. */
-  const QUIET_INK = '#8a8d92';
   const LAY_MS = 1100;
   const REDRAW_MS = 700;
-  /** The longest the map waits for the refit after a ride before letting go of the old rule. */
-  /** Retired termini stay struck through this long on the old map, then fold one after another. */
   const GHOST_HOLD_MS = 2000;
   const GHOST_STEP_MS = 320;
   const GHOST_FOLD_MS = 520;
-  /** When a ghost starts to fold: once the new map is laid and the hold is over. */
   const foldAt = (ghost: { order: number }): number =>
     GHOST_HOLD_MS + ghost.order * GHOST_STEP_MS;
   const RIDE_MS = 1300;
@@ -65,33 +57,15 @@
   const calm =
     typeof matchMedia === 'function' &&
     matchMedia('(prefers-reduced-motion: reduce)').matches;
-  /** Below 40rem the map is a still overview, and each doubted row carries its own strip map. */
   const phone = new MediaQuery('(max-width: 40rem)', false);
 
-  /** Labels the ride has fixed on the map ahead of the server. */
   let pending = $state.raw<ByRow<string>>({});
-  /** The rule as it stood when the ride began; the map refits once, at the end. */
   let frozen = $state.raw<typeof studio.rule>(null);
-  /** How many rows the ride fixed, from its last drop until the refitted rule lands. */
   let awaiting = $state<number | null>(null);
-  /** A terminus the refit retired, struck through where it stood until it folds into the terminus that took its rows. */
-  interface Ghost {
-    key: string;
-    label: string | null;
-    rows: number;
-    into: LeafLine;
-    /** How far it moves to fold into that terminus, on the old map. */
-    toY: number;
-    order: number;
-  }
   let ghosts = $state.raw<Ghost[]>([]);
-  /** The last ride's merges, listed in the notice until the next ride or check. */
   let merged = $state.raw<Ghost[]>([]);
-  /** The refitted rule's termini, while the old map still shows its fold. */
   let landed = $state<number | null>(null);
-  /** The termini count in the notice, run down one fold at a time. */
   let tally = $state<number | null>(null);
-  /** Termini whose counts are changing, kept at full ink. */
   let receiving = $state.raw<ReadonlySet<string>>(new Set());
 
   const workspace = $derived(studio.workspace);
@@ -108,12 +82,9 @@
   let width = $state(0);
   let height = $state(0);
   const narrow = $derived(width > 0 && width < 640);
-  /** The phone overview's layout size; the stage keeps this shape. */
   const OVERVIEW = [1000, 900] as const;
-  /** Map units to a screen pixel: 1 at desk size, about 2.8 in the phone overview. */
   const ink = $derived(phone.current && width > 0 ? OVERVIEW[0] / width : 1);
 
-  /** While a fixed thread is being dyed, the map keeps drawing the old labels. */
   let held = $state.raw<ByRow<string> | null>(null);
   let holding = 0;
   const drawnHuman = $derived(held ?? { ...human, ...pending });
@@ -206,7 +177,6 @@
     }
   });
 
-  // Fit the rule again whenever labels or proposals change.
   let drawnFor = '';
   $effect(() => {
     if (workspace?.loaded !== true || workspace.target === null) return;
@@ -225,44 +195,35 @@
     };
   });
 
-  // Read every label once per table and target; "Check again" reads them anew.
-  let checkedFor = '';
+  let checked = false;
+  const missingAudit = $derived(missingAuditLabels(classes, human));
   let checking = $state(false);
   async function check(): Promise<void> {
-    if (BROWSER) return;
+    if (BROWSER || checking || missingAudit.length > 0) return;
     checking = true;
     merged = [];
     await studio.checkLabels();
+    if (studio.suspects !== null && studio.problem === null) checked = true;
     checking = false;
   }
   $effect(() => {
     if (BROWSER) return;
     if (workspace?.loaded !== true || workspace.target === null) return;
-    if (Object.keys(human).length < MIN_LABELLED) return;
-    const key = `${studio.fileName ?? ''}|${workspace.target}`;
-    if (key === checkedFor || studio.suspects !== null) return;
-    checkedFor = key;
+    if (missingAudit.length > 0) return;
+    if (checked || studio.suspects !== null || untrack(() => checking)) return;
     void untrack(check);
   });
 
   $effect(() => {
     if (studio.suspects === null || table !== null) return;
+    let active = true;
     void studio.wholeTable().then((whole) => {
-      table = whole;
+      if (active) table = whole;
     });
+    return () => {
+      active = false;
+    };
   });
-
-  // Track as drawn: each band tweens from where it was to where it now belongs.
-  interface Drawn {
-    key: string;
-    points: Point[];
-    width: number;
-    colour: string;
-    casing: boolean;
-    row: number | null;
-    rows: number;
-    opacity: number;
-  }
 
   function drawnOf(next: TransitMap): Drawn[] {
     return next.bands.map((band) => ({
@@ -277,16 +238,12 @@
     }));
   }
 
-  /** Rows being re-routed; the rest of the map steps back while they move. */
   let fixing = $state.raw<ReadonlySet<number>>(new Set());
   let bands = $state.raw<Drawn[]>([]);
-  /** How far from the origin the track is laid, 0 to 1. */
   let reveal = $state(1);
   let frame = 0;
   let laidAt = '';
-  /** Threads already dyed their new colour, by row. */
   let dyed: Partial<Record<number, string>> = {};
-  /** Threads fixed during a ride, drawn in their new colour until the refit lands. */
   let trails = $state.raw<{ key: string; d: string; colour: string }[]>([]);
   let dyes = $state.raw<
     {
@@ -319,13 +276,11 @@
       );
     });
 
-  /** The tree's shape: which stretches of track exist, whatever they carry. */
   const shape = (drawn: readonly Drawn[]): string =>
     [...new Set(drawn.map((band) => band.key.slice(0, band.key.indexOf('|'))))]
       .sort()
       .join();
 
-  /** A new rule is laid from the origin outward, as track is: the old map lifts, the new one runs in. */
   function relay(next: Drawn[]): void {
     const from = bands;
     const start = performance.now();
@@ -365,7 +320,6 @@
     for (const a of from) {
       if (keys.has(a.key)) continue;
       const colour = (a.row !== null ? dyed[a.row] : undefined) ?? a.colour;
-      // A fixed thread slides across the bundle into the line it now belongs to.
       const into =
         a.row !== null
           ? next.find(
@@ -385,7 +339,6 @@
               casing: false,
             }
           : { ...a, opacity: 0 };
-      // During a ride a fixed thread stays whole, cased and in its new colour.
       const keep = false;
       pairs.push({ a: { ...a, colour }, b, fold: true, keep });
     }
@@ -461,13 +414,11 @@
       )
       .join('');
 
-  /** Rows apart under the glass, in screen pixels. */
   const PITCH = 2.4;
   const magnify = $derived(
     map === null ? 4 : Math.min(12, Math.max(3, PITCH * map.rowsPerPx)),
   );
 
-  /** One band as its rows: a hairline per row across the band's width. */
   function hairlines(band: Drawn): string {
     const n = band.rows;
     if (n <= 1) return path(band.points);
@@ -479,7 +430,6 @@
     return d;
   }
 
-  /** The doubted row the glass lifts: the selected one, or any being fixed. */
   const lifted = $derived(
     new Set([
       ...fixing,
@@ -487,7 +437,6 @@
     ]),
   );
 
-  /** A doubted row's thread as drawn this frame, origin to terminus. */
   function routeOfRow(row: number): Point[] {
     return bands
       .filter((band) => band.row === row)
@@ -499,11 +448,6 @@
     return path(routeOfRow(row));
   }
 
-  /**
-   * The point the glass shows at its middle: the nearest point of the lifted
-   * thread when the thread crosses the glass, so the row in question is always
-   * the one read, else whatever is under the centre.
-   */
   let anchored: { lens: Point; at: Point } | null = null;
   const focus = $derived.by((): Point => {
     for (const row of lifted) {
@@ -523,12 +467,6 @@
     return lens;
   });
 
-  /**
-   * What the glass shows, in map units: each band as its rows, and any lifted
-   * row as one cased line. Rows part only when the glass sets them at least
-   * 1.5 px apart; closer than that a band stays one flat colour, and no line is
-   * drawn under 1 px.
-   */
   const glassStrokes = $derived.by((): (Stroke & { key: string })[] => {
     const px = 1 / magnify;
     const parted = map !== null && magnify / map.rowsPerPx >= 1.5;
@@ -578,7 +516,6 @@
       .reduce((sum, band) => sum + band.width + 1.5, 0),
   );
 
-  /** A row's stretches of track in riding order: the trunk, then each branch deeper. */
   const byRoute = (a: { key: string }, b: { key: string }): number => {
     const depth = (band: { key: string }): number => {
       const edge = band.key.slice(0, band.key.indexOf('|'));
@@ -596,10 +533,8 @@
   const wait = (ms: number): Promise<void> =>
     new Promise((resolve) => setTimeout(resolve, ms));
 
-  /** The glass's half size; it must match the Loupe's shape. */
   const half = $derived<[number, number]>(narrow ? [92, 62] : [92, 64]);
 
-  /** What the glass may never cover: the termini, the key, the origin and every interchange. */
   const solid = $derived.by((): Rect[] => {
     if (map === null) return [];
     return [
@@ -616,7 +551,6 @@
     ];
   });
 
-  /** An interchange's three lines of type: its test, then the sign on each branch. */
   function typeBoxes(station: Station): [Rect, Rect, Rect] {
     const [name, upper, lower] = typeLines(station.split, station.upLeft);
     const { label } = station;
@@ -642,17 +576,12 @@
     ];
   }
 
-  /** Everything the resting glass should leave in view: the above, and all the type. */
   const keepClear = $derived.by((): Rect[] =>
     map === null || narrow
       ? solid
       : [...solid, ...map.stations.flatMap((station) => typeBoxes(station))],
   );
 
-  /**
-   * Type the parked glass would cover moves just clear of it, up or down,
-   * whichever is the shorter way; the glass stays on the thread.
-   */
   const shoved = $derived.by((): Record<string, number> => {
     const moves: Record<string, number> = {};
     if (map === null || narrow || !parked || idle) return moves;
@@ -696,7 +625,6 @@
     return dy === undefined ? undefined : `translateY(${String(dy)}px)`;
   };
 
-  /** The map's track as dots 6 px apart, each with the index of its band. */
   const inkDots = $derived.by((): [number, number, number][] => {
     const dots: [number, number, number][] = [];
     for (const [index, band] of (map?.bands ?? []).entries()) {
@@ -715,10 +643,6 @@
     return dots;
   });
 
-  /**
-   * How many separate bands the flat middle of a glass resting at `at` would
-   * show: most where the bands part, not inside one wide band.
-   */
   const inkUnder = (at: Point): number =>
     new Set(
       inkDots
@@ -730,7 +654,6 @@
         .map(([, , band]) => band),
     ).size;
 
-  /** A doubted row's route and where the glass rests on it: mid-route, clear of every label. */
   function restOn(row: number): { at: Point; through: Point[] } | null {
     if (map === null) return null;
     // The map as laid out, not as drawn: the drawing may still be mid-tween.
@@ -753,7 +676,6 @@
     return at === null ? null : { at, through: [] };
   }
 
-  /** The new label's colour runs a doubted row's thread, origin to terminus, at an even speed. */
   function dye(doubt: Doubt, ms: number): void {
     const colour = lineColour(classes, doubt.likely);
     const thread = bands.filter((band) => band.row === doubt.row).sort(byRoute);
@@ -780,7 +702,6 @@
     dyed[doubt.row] = colour;
   }
 
-  /** The terminus a doubted row reaches keeps full ink while the rest of the map steps back. */
   function receive(row: number): void {
     const end = map?.termini.find((t) =>
       t.doubts.some((d) => d.doubt.row === row),
@@ -788,12 +709,8 @@
     if (end !== undefined) receiving = new Set([...receiving, end.key]);
   }
 
-  /**
-   * Re-route one doubted row: the glass grips its thread, the new colour runs
-   * its route, and once the label lands the thread drops into its new colour
-   * group.
-   */
   async function fix(doubt: Doubt): Promise<void> {
+    const context = studio.tableContext;
     if (calm) {
       await studio.label(doubt.row, doubt.likely);
       return;
@@ -803,6 +720,7 @@
       glide(at);
       await wait(340);
     }
+    if (context !== studio.tableContext) return;
     receive(doubt.row);
     fixing = new Set([...fixing, doubt.row]);
     if (holding++ === 0) held = drawnHuman;
@@ -834,13 +752,6 @@
     });
   });
 
-  /**
-   * The refitted rule lands. Each old terminus whose rows now mostly reach a
-   * line that a larger old terminus also reaches was retired. On the old map,
-   * each is struck through with the line it merges into, then folds into that
-   * terminus one after another while the count runs down; only then is the
-   * new map laid.
-   */
   function land(fresh: typeof studio.rule): void {
     const old = map;
     awaiting = null;
@@ -915,20 +826,21 @@
     void wait(foldAt({ order: ghosts.length }) + GHOST_FOLD_MS).then(release);
   }
 
-  // With nothing selected after a ride, or once a row is let go, the glass
-  // lifts off and leaves the map clear; picking a row or moving it brings it back.
   let idle = $state(false);
 
-  // The loupe: where it is, and what it reads. At a terminus its right edge
-  // stops just past the bullet, so the terminus name stays in plain view.
+  // Keep the terminus name in view beside the glass's right edge.
   let lens = $state<Point>([0, 0]);
-  /** The glass has come to rest where the map put it, not where a hand left it. */
   let parked = $state(false);
-  /** The glass lifts off between drops of a ride, so it never crosses type. */
   let travelling = $state(false);
   const reach = $derived(narrow ? 24 - 92 : 34 - 92);
   let placed = false;
   let ride = 0;
+  onDestroy(() => {
+    if (typeof cancelAnimationFrame === 'function') {
+      cancelAnimationFrame(frame);
+      cancelAnimationFrame(ride);
+    }
+  });
 
   interface Stop {
     key: string;
@@ -1018,7 +930,6 @@
     ride = requestAnimationFrame(step);
   }
 
-  /** Select a doubted row: the loupe rides its thread from the origin to rest mid-route. */
   function read(doubt: Doubt): void {
     idle = false;
     studio.selectedRow = doubt.row;
@@ -1027,7 +938,6 @@
     glide(rest.at, [map.origin, ...rest.through.slice(1)]);
   }
 
-  // The first time a map and an audit are both in, read the most doubted row.
   $effect(() => {
     if (map === null) return;
     if (!placed) {
@@ -1046,7 +956,6 @@
     });
   });
 
-  // Doubted rows that ride a line other than the one their label names.
   const wrong = $derived(
     doubts.filter((doubt) => doubt.likely !== doubt.given),
   );
@@ -1074,14 +983,13 @@
       ? `${String(termini)} ${termini === 1 ? 'line carries' : 'lines carry'} every row.`
       : 'No doubted label disagrees with the teacher.';
   });
-  /** The headline's sentences, each set on its own line; the spaces stay for reading aloud. */
   const clauses = $derived(
     headline
       .split(/(?<=\.) /)
       .map((clause, i, all) => (i < all.length - 1 ? `${clause} ` : clause)),
   );
   const lede = $derived.by(() => {
-    const rows = studio.rowCount ?? 0;
+    const audited = studio.suspects?.length ?? 0;
     if (rule === null) {
       return 'Each split the rule learns becomes an interchange, and each answer a terminus.';
     }
@@ -1092,7 +1000,7 @@
       return `All ${String(awaiting)} labels are in. The server is fitting the rule again on them; the map changes when it lands.`;
     }
     if (wrong.length > 0) {
-      return `The model read all ${String(rows)} labels, each with its own row held out. Review each suggested label before changing it. A label the teacher doubts rides the map as a thread in that label's colour.`;
+      return `The model read ${String(audited)} human labels, each with its own row held out. Review each suggested label before changing it. A label the teacher doubts rides the map as a thread in that label's colour.`;
     }
     if (fixedCount > 0 && terminiBefore !== null) {
       return terminiBefore === termini
@@ -1102,30 +1010,6 @@
     return `Every row enters at the left and rides the rule's splits to a terminus. Under the glass, each line parts into its rows.`;
   });
 
-  const percent = (p: number): string =>
-    p < 0.001 ? '<0.1%' : `${(p * 100).toFixed(1)}%`;
-
-  /** A row's values as the table has them, with full column names. */
-  function values(row: number): [string, string][] {
-    const record = table?.rows.get(row);
-    if (record === undefined) return [];
-    const show = (cell: Cell | undefined): string =>
-      cell === null || cell === undefined ? 'missing' : String(cell);
-    return (table?.columns ?? [])
-      .filter((column) => column.name !== workspace?.target)
-      .map((column) => {
-        const [name, unit] = columnWords(column.name);
-        const cell = record[column.name];
-        return [
-          name,
-          unit === undefined || cell === null || cell === undefined
-            ? show(cell)
-            : `${show(cell)} ${unit}`,
-        ];
-      });
-  }
-
-  /** Rows at a stop, doubted first, each with the values its splits read. */
   function rowsAt(
     stop: Stop,
   ): { row: number; label: string; cells: string[] }[] {
@@ -1170,7 +1054,6 @@
       .flatMap((line) => line.row_ids);
   }
 
-  // Keyboard: one tab stop for the map; arrows move the glass between stops.
   let at = $state(-1);
   function onMapKey(event: KeyboardEvent): void {
     if (stops.length === 0) return;
@@ -1208,7 +1091,6 @@
     parked = false;
     cancelAnimationFrame(ride);
     lens = to;
-    // Dragging the glass well off the selected row's route lets the row go.
     if (selected !== null) {
       const near = nearestOn(routeOfRow(selected.row), to);
       if (near === null || near.distance > 120) studio.selectedRow = null;
@@ -1223,270 +1105,11 @@
   }
 </script>
 
-{#snippet arrow()}<svg class="arrow" viewBox="0 0 14 10" aria-hidden="true"
-    ><path d="M0 5h12M8 1l4 4-4 4" /></svg
-  ><span class="visually-hidden">&nbsp;to&nbsp;</span>{/snippet}
-
 {#snippet bullet(cls: string)}<span
     class="bullet"
     style:background={lineColour(classes, cls)}
     aria-hidden="true">{cls.slice(0, 1)}</span
   >{/snippet}
-
-{#snippet art(m: TransitMap, id: string)}
-  {@const quiet = fixing.size > 0}
-  <defs>
-    <clipPath {id}>
-      <rect x="0" y="0" width={m.width * reveal} height={m.height} />
-    </clipPath>
-  </defs>
-  <g font-family={FONT}>
-    <g clip-path={reveal < 1 ? `url(#${id})` : undefined}>
-      {#each bands as band (band.key)}
-        {@const moving = band.row !== null && fixing.has(band.row)}
-        {@const width = moving ? Math.max(band.width, 6) : band.width}
-        {@const opacity = band.opacity * (quiet && !moving ? 0.22 : 1)}
-        {#if band.casing || moving}
-          <path
-            d={path(band.points)}
-            fill="none"
-            stroke="#0d0d0d"
-            stroke-width={width + 2.4}
-            stroke-linejoin="miter"
-            {opacity}
-          />
-        {/if}
-        <path
-          d={path(band.points)}
-          fill="none"
-          stroke={band.colour}
-          stroke-width={width}
-          stroke-linejoin="miter"
-          {opacity}
-        />
-      {/each}
-      {#each trails as trail (trail.key)}
-        <path
-          d={trail.d}
-          fill="none"
-          stroke="#0d0d0d"
-          stroke-width="8.4"
-          stroke-linejoin="miter"
-        />
-        <path
-          d={trail.d}
-          fill="none"
-          stroke={trail.colour}
-          stroke-width="6"
-          stroke-linejoin="miter"
-        />
-      {/each}
-      {#each dyes as dye (dye.key)}
-        <!-- A white edge keeps the new colour readable where it joins a band of the same colour. -->
-        <path
-          class="dye"
-          d={dye.d}
-          fill="none"
-          stroke="#ffffff"
-          stroke-width="10"
-          pathLength="1"
-          style:animation-delay={`${String(dye.delay)}ms`}
-          style:animation-duration={`${String(dye.duration)}ms`}
-        />
-        <path
-          class="dye"
-          d={dye.d}
-          fill="none"
-          stroke={dye.colour}
-          stroke-width="6"
-          pathLength="1"
-          style:animation-delay={`${String(dye.delay)}ms`}
-          style:animation-duration={`${String(dye.duration)}ms`}
-        />
-      {/each}
-      <!-- While rows are re-routed the map steps back, but the termini taking them stay in full ink. -->
-      <g>
-        {#if !narrow}
-          <text
-            class="halo"
-            x={m.origin[0]}
-            y={m.origin[1] - trunk / 2 - 10}
-            font-size="12"
-            font-weight="700"
-            fill={quiet ? QUIET_INK : '#0d0d0d'}
-            >{studio.rowCount ?? ''} rows</text
-          >
-        {/if}
-        {#each m.stations as station (station.key)}
-          <!-- Type steps back by colour, not opacity, so its white knockout still hides the threads under it. -->
-          {@const shade = quiet ? QUIET_INK : '#0d0d0d'}
-          <g
-            in:fade={{
-              duration: calm ? 0 : 240,
-              delay: calm ? 0 : LIFT_MS + (station.x / m.width) * LAY_MS * 0.6,
-            }}
-          >
-            <rect
-              x={station.x - 7}
-              y={station.y - station.half}
-              width="14"
-              height={station.half * 2}
-              rx="7"
-              fill="#ffffff"
-              stroke={shade}
-              stroke-width="2.5"
-            />
-            {#if !narrow}
-              <!-- One rule for every station: the test named once before the capsule,
-                   and each branch's sign where that branch leaves. -->
-              {@const [, upper, lower] = typeLines(
-                station.split,
-                station.upLeft,
-              )}
-              <text
-                class="halo"
-                style:transform={nudge(station, 0)}
-                x={station.label.name[0]}
-                y={station.label.name[1]}
-                text-anchor="end"
-                font-size="12"
-                font-weight="700"
-                fill={shade}
-                >{station.split.label}<tspan font-weight="400" dx="4"
-                  >{station.split.cut}</tspan
-                ></text
-              >
-              <text
-                class="halo"
-                style:transform={nudge(station, 1)}
-                x={station.label.up[0]}
-                y={station.label.up[1]}
-                font-size={SIGN_SIZE}
-                font-weight="700"
-                fill={shade}>{upper}</text
-              >
-              <text
-                class="halo"
-                style:transform={nudge(station, 2)}
-                x={station.label.down[0]}
-                y={station.label.down[1]}
-                font-size={SIGN_SIZE}
-                font-weight="700"
-                fill={shade}>{lower}</text
-              >
-            {/if}
-          </g>
-        {/each}
-        {#each m.termini as terminus (terminus.key)}
-          {@const answer = terminus.line.label}
-          <!-- A terminus the refit retired is struck through with the line it
-               merges into, then folds into that line's terminus. -->
-          {@const ghost = ghosts.find((g) => g.key === terminus.key)}
-          <g
-            opacity={quiet && !receiving.has(terminus.key) ? 0.35 : 1}
-            class:ghost={ghost !== undefined}
-            style:--fold={ghost === undefined
-              ? undefined
-              : `${String(ghost.toY)}px`}
-            style:animation-delay={ghost === undefined
-              ? undefined
-              : `${String(foldAt(ghost))}ms`}
-            style:animation-duration={`${String(GHOST_FOLD_MS)}ms`}
-            in:fade={{
-              duration: calm ? 0 : 260,
-              delay: calm ? 0 : LIFT_MS + LAY_MS * 0.55,
-            }}
-            out:fade={{ duration: calm ? 0 : LIFT_MS }}
-          >
-            <rect
-              x={terminus.x}
-              y={terminus.y - terminus.half}
-              width="6"
-              height={terminus.half * 2}
-              fill="#0d0d0d"
-            />
-            {@render roundel(terminus.x + 20 * ink, terminus.y, answer, ink)}
-            {#if !narrow}
-              <text
-                x={terminus.x + 36}
-                y={terminus.y - 1}
-                font-size="14"
-                font-weight="700"
-                fill="#0d0d0d"
-                text-decoration={ghost === undefined
-                  ? undefined
-                  : 'line-through'}>{answer ?? 'No answer'}</text
-              >
-              {@const counts = ghost
-                ? `merges into ${ghost.into.label ?? 'no answer'}, ${String(ghost.into.row_ids.length)} rows`
-                : `${String(terminus.line.row_ids.length)} rows${terminus.counts
-                    .filter(([cls]) => cls !== answer)
-                    .map(([cls, n]) => `, ${String(n)} ${cls}`)
-                    .join('')}`}
-              <!-- When a fix changes a terminus, its count ticks over once. -->
-              {#key counts}
-                <text
-                  class:tick={fixedCount > 0}
-                  style:--flash={answer === null
-                    ? '#0d0d0d'
-                    : lineColour(classes, answer)}
-                  x={terminus.x + 36}
-                  y={terminus.y + 13}
-                  font-size="11.5"
-                  fill="#4f5257">{counts}</text
-                >
-              {/key}
-            {/if}
-          </g>
-        {/each}
-      </g>
-      {#each m.termini as terminus (terminus.key)}
-        {#each terminus.doubts as end, index (end.doubt.row)}
-          <!-- Rank roundels stand in their own column 24 px before the bar, each
-               rank in its own slot 18 px from the next, stacked about the terminus. -->
-          <!-- In the phone overview the slots run side by side, at desk size. -->
-          {@const r = 7.5 * ink}
-          {@const x = phone.current
-            ? terminus.x - 6 * ink - r - index * RANK_SLOT * ink
-            : terminus.x - 24 - r}
-          {@const y = phone.current
-            ? terminus.y
-            : terminus.y +
-              (index - (terminus.doubts.length - 1) / 2) * RANK_SLOT}
-          <g opacity={quiet && !fixing.has(end.doubt.row) ? 0.35 : 1}>
-            {#if !phone.current}
-              <polyline
-                points={`${String(x)},${String(y)} ${String(x + r + 6)},${String(end.y)} ${String(terminus.x - 5)},${String(end.y)}`}
-                fill="none"
-                stroke="#0d0d0d"
-                stroke-width="1.5"
-              />
-            {/if}
-            <circle
-              cx={x}
-              cy={y}
-              {r}
-              fill={selected?.row === end.doubt.row ? '#ffffff' : '#0d0d0d'}
-              stroke={selected?.row === end.doubt.row ? '#0d0d0d' : '#ffffff'}
-              stroke-width={2 * ink}
-            />
-            {#if !narrow || phone.current}
-              <text
-                {x}
-                y={y + 3.5 * ink}
-                text-anchor="middle"
-                font-size={10 * ink}
-                font-weight="700"
-                fill={selected?.row === end.doubt.row ? '#0d0d0d' : '#ffffff'}
-                >{end.doubt.rank}</text
-              >
-            {/if}
-          </g>
-        {/each}
-      {/each}
-    </g>
-  </g>
-{/snippet}
 
 {#snippet roundel(x: number, y: number, answer: string | null, k = 1)}
   {#if answer === null}
@@ -1513,11 +1136,6 @@
   {/if}
 {/snippet}
 
-<!--
-  What the glass shows: every band parted into its rows as hairlines, and the
-  doubted row lifted off its line with its values laid along its route. No
-  labels: what the glass reads is set in the notice beside the map.
--->
 {#snippet glassArt(m: TransitMap)}
   {@const px = 1 / magnify}
   {#each glassStrokes as stroke (stroke.key)}
@@ -1572,7 +1190,6 @@
   aria-labelledby="interchange-heading"
 >
   <div class="notice">
-    <!-- Each sentence of the headline starts its own line. -->
     <h2
       id="interchange-heading"
       class="headline"
@@ -1604,6 +1221,7 @@
       hasShown={shown.size > 0}
       hasRule={rule !== null}
       {checking}
+      {missingAudit}
       oncheck={check}
     />
     {#if !phone.current && !idle && selected === null && reading !== null}
@@ -1674,143 +1292,25 @@
       </div>
     {/if}
     {#if studio.suspects !== null && shown.size > 0}
-      <ol class="doubts" aria-label="Labels the model doubts most">
-        {#each listed as item (item.suspect.row_id)}
-          {@const s = item.suspect}
-          {@const doubt = doubts.find((d) => d.row === s.row_id)}
-          {@const route =
-            phone.current && rule !== null
-              ? routeOf(rule.leaf_summary, s.row_id, decimals)
-              : null}
-          <li
-            class="doubt"
-            class:quiet={item.state !== 'open'}
-            class:on={studio.selectedRow === s.row_id}
-          >
-            <button
-              type="button"
-              aria-expanded={studio.selectedRow === s.row_id}
-              disabled={doubt === undefined}
-              onclick={() => {
-                if (doubt === undefined) return;
-                if (studio.selectedRow === s.row_id) {
-                  studio.selectedRow = null;
-                  idle = true;
-                } else read(doubt);
-              }}
-            >
-              <span class="roundel" aria-hidden="true">{item.rank + 1}</span>
-              <span class="row">Row {s.row_id}</span>
-              {#if item.state === 'fixed'}
-                {@const now = human[String(s.row_id)]}
-                <span class="what"
-                  >now {#if now !== undefined}{@render bullet(now)}{/if}{now ??
-                    'unlabelled'}</span
-                >
-              {:else if item.state === 'stet'}
-                <span class="what">{s.given} kept</span>
-              {:else}
-                <span class="what"
-                  >{@render bullet(s.given)}<span class="given">{s.given}</span
-                  >{@render arrow()}{s.likely}</span
-                >
-              {/if}
-              <span class="pct">{percent(s.given_probability)}</span>
-            </button>
-            {#if route !== null}
-              {@const n = route.stops.length}
-              {@const xs = route.stops.map(
-                (_, i) => 10 + (n > 1 ? (i * 290) / (n - 1) : 0),
-              )}
-              <svg
-                class="strip"
-                viewBox="0 0 358 60"
-                role="img"
-                aria-label={`Row ${String(s.row_id)} rides: ${route.stops.join(', ')}, to ${route.terminus.label ?? 'no answer'}.`}
-              >
-                <rect
-                  x="0"
-                  y="27.5"
-                  width="320"
-                  height="5"
-                  fill={lineColour(classes, s.given)}
-                />
-                {#each route.stops as stop, i (i)}
-                  <circle
-                    cx={xs[i]}
-                    cy="30"
-                    r="5"
-                    fill="#ffffff"
-                    stroke="#0d0d0d"
-                    stroke-width="2"
-                  />
-                  <text
-                    x={xs[i]}
-                    y={i % 2 === 0 ? 14 : 54}
-                    font-size="11"
-                    font-family={FONT}
-                    fill="#4f5257"
-                    text-anchor={i === 0
-                      ? 'start'
-                      : i === n - 1
-                        ? 'end'
-                        : 'middle'}>{stop}</text
-                  >
-                {/each}
-                <rect x="320" y="20" width="5" height="20" fill="#0d0d0d" />
-                {@render roundel(343, 30, route.terminus.label)}
-              </svg>
-            {/if}
-            {#if studio.selectedRow === s.row_id && doubt !== undefined}
-              {@const rides = rule?.leaf_summary.find((line) =>
-                line.row_ids.includes(doubt.row),
-              )?.label}
-              <div class="reading" aria-live="polite">
-                <p class="claim">
-                  Labelled {@render bullet(doubt.given)}<strong
-                    >{doubt.given}</strong
-                  >, it rides the {rides ?? 'no answer'} line. The model reads it
-                  as
-                  {@render bullet(doubt.likely)}<strong>{doubt.likely}</strong>.
-                </p>
-                <dl class="cells">
-                  {#each values(doubt.row) as [name, value] (name)}
-                    <div>
-                      <dt>{name}</dt>
-                      <dd>{value}</dd>
-                    </div>
-                  {/each}
-                </dl>
-                <div class="acts">
-                  <button
-                    type="button"
-                    class="button button-solid"
-                    onclick={() => {
-                      void fix(doubt);
-                    }}>Change to {doubt.likely}</button
-                  >
-                  <button
-                    type="button"
-                    class="button"
-                    onclick={() => {
-                      studio.toggleKept(doubt.row);
-                      studio.selectedRow = null;
-                      idle = true;
-                    }}>Keep {doubt.given}</button
-                  >
-                </div>
-              </div>
-            {/if}
-          </li>
-        {/each}
-      </ol>
-      {#if thin.length > 0}
-        <p class="thin">
-          Not drawn, too few values to place on a line:
-          {#each thin as item, i (item.suspect.row_id)}{i > 0 ? ', ' : ''}row
-            {item.suspect.row_id} ({sparse.get(item.suspect.row_id)}){/each}.
-        </p>
-      {/if}
+      <InterchangeReadings
+        {studio}
+        {table}
+        {rule}
+        {classes}
+        {decimals}
+        {listed}
+        {thin}
+        {sparse}
+        {doubts}
+        phone={phone.current}
+        onread={read}
+        onfix={fix}
+        onidle={() => {
+          idle = true;
+        }}
+        {bullet}
+        {roundel}
+      />
     {/if}
   </div>
 
@@ -1829,10 +1329,35 @@
         role="img"
         aria-label={`The rule as a line map: ${String(map.stations.length)} interchanges and ${String(map.termini.length)} termini. The rule's lines are listed under Export.`}
       >
-        {@render art(map, 'lay-map')}
+        <InterchangeTracks
+          m={map}
+          id="lay-map"
+          {bands}
+          {trails}
+          {dyes}
+          {fixing}
+          {receiving}
+          {ghosts}
+          {reveal}
+          {trunk}
+          {narrow}
+          phone={phone.current}
+          {ink}
+          selectedRow={selected?.row ?? null}
+          {fixedCount}
+          rowCount={studio.rowCount}
+          {classes}
+          {calm}
+          font={FONT}
+          {LIFT_MS}
+          {LAY_MS}
+          {GHOST_FOLD_MS}
+          {foldAt}
+          {nudge}
+          {roundel}
+        />
       </svg>
       {#if !phone.current}
-        <!-- The map's one tab stop; arrow keys move the glass between stations. -->
         <button
           type="button"
           class="keys"
@@ -1901,64 +1426,12 @@
   .clause {
     display: block;
   }
-  /* Two sentences, each kept to its own line in the column. */
   .headline.two {
     font-size: min(var(--step-peak), 2.5rem);
   }
   .lede {
     color: var(--ink-2);
     max-width: 36ch;
-  }
-  .doubts {
-    border-top: var(--rule);
-    margin-top: var(--space-2);
-  }
-  .doubt {
-    border-bottom: 1px solid var(--line);
-  }
-  .doubt > button {
-    appearance: none;
-    display: grid;
-    grid-template-columns: 1.5rem 4.2rem 1fr auto;
-    align-items: center;
-    gap: var(--space-2);
-    width: 100%;
-    padding: 0.4rem 0.25rem;
-    border: 0;
-    background: transparent;
-    text-align: left;
-    font-size: var(--step--1);
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  .doubt > button:hover:not(:disabled),
-  .doubt.on > button {
-    background: var(--sheet-quiet);
-  }
-  .doubt > button:disabled {
-    cursor: default;
-    color: var(--ink-2);
-  }
-  .doubt.on > button {
-    box-shadow: inset 3px 0 0 var(--ink);
-  }
-  .row {
-    font-weight: 700;
-  }
-  .what {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .given {
-    color: var(--ink-2);
-  }
-  .pct {
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
   }
   .roundel {
     display: inline-grid;
@@ -1972,11 +1445,6 @@
     font-weight: 700;
     flex: none;
   }
-  .quiet .roundel {
-    background: var(--sheet);
-    color: var(--ink);
-    box-shadow: inset 0 0 0 1.5px var(--ink);
-  }
   .bullet {
     display: inline-grid;
     place-items: center;
@@ -1989,15 +1457,6 @@
     flex: none;
     vertical-align: -0.2em;
     margin-right: 0.2rem;
-  }
-  .arrow {
-    width: 0.85rem;
-    height: 0.6rem;
-    margin: 0 0.15rem;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 1.6;
-    flex: none;
   }
   .stage {
     position: relative;
@@ -2023,27 +1482,6 @@
     outline: 2px solid var(--ink);
     outline-offset: -6px;
     box-shadow: none;
-  }
-  /* A count that changes drops in and flashes its line's colour, then settles to grey. */
-  .tick {
-    animation: tick 900ms var(--ease-out);
-  }
-  @keyframes tick {
-    from {
-      fill: var(--flash);
-      transform: translateY(-5px);
-      opacity: 0;
-    }
-    20% {
-      fill: var(--flash);
-      transform: none;
-      opacity: 1;
-    }
-  }
-  .ghost {
-    animation-name: fold;
-    animation-timing-function: cubic-bezier(0.5, 0, 0.2, 1);
-    animation-fill-mode: forwards;
   }
   @keyframes fold {
     to {
@@ -2073,19 +1511,6 @@
     font-size: var(--step-2);
     line-height: 1;
     font-variant-numeric: tabular-nums;
-  }
-  /* A white knockout under map type, so no thread ever strikes through it. */
-  .halo {
-    paint-order: stroke;
-    stroke: #ffffff;
-    stroke-width: 4px;
-    stroke-linejoin: round;
-    transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .halo {
-      transition: none;
-    }
   }
   .dye {
     stroke-dasharray: 1 1;
@@ -2130,7 +1555,6 @@
     display: none;
   }
 
-  /* A station panel: a rule in the line's colour, then the map's own type. */
   .panel {
     display: grid;
     gap: var(--space-2);
@@ -2170,60 +1594,6 @@
     font-weight: 400;
     font-size: var(--step--1);
   }
-  .reading {
-    display: grid;
-    gap: var(--space-3);
-    padding: var(--space-2) 0.25rem var(--space-3) 2.2rem;
-    font-size: var(--step--1);
-    box-shadow: inset 3px 0 0 var(--ink);
-  }
-  .claim {
-    font-size: var(--step-0);
-    line-height: 1.6;
-  }
-  /* The row's values as a run of stops: each value over its column's name. */
-  /* A row's values as stops down one ruled line, as on a strip map: a tick at
-     each stop, the value with its unit, then the column's name. */
-  .cells {
-    display: grid;
-    gap: 0.15rem;
-    margin: var(--space-1) 0 0 5px;
-    border-left: 2px solid var(--ink);
-    padding-left: var(--space-3);
-    font-variant-numeric: tabular-nums;
-  }
-  .cells div {
-    position: relative;
-    display: flex;
-    flex-direction: row-reverse;
-    justify-content: flex-end;
-    align-items: baseline;
-    gap: var(--space-3);
-  }
-  .cells div::before {
-    content: '';
-    position: absolute;
-    left: calc(-1 * var(--space-3) - 5px);
-    top: 0.62em;
-    width: 8px;
-    height: 2px;
-    background: var(--ink);
-  }
-  .cells dd {
-    min-width: 6.5rem;
-    font-size: var(--step--1);
-    font-weight: 700;
-    white-space: nowrap;
-  }
-  .cells dt {
-    font-size: var(--step--1);
-    color: var(--ink-2);
-    white-space: nowrap;
-  }
-  .thin {
-    font-size: var(--step--1);
-    color: var(--ink-2);
-  }
   .legend {
     position: absolute;
     text-align: left;
@@ -2233,21 +1603,12 @@
     color: var(--ink-2);
     pointer-events: none;
   }
-  .strip {
-    display: block;
-    width: 100%;
-    height: auto;
-    margin: 0.1rem 0 var(--space-2);
-    overflow: visible;
-  }
 
   @media (max-width: 40rem) {
     .interchange {
       grid-template-columns: minmax(0, 1fr);
       height: auto;
     }
-    /* On a phone the map is a still overview under the headline; each doubted
-       row below carries its own strip map. */
     .interchange {
       display: flex;
       flex-direction: column;
@@ -2271,9 +1632,6 @@
     .map {
       width: 100%;
       height: 100%;
-    }
-    .reading {
-      padding-left: var(--space-4);
     }
   }
 </style>
