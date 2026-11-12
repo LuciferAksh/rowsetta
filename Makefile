@@ -3,7 +3,12 @@
 setup:
 	uv sync --locked
 	pnpm --dir frontend install --frozen-lockfile
-	uv run --locked pre-commit install
+	pnpm --dir frontend build
+	@if git config --get core.hooksPath >/dev/null; then \
+		echo "Keeping the configured core.hooksPath; run make check before committing."; \
+	else \
+		uv run --locked pre-commit install; \
+	fi
 
 dev:
 	pnpm --dir frontend dev
