@@ -27,6 +27,7 @@ CV_FOLDS = 5
 ALPHA = 0.05
 MIN_LEAF_ROWS = 5
 LEAF_ROWS_DIVISOR = 100
+BINARY_LEVELS = 2
 
 
 class TreeStructure(Protocol):
@@ -188,9 +189,12 @@ def _fit(data: _FitData, settings: TreeSettings) -> Student:
         elif pd.api.types.is_numeric_dtype(training[column].dtype):
             features.append(Feature(column, "numeric"))
         else:
+            values = sorted(training[column].dropna().astype(str).unique())
+            # Without missing values the second indicator of a two-level column is the first
+            # one's mirror image. The tree sees an exact tie, which platforms break differently.
+            mirrored = len(values) == BINARY_LEVELS and training[column].notna().all()
             features.extend(
-                Feature(column, "categorical", value)
-                for value in sorted(training[column].dropna().astype(str).unique())
+                Feature(column, "categorical", value) for value in values[: 1 if mirrored else None]
             )
     if not features:
         message = "No usable training features remain. Include a numeric or categorical column."
