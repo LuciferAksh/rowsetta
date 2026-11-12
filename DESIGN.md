@@ -176,10 +176,10 @@ On the map, type stays off the track, and every station follows one rule. The
 test is named once, ending just before the capsule, over or under the track
 coming in. The two branch signs stand together in the fork, the upper
 branch's over the lower's, centred in the gap between the two bands where the
-bands have cleared them or levelled off: `≤` and `>` for a number, `≠` and `=`
-for a category, and no words. A strict cut is moved one step of the column's
-precision so the sign set stays the same (`bill length < 48.8` reads
-`≤ 48.7 mm`; `splitOf`). Each placement is checked
+bands have cleared them or levelled off: `≤` and `>` (or `<` and `≥` for a strict cut) for a number, `≠` and `=`
+for a category, and no words. Numeric cuts use the shortest decimal boundary and comparison that agree with SQL
+for every value at the full column's observed decimal precision (`splitOf`).
+The SQL keeps its exact double boundary. Each placement is checked
 against all the track, the capsules, the origin's count and the type already
 set (`labelChoices` and `layoutMap` in `frontend/src/transit.ts`), and the map
 is drawn narrower until every station's type ends before the roundel column.

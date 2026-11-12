@@ -1,7 +1,9 @@
 # 0009: Third-party browser pieces
 
-Status: accepted. The source review is complete; the browser integration and the
-weight mirror are not built yet.
+Status: accepted and implemented. The browser integration uses the vendored
+archive, local runtime assets and the pinned weight mirror.
+`frontend/src/browser/pyodide.worker.ts` verifies downloaded and cached model bytes before use;
+`frontend/e2e-browser/demo.spec.ts` checks the browser network boundary.
 
 Verified on 2026-11-05 against the npm tarball, not a repository checkout.
 

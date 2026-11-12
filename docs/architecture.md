@@ -64,7 +64,10 @@ bytes, teachers, random generators and persistence in.
 `EventSource`; `backend/decode.ts` validates every response. `state.svelte.ts`
 (`Studio`) holds the page state and applies server states in generation order.
 The components (`TableView`, `LabelMenu`, `TargetPicker`, `EvalPanel`,
-`LeakList`, `AuditList`, `RuleView`, `ExportPanel`, `KeySheet`) render it.
+`LeakList`, `Interchange`, `InterchangeReadings`, `AuditControls`,
+`AuditProgress`, `RuleView`, `ExportPanel`, `KeySheet`) render it.
+`interchange-motion.svelte.ts` owns band animation and lens movement, placement
+and drawing state for each mounted map.
 
 ## Data flow of one label
 
