@@ -8,6 +8,8 @@ export default [
       'node_modules/**',
       'playwright-report/**',
       'test-results/**',
+      'public/browser/**',
+      'public/spike/**',
     ],
   },
   ...tseslint.configs.strictTypeChecked,

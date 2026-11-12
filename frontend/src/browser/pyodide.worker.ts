@@ -1,0 +1,164 @@
+import { loadPyodide } from 'pyodide';
+
+interface Command {
+  id: number;
+  message: string;
+}
+interface Start {
+  base: string;
+  today: string;
+}
+interface Asset {
+  bytes: number;
+  sha256: string;
+}
+
+function manifest(value: unknown): Record<string, Asset> {
+  if (typeof value !== 'object' || value === null)
+    throw new Error('Invalid runtime manifest');
+  const entries: Record<string, Asset> = {};
+  const unknownEntries: Record<string, unknown> = Object.fromEntries(
+    Object.entries(value),
+  );
+  for (const [name, entry] of Object.entries(unknownEntries)) {
+    if (
+      typeof entry !== 'object' ||
+      entry === null ||
+      !('bytes' in entry) ||
+      typeof entry.bytes !== 'number' ||
+      !('sha256' in entry) ||
+      typeof entry.sha256 !== 'string'
+    )
+      throw new Error('Invalid runtime asset');
+    entries[name] = { bytes: entry.bytes, sha256: entry.sha256 };
+  }
+  return entries;
+}
+
+async function start({ base, today }: Start) {
+  const network = globalThis.fetch.bind(globalThis);
+  const response = await network(`${base}manifest.json`);
+  if (!response.ok)
+    throw new Error('Cannot load the runtime manifest. Reload this page.');
+  const assets = manifest(await response.json());
+  const cache = await caches.open('rowsetta-browser-v1');
+  const total = Object.values(assets).reduce(
+    (sum, asset) => sum + asset.bytes,
+    0,
+  );
+  let done = 0;
+  const counted = new Set<string>();
+  // Pyodide's fetches consume only bytes verified against the build manifest,
+  // including cache hits. A corrupt hit is discarded and fetched again.
+  const download: typeof fetch = async (input, init) => {
+    const url = new URL(
+      input instanceof Request ? input.url : input.toString(),
+      base,
+    ).href;
+    const asset = assets[url.slice(base.length)];
+    if (!url.startsWith(base) || asset === undefined)
+      throw new Error(`Unexpected runtime request: ${url}`);
+    async function verified(source: Response): Promise<Response | null> {
+      const bytes = await source.arrayBuffer();
+      const digest = Array.from(
+        new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)),
+        (n) => n.toString(16).padStart(2, '0'),
+      ).join('');
+      if (bytes.byteLength !== asset?.bytes || digest !== asset.sha256)
+        return null;
+      return new Response(bytes, { headers: source.headers });
+    }
+    const saved = await cache.match(url);
+    let result = saved === undefined ? null : await verified(saved);
+    if (result === null) {
+      if (saved !== undefined) await cache.delete(url);
+      const fresh = await network(url, init);
+      if (!fresh.ok)
+        throw new Error(`Download failed (${String(fresh.status)}): ${url}`);
+      result = await verified(fresh);
+      if (result === null) throw new Error(`Runtime checksum mismatch: ${url}`);
+      await cache.put(url, result.clone());
+    }
+    if (!counted.has(url)) {
+      counted.add(url);
+      done += asset.bytes;
+    }
+    postMessage({ kind: 'loading', done, total });
+    return result;
+  };
+  // Emscripten can leave startup pending after a failed WASM fetch.
+  globalThis.fetch = (input, init) =>
+    download(input, init).catch((error: unknown) => {
+      postMessage({
+        kind: 'fatal',
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    });
+  postMessage({ kind: 'loading', done, total });
+  const py = await loadPyodide({ indexURL: `${base}runtime/` });
+  await py.loadPackage([
+    'numpy',
+    'pandas',
+    'scipy',
+    'scikit-learn',
+    'pydantic',
+    'micropip',
+  ]);
+  await py.runPythonAsync(`
+import micropip
+await micropip.install(${JSON.stringify(`${base}rowsetta_browser_core-0.1.0-py3-none-any.whl`)}, deps=False)
+from rowsetta.browser_shell import BrowserShell, browser_metadata
+from rowsetta.core.lite_teacher import LiteTeacher
+browser = BrowserShell(LiteTeacher(), browser_metadata(${JSON.stringify(today)}))
+`);
+  const csvResponse = await fetch(`${base}penguins.csv`);
+  const csv = await csvResponse.text();
+  await py.runPythonAsync(`
+browser.workspace.load(${JSON.stringify(csv)}.encode(), 'penguins.csv', max_rows=2000)
+browser.workspace.set_target('species', ('Adelie', 'Chinstrap', 'Gentoo'))
+`);
+  postMessage({ kind: 'ready' });
+  return py;
+}
+
+let runtime: ReturnType<typeof start> | undefined;
+let commands = Promise.resolve();
+onmessage = (event: MessageEvent<Start | Command>) => {
+  const data = event.data;
+  if ('base' in data) {
+    runtime = start(data);
+    void runtime.catch((error: unknown) => {
+      postMessage({
+        kind: 'fatal',
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+    return;
+  }
+  const started = runtime;
+  commands = commands.then(async () => {
+    try {
+      if (started === undefined) throw new Error('Runtime has not started');
+      const py = await started;
+      const value: unknown = await py.runPythonAsync(
+        `browser.call(${JSON.stringify(data.message)})`,
+      );
+      if (typeof value !== 'string') throw new Error('Invalid Python response');
+      postMessage({ kind: 'result', id: data.id, value });
+    } catch (error) {
+      postMessage({
+        kind: 'result',
+        id: data.id,
+        value: JSON.stringify({
+          ok: false,
+          error: {
+            error: error instanceof Error ? error.message : String(error),
+            next_step:
+              'Reload the page. Labels can be saved with Save session before reloading.',
+          },
+        }),
+      });
+    }
+  });
+};

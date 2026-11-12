@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { BROWSER } from './browser/config';
   import { untrack } from 'svelte';
   import { MediaQuery, SvelteMap } from 'svelte/reactivity';
   import { fade } from 'svelte/transition';
@@ -230,12 +231,14 @@
   let checkedFor = '';
   let checking = $state(false);
   async function check(): Promise<void> {
+    if (BROWSER) return;
     checking = true;
     merged = [];
     await studio.checkLabels();
     checking = false;
   }
   $effect(() => {
+    if (BROWSER) return;
     if (workspace?.loaded !== true || workspace.target === null) return;
     if (Object.keys(human).length < MIN_LABELLED) return;
     const key = `${studio.fileName ?? ''}|${workspace.target}`;
@@ -1717,7 +1720,7 @@
           }}>Check again</button
         >
       </div>
-    {:else if rule !== null && !checking && studio.suspects === null}
+    {:else if !BROWSER && rule !== null && !checking && studio.suspects === null}
       <div class="acts">
         <button
           type="button"

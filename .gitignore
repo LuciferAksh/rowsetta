@@ -12,6 +12,8 @@ node_modules/
 dist/
 build/
 site/
+frontend/public/spike/
+frontend/public/browser/
 *.egg-info/
 frontend/playwright-report/
 frontend/test-results/

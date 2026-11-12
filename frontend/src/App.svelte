@@ -1,5 +1,8 @@
 <script lang="ts">
   import { createBackend } from './backend/http';
+  import { createBrowserBackend } from './backend/browser';
+  import { BROWSER, LITE_MODEL } from './browser/config';
+  import LoadPanel from './LoadPanel.svelte';
   import EvalPanel from './EvalPanel.svelte';
   import ExportPanel from './ExportPanel.svelte';
   import KeySheet from './KeySheet.svelte';
@@ -10,7 +13,7 @@
   import TargetPicker from './TargetPicker.svelte';
   import './styles/base.css';
 
-  const studio = new Studio(createBackend());
+  const studio = new Studio(BROWSER ? createBrowserBackend() : createBackend());
   const failure = $derived(studio.problem ?? studio.workspace?.failure ?? null);
   const workspace = $derived(studio.workspace);
   const loaded = $derived(workspace?.loaded ?? false);
@@ -40,6 +43,7 @@
 
 <header class="appbar">
   <h1 class="wordmark">Rowsetta</h1>
+  {#if BROWSER}<span>{LITE_MODEL}</span>{/if}
   {#if workspace !== null && loaded}
     <p class="facts">
       <span class="file">{studio.fileName ?? 'demo table'}</span>
@@ -73,6 +77,7 @@
 </header>
 
 <main class="shell" class:shell--bare={workspace !== null && !loaded}>
+  {#if BROWSER}<LoadPanel />{/if}
   {#if failure !== null}
     <div role="alert" class="alert">
       <p class="what">{failure.error}</p>
@@ -82,7 +87,11 @@
   {#if workspace === null}
     <div class="stage">
       <progress class="runner" aria-label="Connecting"></progress>
-      <p>Connecting to the local server.</p>
+      <p>
+        {BROWSER
+          ? 'Loading the bundled table.'
+          : 'Connecting to the local server.'}
+      </p>
     </div>
   {:else}
     {#if loaded && workspace.target !== null}

@@ -6,6 +6,7 @@
     recallText,
   } from './evaluation';
   import type { Studio } from './state.svelte';
+  import { BROWSER, LITE_MODEL } from './browser/config';
 
   let { studio }: { studio: Studio } = $props();
 
@@ -20,6 +21,7 @@
 
 <section class="panel panel--eval" aria-labelledby="eval-heading">
   <h2 id="eval-heading">Accuracy</h2>
+  {#if BROWSER}<p class="hint">{LITE_MODEL}</p>{/if}
   {#if evaluation !== null}
     <p class="peak" aria-hidden="true">{percent(evaluation.accuracy.value)}</p>
   {:else}

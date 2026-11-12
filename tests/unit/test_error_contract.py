@@ -50,6 +50,7 @@ def _discover_user_errors() -> set[type[UserError]]:
     return error_types
 
 
+@pytest.mark.native
 def test_every_user_error_has_a_contract_example() -> None:
     assert _discover_user_errors() == {type(error) for error in ERROR_EXAMPLES}
 

@@ -9,6 +9,7 @@ import json
 import os
 import platform
 import secrets
+import shutil
 import subprocess
 import tempfile
 from dataclasses import asdict, dataclass
@@ -20,12 +21,17 @@ from urllib.error import HTTPError, URLError
 from urllib.request import HTTPCookieProcessor, ProxyHandler, Request, build_opener
 
 import pandas as pd
+from pydantic import JsonValue, TypeAdapter
 
 from scripts.bench_common import BENCH_JSON, DOCUMENT, JSON, ROOT, atomic_json, provenance
 
 # Time to first proposals on the bundled penguins, from a cold or a warm cache.
 COLD_BUDGET_SECONDS = 180
 WARM_BUDGET_SECONDS = 15
+# The browser demo has its own, tighter budgets: no install step hides its startup.
+BROWSER_TABLE_BUDGET_SECONDS = 10
+BROWSER_COLD_BUDGET_SECONDS = 30
+BROWSER_WARM_BUDGET_SECONDS = 6
 PORT = 8787
 POLL_SECONDS = 0.2
 PENGUINS = ROOT / "src/rowsetta/datasets/penguins.csv"
@@ -126,9 +132,14 @@ def run_local(spec: str, caches: Path) -> Timing:
 def main() -> None:
     """Measure cold and warm local time to demo and record it in docs/bench.json."""
     cli = argparse.ArgumentParser(description="Time from a clean install to first proposals")
-    cli.add_argument("--local", required=True, metavar="SPEC", help="for example rowsetta@0.1.0")
+    mode = cli.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--local", metavar="SPEC", help="for example rowsetta@0.1.0")
+    mode.add_argument("--browser", metavar="URL", help="built static demo URL")
     cli.add_argument("--no-budget", action="store_true", help="measure without asserting budgets")
     args = cli.parse_args()
+    if args.browser:
+        run_browser(args.browser, no_budget=args.no_budget)
+        return
     with tempfile.TemporaryDirectory(prefix="rowsetta-cold-") as folder:
         caches = Path(folder)
         cold = run_local(args.local, caches)
@@ -156,6 +167,50 @@ def main() -> None:
     print(f"cold_start local cold={cold} warm={warm} bytes={downloaded}", flush=True)
     if not args.no_budget and (over_budget(cold, warm=False) or over_budget(warm, warm=True)):
         sys.exit(f"Over budget: cold {COLD_BUDGET_SECONDS} s, warm {WARM_BUDGET_SECONDS} s")
+
+
+def run_browser(url: str, *, no_budget: bool) -> None:
+    """Measure real browser milestones and transferred bytes in a clean profile."""
+    started = perf_counter()
+    with tempfile.TemporaryDirectory(prefix="rowsetta-browser-result-") as folder:
+        result = Path(folder) / "timings.json"
+        command = [
+            shutil.which("node") or "node",
+            "scripts/browser_cold_start.mjs",
+            url,
+            str(result),
+        ]
+        subprocess.run(command, cwd=ROOT, check=True)  # noqa: S603 -- Fixed local harness.
+        values = JSON.validate_json(result.read_text())
+    section = provenance(
+        "scripts/cold_start.py", perf_counter() - started, {"url": url, "teacher": "lite model"}
+    )
+    section.results = TypeAdapter(list[dict[str, JsonValue]]).validate_python(values)
+    document = DOCUMENT.validate_json(BENCH_JSON.read_text()) if BENCH_JSON.exists() else {}
+    existing = document.get("cold_start")
+    cold_start = existing if isinstance(existing, dict) else {}
+    cold_start["browser"] = JSON.validate_python(section.model_dump(mode="json"))
+    document["cold_start"] = cold_start
+    atomic_json(BENCH_JSON, document)
+    if not no_budget and isinstance(values, list):
+        for value in values:
+            if not isinstance(value, dict):
+                msg = "Invalid browser timing"
+                raise TypeError(msg)
+            seconds = value.get("first_proposals_seconds")
+            table_seconds = value.get("table_seconds")
+            budget = (
+                BROWSER_COLD_BUDGET_SECONDS
+                if value.get("visit") == "cold"
+                else BROWSER_WARM_BUDGET_SECONDS
+            )
+            if (
+                isinstance(table_seconds, (int, float))
+                and table_seconds > BROWSER_TABLE_BUDGET_SECONDS
+            ):
+                sys.exit(f"Browser table over budget: {table_seconds:.3f} s")
+            if isinstance(seconds, (int, float)) and seconds > budget:
+                sys.exit(f"Browser visit over budget: {seconds:.3f} > {budget} s")
 
 
 if __name__ == "__main__":

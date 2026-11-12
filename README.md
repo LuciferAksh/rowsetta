@@ -7,6 +7,10 @@ Python or JSON.
 
 Your data stays on your machine. No account or model token is required.
 
+The static browser demo uses a **lite model (random forest), not TabICLv2**.
+The full model runs in the local app. Build and serve the browser demo with
+`make browser` and `uv run python -m http.server --directory site`.
+
 ## Install and try
 
 In a source checkout, with Python 3.13, uv 0.13.7, Node 26 and pnpm 12.16.1

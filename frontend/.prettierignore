@@ -5,3 +5,5 @@ playwright-report/
 test-results/
 vendor/
 tests/openapi.json
+public/browser/
+public/spike/

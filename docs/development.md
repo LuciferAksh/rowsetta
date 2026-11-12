@@ -90,12 +90,13 @@ Sources: `https://pypi.org/pypi/<package>/json` and
   Dependabot, branch protection and CodeQL default setup are enabled once it
   exists, and the CI time with and without the CPU-only torch source is
   measured then.
-- The browser demo's weight mirror needs a Hugging Face write token, supplied
+- The full browser teacher's weight mirror needs a Hugging Face write token, supplied
   locally through `HF_TOKEN` and never committed.
 - Before a public release: security and conduct contacts, citation authorship
   and the repository URL.
-- `make demo-gif` and `make browser` exit 2 with a message until the demo
-  recording and the static browser build exist, so a pipeline that calls them
+- `make browser` builds the static lite-model demo in `site/`; see ADR 0003 and
+  ADR 0007 for the measured full-model no-go. `make demo-gif` exits 2 until the demo
+  recording exists, so a pipeline that calls it
   fails instead of publishing nothing.
 - The web page is unstyled; no visual direction has been chosen.
 - The README is a development stub until the name is final.

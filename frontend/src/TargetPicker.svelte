@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Studio } from './state.svelte';
+  import { BROWSER } from './browser/config';
 
   let { studio }: { studio: Studio } = $props();
 
@@ -127,24 +128,24 @@
       </button>
     {/if}
 
-    <form class="stack" onsubmit={useColumn}>
-      <fieldset class="segments">
-        <legend>Existing column</legend>
-        {#each columns as option (option.name)}
-          <label>
-            <input
-              type="radio"
-              name="target-column"
-              value={option.name}
-              bind:group={column}
-            />
-            {option.name.replaceAll('_', ' ')}
-            <span class="visually-hidden">({option.kind})</span>
-          </label>
-        {/each}
-      </fieldset>
-      <button type="submit" class="button">Use its values as labels</button>
-    </form>
+    {#if !BROWSER}<form class="stack" onsubmit={useColumn}>
+        <fieldset class="segments">
+          <legend>Existing column</legend>
+          {#each columns as option (option.name)}
+            <label>
+              <input
+                type="radio"
+                name="target-column"
+                value={option.name}
+                bind:group={column}
+              />
+              {option.name.replaceAll('_', ' ')}
+              <span class="visually-hidden">({option.kind})</span>
+            </label>
+          {/each}
+        </fieldset>
+        <button type="submit" class="button">Use its values as labels</button>
+      </form>{/if}
 
     <form class="stack" onsubmit={createTarget}>
       <label>

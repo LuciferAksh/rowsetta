@@ -34,6 +34,11 @@ golden:
 bench bench-full:
 	uv run --locked --group bench python -m scripts.bench_full $(BENCH_ARGS)
 
-demo-gif browser:
+browser:
+	uv run --locked python scripts/build_browser.py
+	pnpm --dir frontend exec vite build --mode browser
+	cp -R frontend/public/browser site/browser
+
+demo-gif:
 	@printf '%s\n' '$@ is not implemented yet; see docs/development.md.'
 	@exit 2
