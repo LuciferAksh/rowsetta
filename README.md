@@ -10,6 +10,8 @@ Python or JSON.
 
 Your data stays on your machine. No account or model token is required.
 
+[Try the live demo](https://intesarjawad.github.io/rowsetta/).
+
 The static browser demo uses **TabICLv2 on Chromium with WebGPU**, with a
 labelled lite random forest fallback on other browsers. Build and serve it with
 `make browser` and `uv run python -m http.server --directory site`.
@@ -38,9 +40,9 @@ export it. To use your own CSV, run `uv run rowsetta open data.csv`.
 
 The screenshot uses the Palmer penguins table with labels deliberately changed
 by `scripts/mislabel_demo.py`. The audit ranks possible mistakes; a suggestion
-is not proof that a label is wrong. Accuracy describes answered evaluation rows;
-coverage describes how many rows receive an answer. Both depend on the sample
-and do not guarantee performance on future data.
+is not proof that a label is wrong. Teacher accuracy measures raw predictions on all evaluation rows, including rows
+marked unsure; the confidence threshold does not change it. The result depends
+on the sample and does not guarantee performance on future data.
 
 [Benchmark measurements](docs/bench.md) name their scripts and settings. The
 committed comparisons are smoke runs, not the full preregistered evidence for

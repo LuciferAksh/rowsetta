@@ -310,7 +310,9 @@ try {
   await page
     .locator("#interchange")
     .evaluate((el) => el.scrollIntoView({ block: "start" }));
-  await caption("Audit existing labels: a doubtful row rides the wrong line.");
+  await caption(
+    "Audit existing labels: review each disagreement with the teacher.",
+  );
   if ((await first.getAttribute("aria-expanded")) === "true")
     await first.click();
   await page.waitForTimeout(250);
@@ -333,6 +335,9 @@ try {
     .locator("pre")
     .first()
     .evaluate((el) => {
+      el.style.whiteSpace = "pre-wrap";
+      el.style.overflowWrap = "anywhere";
+      el.style.maxHeight = "none";
       const text = el.firstChild;
       const offset = text?.textContent?.indexOf("SELECT") ?? -1;
       if (text === null || offset < 0) throw new Error("SQL SELECT is missing");
