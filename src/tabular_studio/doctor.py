@@ -82,7 +82,7 @@ def doctor(*, fix: bool, hub: CheckpointHub = huggingface_hub, out: TextIO = sys
     if fix and (cached is None or not checkpoint.is_pinned(*cached)):
         if cached is not None:
             _remove(cached[0])
-        cached = _download(hub, retry="tabular-studio doctor --fix")
+        cached = _download(hub, retry="rowsetta doctor --fix")
     rows = [("torch", version("torch")), ("tabicl", version("tabicl")), ("device", _device())]
     if cached is None:
         rows.append(("checkpoint", "not downloaded"))
@@ -105,7 +105,7 @@ def fetch_checkpoint(*, offline: bool, retry: str, hub: CheckpointHub = huggingf
         return
     if offline:
         message = "The model is not downloaded yet, and --offline skips the download."
-        raise UserError(message, "tabular-studio doctor --fix while online")
+        raise UserError(message, "rowsetta doctor --fix while online")
     path, digest = _download(hub, retry=retry)
     if not checkpoint.is_pinned(path, digest):
         _remove(path)

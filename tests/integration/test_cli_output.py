@@ -32,7 +32,7 @@ def transcript(command: str, stdout: str, stderr: str, returncode: int | None) -
     contract = "".join(
         line for line in stderr.splitlines(keepends=True) if line.startswith(("error: ", "Next: "))
     )
-    text = f"$ tabular-studio {command}\n{stdout}{contract}"
+    text = f"$ rowsetta {command}\n{stdout}{contract}"
     if returncode is not None:
         text += f"[exit {returncode}]\n"
     for package in ("torch", "tabicl"):

@@ -154,7 +154,7 @@ class UnsupportedDatetimeSplitError(UserError):
         self.column = column
         super().__init__(
             f"SQL export does not support datetime splits on column {column!r}.",
-            shlex.join(["tabular-studio", "open", "data.csv"])
+            shlex.join(["rowsetta", "open", "data.csv"])
             + f"; exclude column {column!r} and re-teach without it before exporting.",
         )
 

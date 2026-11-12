@@ -115,7 +115,7 @@ describe('following the server', () => {
   it('refetches the state after a failed refit so its failure shows', async () => {
     const failure = {
       error: 'The model file is missing or failed its checksum.',
-      next_step: 'tabular-studio doctor --fix',
+      next_step: 'rowsetta doctor --fix',
     };
     const server = fakeBackend([
       () => Promise.resolve(at(2)),
@@ -160,7 +160,7 @@ describe('following the server', () => {
     const failure = {
       error:
         'The local server sent an unexpected response (progress.done: expected an integer).',
-      next_step: 'Reload this page; if it repeats, reinstall tabular-studio.',
+      next_step: 'Reload this page; if it repeats, reinstall rowsetta.',
     };
 
     server.send({ kind: 'malformed', failure });

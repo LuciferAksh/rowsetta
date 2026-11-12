@@ -270,7 +270,7 @@ def test_cross_fidelity_rejects_insufficient_support(minimum: int) -> None:
         distill.fidelity_cross_fitted(student, store, proposals)
     error = caught.value
     assert error.missing == {"b": 5 - minimum}
-    assert error.next_step.startswith("tabular-studio open data.csv;")
+    assert error.next_step.startswith("rowsetta open data.csv;")
     assert f"{5 - minimum} more human labels for 'b'" in error.next_step
     assert error.next_step in str(error)
 

@@ -90,14 +90,14 @@ const ABSTAINING: LeafLine = {
 const LINES = [ANSWERING, ABSTAINING];
 
 const HEADER = [
-  '-- tabular-studio 0.1.0',
+  '-- rowsetta 0.1.0',
   "-- Column 'age' (int64): DuckDB BIGINT; PostgreSQL BIGINT; SQLite INTEGER",
   '-- In-sample agreement: 2/2; coverage 2/4',
   '-- Execution: DuckDB 1.5.0: 4/4 rows identical',
 ];
 const SQL = `${HEADER.join('\n')}\nSELECT *, 'yes' AS "predicted_y" FROM "t";\n`;
 const FIGURES = [
-  'tabular-studio 0.1.0',
+  'rowsetta 0.1.0',
   'In-sample agreement: 2/2; coverage 2/4',
   'Execution: DuckDB 1.5.0: 4/4 rows identical',
 ];
@@ -368,7 +368,7 @@ describe('export panel', () => {
     expect(body).toContain('Line 1:');
     for (const figure of FIGURES) expect(body).toContain(figure);
     expect(body).not.toContain('<li>Column ');
-    expect(body).toContain('<pre>-- tabular-studio 0.1.0');
+    expect(body).toContain('<pre>-- rowsetta 0.1.0');
     expect(body).toContain('Copy SQL');
     expect(body).toContain('PostgreSQL');
   });

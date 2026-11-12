@@ -84,8 +84,7 @@ Sources: `https://pypi.org/pypi/<package>/json` and
 
 ## Pending work
 
-- The product name is a working title; the final name needs a trademark search
-  (ADR 0000).
+- The selected name needs an accepted trademark search (ADR 0000).
 - There is no remote yet. The workflows pin every action to a full commit SHA
   and pass `actionlint`, but none has run on GitHub. Pull request checks,
   Dependabot, branch protection and CodeQL default setup are enabled once it

@@ -25,7 +25,7 @@ interface.
   for end-to-end tests and is refused unless the bind address is `127.0.0.1`.
 - **No egress.** The app sets `HF_HUB_DISABLE_TELEMETRY=1` and
   `HF_HUB_OFFLINE=1` before the Hugging Face client is imported; the model is
-  fetched only by `tabular-studio doctor --fix` or the first run of `demo` and
+  fetched only by `rowsetta doctor --fix` or the first run of `demo` and
   `open`. An integration test runs the whole flow with name resolution and
   outgoing connections blocked.
 - **Errors without internals.** Unexpected failures return the error contract

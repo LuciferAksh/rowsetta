@@ -126,9 +126,7 @@ def run_local(spec: str, caches: Path) -> Timing:
 def main() -> None:
     """Measure cold and warm local time to demo and record it in docs/bench.json."""
     cli = argparse.ArgumentParser(description="Time from a clean install to first proposals")
-    cli.add_argument(
-        "--local", required=True, metavar="SPEC", help="for example tabular-studio@0.1.0"
-    )
+    cli.add_argument("--local", required=True, metavar="SPEC", help="for example rowsetta@0.1.0")
     cli.add_argument("--no-budget", action="store_true", help="measure without asserting budgets")
     args = cli.parse_args()
     with tempfile.TemporaryDirectory(prefix="tabstudio-cold-") as folder:

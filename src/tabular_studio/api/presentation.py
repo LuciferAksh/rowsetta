@@ -15,7 +15,7 @@ def export_metadata(*, fake: bool) -> ExportMetadata:
     """Read shell provenance explicitly; test teacher exports identify their source."""
     return ExportMetadata(
         datetime.now(UTC).date(),
-        version("tabular-studio"),
+        version("rowsetta"),
         "fake" if fake else version("tabicl"),
         "not applicable (fake teacher)" if fake else CHECKPOINT_SHA256,
     )

@@ -151,8 +151,8 @@ class InvalidTeacher(FakeTeacher):
 @pytest.mark.parametrize(
     ("teacher_type", "status", "next_step"),
     [
-        (UnavailableTeacher, 503, "tabular-studio doctor --fix"),
-        (InvalidTeacher, 500, "tabular-studio demo; reopen the local app and retry."),
+        (UnavailableTeacher, 503, "rowsetta doctor --fix"),
+        (InvalidTeacher, 500, "rowsetta demo; reopen the local app and retry."),
     ],
 )
 def test_refit_failure_has_recovery_in_state_sse_and_http(

@@ -4,7 +4,7 @@ Status: accepted.
 
 ## Decision
 
-`tabular-studio open` and `tabular-studio demo` start a FastAPI server on
+`rowsetta open` and `rowsetta demo` start a FastAPI server on
 `127.0.0.1` and open the Svelte page in the user's own browser. There is no
 Electron, Tauri or other desktop shell.
 
@@ -26,4 +26,4 @@ Electron, Tauri or other desktop shell.
 A local server is reachable by other processes and web pages on the same
 machine, so it needs its own security model: [ADR 0010](0010-localhost-security.md).
 The page cannot read files the user did not choose; CSVs arrive by upload or
-by the path given to `tabular-studio open`.
+by the path given to `rowsetta open`.

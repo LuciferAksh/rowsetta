@@ -30,7 +30,7 @@ def render(document: dict[str, JsonValue]) -> str:
     lines = [
         "# Benchmark measurements",
         "",
-        "Generated from [bench.json](bench.json). Working title: Tabular Studio.",
+        "Generated from [bench.json](bench.json).",
         "",
         (
             "Accuracy is among answered rows. Coverage is reported separately. "

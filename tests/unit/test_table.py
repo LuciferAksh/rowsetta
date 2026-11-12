@@ -109,7 +109,7 @@ def test_file_limit_is_checked_before_decoding_or_parsing() -> None:
 
     assert caught.value.size_bytes == 5
     assert caught.value.max_bytes == 4
-    assert caught.value.next_step == "tabular-studio open data.csv --max-file-mb 1"
+    assert caught.value.next_step == "rowsetta open data.csv --max-file-mb 1"
 
 
 def test_file_at_byte_limit_loads() -> None:
@@ -129,7 +129,7 @@ def test_column_limit_has_an_executable_next_step() -> None:
     assert caught.value.column_names == names
     assert caught.value.what == "`data.csv` has 101 columns; the model takes at most 100."
     assert caught.value.next_step == (
-        "tabular-studio open data.csv --columns " + ",".join(names[:MAX_COLS])
+        "rowsetta open data.csv --columns " + ",".join(names[:MAX_COLS])
     )
 
 
@@ -149,7 +149,7 @@ def test_unknown_selected_columns_name_each_missing_column() -> None:
 
     assert caught.value.unknown == ("isle", "beak")
     assert caught.value.what == "`data.csv` has no column named `isle`, `beak`."
-    assert caught.value.next_step == "tabular-studio open data.csv --columns species,island"
+    assert caught.value.next_step == "rowsetta open data.csv --columns species,island"
 
 
 def test_boolean_columns_become_lowercase_categorical_strings() -> None:

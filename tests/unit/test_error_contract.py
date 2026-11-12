@@ -66,7 +66,7 @@ def test_cli_recovery_starts_with_a_named_command(error: UserError) -> None:
     if isinstance(error, NotServed):
         assert error.next_step == "Press e and label the row shown"
         return
-    assert error.next_step.startswith(("tabular-studio ", "uvx ", "make ", "iconv "))
+    assert error.next_step.startswith(("rowsetta ", "uvx ", "make ", "iconv "))
 
 
 def test_file_limit_message_preserves_bytes_and_rounds_up_recovery_budget() -> None:
@@ -75,7 +75,7 @@ def test_file_limit_message_preserves_bytes_and_rounds_up_recovery_budget() -> N
     assert error.what == (
         "`data.csv` is 200.000001 MB; the limit is 200 MB (50 MB in the browser)."
     )
-    assert error.next_step == "tabular-studio open data.csv --max-file-mb 201"
+    assert error.next_step == "rowsetta open data.csv --max-file-mb 201"
 
 
 def test_recovery_commands_quote_user_supplied_arguments() -> None:
@@ -85,14 +85,14 @@ def test_recovery_commands_quote_user_supplied_arguments() -> None:
     column_error = TooManyColumnsError(columns, 2, file_name=file_name)
 
     assert shlex.split(size_error.next_step) == [
-        "tabular-studio",
+        "rowsetta",
         "open",
         file_name,
         "--max-file-mb",
         "1",
     ]
     assert shlex.split(column_error.next_step) == [
-        "tabular-studio",
+        "rowsetta",
         "open",
         file_name,
         "--columns",
@@ -116,4 +116,4 @@ def test_bad_csv_recovery_keeps_the_save_instruction_after_a_quoted_command() ->
         file_name + ".utf8.csv",
     ]
     assert "as UTF-8 CSV with a comma, semicolon or tab separator, then run" in instruction
-    assert shlex.join(["tabular-studio", "open", file_name]) in instruction
+    assert shlex.join(["rowsetta", "open", file_name]) in instruction

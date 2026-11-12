@@ -38,7 +38,7 @@ def test_readme_numbers_must_come_from_the_benchmark() -> None:
 
 def test_numbers_in_code_links_and_setup_sections_are_not_claims() -> None:
     readme = (
-        "# Title\n\nRun `uvx tabular-studio@0.1.0 demo --port 8787` "
+        "# Title\n\nRun `uvx rowsetta@0.1.0 demo --port 8787` "
         "or see <http://127.0.0.1:5173> and [ADR](docs/adr/0002.md).\n\n"
         "```sh\nsleep 30\n```\n\n## Install\n\nNeeds Node 26.\n\n"
         "## Licence\n\nCC BY 4.0 data.\n"

@@ -354,7 +354,7 @@ class InsufficientFoldSupportError(ValueError):
             f"{count} more human labels for {label!r}" for label, count in missing.items()
         )
         self.next_step = (
-            f"{shlex.join(['tabular-studio', 'open', file_name])}; "
+            f"{shlex.join(['rowsetta', 'open', file_name])}; "
             f"add {needed} outside the evaluation set, then retry."
         )
         super().__init__(f"{self.what} Next: {self.next_step}")

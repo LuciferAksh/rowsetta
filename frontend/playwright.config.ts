@@ -28,13 +28,13 @@ export default defineConfig({
   use: { baseURL: 'http://127.0.0.1:8787' },
   webServer: [
     {
-      command: 'uv run tabular-studio demo --no-browser --port 8787',
+      command: 'uv run rowsetta demo --no-browser --port 8787',
       url: 'http://127.0.0.1:8787/health',
       env: serverEnv('main'),
       reuseExistingServer: false,
     },
     {
-      command: `uv run tabular-studio demo --no-browser --port ${String(SLOW_REFIT_PORT)}`,
+      command: `uv run rowsetta demo --no-browser --port ${String(SLOW_REFIT_PORT)}`,
       url: `http://127.0.0.1:${String(SLOW_REFIT_PORT)}/health`,
       env: {
         ...serverEnv('slow-refit'),

@@ -47,8 +47,8 @@ def main() -> None:
 
 def _parser() -> ArgumentParser:
     parser = ArgumentParser(
-        prog="tabular-studio",
-        description="Tabular Studio (working title): local tabular labelling and rule export.",
+        prog="rowsetta",
+        description="Rowsetta: local tabular labelling and rule export.",
     )
     commands = parser.add_subparsers(dest="command")
     open_csv = commands.add_parser("open", help="Label a local CSV in the browser app")
@@ -132,13 +132,13 @@ def _open(csv: LaunchCsv, security: SessionSecurity, *, offline: bool) -> FastAP
 def _teacher(*, offline: bool) -> Teacher:
     # The fake teacher has no weights, so tests and the states gallery never download.
     if os.environ.get("TABSTUDIO_TEACHER") != "fake":
-        fetch_checkpoint(offline=offline, retry=shlex.join(["tabular-studio", *sys.argv[1:]]))
+        fetch_checkpoint(offline=offline, retry=shlex.join(["rowsetta", *sys.argv[1:]]))
     return local_teacher()
 
 
 def _unreadable(path: Path, error: OSError) -> UserError:
     message = f"Could not read `{path}`: {error.strerror}."
-    return UserError(message, "tabular-studio open <path to a readable CSV>")
+    return UserError(message, "rowsetta open <path to a readable CSV>")
 
 
 def _positive_int(value: str) -> int:

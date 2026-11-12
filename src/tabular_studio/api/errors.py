@@ -15,7 +15,7 @@ class ApiError(UserError):
     def __init__(
         self,
         what: str,
-        next_step: str = "tabular-studio demo; reopen the local app and retry.",
+        next_step: str = "rowsetta demo; reopen the local app and retry.",
         *,
         status_code: int = 400,
     ) -> None:
@@ -40,7 +40,7 @@ class ModelUnavailableError(ApiError):
     def __init__(self) -> None:
         super().__init__(
             "The model file is missing or failed its checksum.",
-            "tabular-studio doctor --fix",
+            "rowsetta doctor --fix",
             status_code=503,
         )
 

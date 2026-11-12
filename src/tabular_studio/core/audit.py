@@ -31,7 +31,7 @@ class NeedAuditLabelsError(UserError):
         )
         super().__init__(
             f"Checking labels starts once every class has {AUDIT_FOLDS} labels.",
-            f"tabular-studio demo; label {needed}",
+            f"rowsetta demo; label {needed}",
         )
 
 

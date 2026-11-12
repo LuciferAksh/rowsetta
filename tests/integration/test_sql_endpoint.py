@@ -51,7 +51,7 @@ def test_endpoint_withholds_corrupted_export(
     assert response.status_code == 500
     assert response.json()["row_id"] == 5
     assert "source row 5" in response.json()["error"]
-    assert response.json()["next_step"].startswith("tabular-studio ")
+    assert response.json()["next_step"].startswith("rowsetta ")
     assert "source row 5" in caplog.text
     assert "SELECT" not in response.text
 

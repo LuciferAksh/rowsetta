@@ -92,7 +92,7 @@ socket.socket.sendto = reject
 try:
     local_teacher()
 except ModelUnavailableError as error:
-    assert error.next_step == 'tabular-studio doctor --fix'
+    assert error.next_step == 'rowsetta doctor --fix'
 else:
     raise AssertionError('An empty cache must not provide a teacher')
 """,

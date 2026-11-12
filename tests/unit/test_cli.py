@@ -33,7 +33,7 @@ def assert_user_error(
     error, recovery = result.stderr.splitlines()
     assert error.startswith("error: ")
     assert what in error
-    assert recovery.startswith("Next: tabular-studio ")
+    assert recovery.startswith("Next: rowsetta ")
     assert next_step in recovery
 
 
@@ -47,8 +47,8 @@ def test_help_requires_no_credentials() -> None:
         env=environment,
     )
 
-    assert "usage: tabular-studio" in result.stdout
-    assert "working title" in result.stdout
+    assert "usage: rowsetta" in result.stdout
+    assert "Rowsetta" in result.stdout
     assert result.stderr == ""
 
 
@@ -87,7 +87,7 @@ def test_invalid_options_are_usage_errors(args: tuple[str, ...]) -> None:
     result = run_cli(*args)
 
     assert result.returncode == 2
-    assert "usage: tabular-studio" in result.stderr
+    assert "usage: rowsetta" in result.stderr
 
 
 def test_export_writes_verified_sql_for_the_saved_session() -> None:

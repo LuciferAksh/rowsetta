@@ -115,7 +115,7 @@ describe('successful responses', () => {
   it('carries a refit failure inside the state rather than rejecting', async () => {
     const failed = {
       ...STATE,
-      failure: { error: 'Refit failed.', next_step: 'tabular-studio doctor' },
+      failure: { error: 'Refit failed.', next_step: 'rowsetta doctor' },
     };
     const { fetch } = serving(() => Response.json(failed));
 
@@ -280,7 +280,7 @@ describe('health and session download', () => {
   it('rejects a session download before any target is chosen', async () => {
     const body = {
       error: 'Choose a target and its classes first.',
-      next_step: 'tabular-studio demo; load a CSV and choose its target.',
+      next_step: 'rowsetta demo; load a CSV and choose its target.',
     };
     const { fetch } = serving(() => Response.json(body, { status: 409 }));
 
@@ -364,7 +364,7 @@ describe('server events', () => {
     channel.dispatch('refit_done', { generation: 4 });
     channel.dispatch('refit_failed', {
       error: 'The model file is missing or failed its checksum.',
-      next_step: 'tabular-studio doctor --fix',
+      next_step: 'rowsetta doctor --fix',
     });
 
     expect(channel.url).toBe('/events');
@@ -377,7 +377,7 @@ describe('server events', () => {
         kind: 'refit_failed',
         failure: {
           error: 'The model file is missing or failed its checksum.',
-          next_step: 'tabular-studio doctor --fix',
+          next_step: 'rowsetta doctor --fix',
         },
       },
     ]);
@@ -452,7 +452,7 @@ describe('failures', () => {
   it('surfaces the backend error contract, including missing labels', async () => {
     const body = {
       error: 'Proposals start once every class has 2 labels.',
-      next_step: 'tabular-studio demo; label 2 more rows of: Gentoo',
+      next_step: 'rowsetta demo; label 2 more rows of: Gentoo',
       missing: { Gentoo: 2 },
     };
     const { fetch } = serving(() => Response.json(body, { status: 409 }));

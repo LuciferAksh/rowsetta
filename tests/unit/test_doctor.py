@@ -19,7 +19,7 @@ from tabular_studio.teachers import checkpoint
 from tabular_studio.teachers.fake import FakeTeacher
 
 PINNED = b"pinned checkpoint bytes"
-RETRY = "tabular-studio demo --no-browser"
+RETRY = "rowsetta demo --no-browser"
 
 
 class FakeHub:
@@ -104,7 +104,7 @@ def test_report_without_fix_keeps_the_file_and_names_the_repair(tmp_path: Path) 
     with pytest.raises(ModelUnavailableError) as raised:
         doctor(fix=False, hub=hub, out=report)
 
-    assert raised.value.next_step == "tabular-studio doctor --fix"
+    assert raised.value.next_step == "rowsetta doctor --fix"
     assert hub.cached.read_bytes() == b"corrupted"
     assert hub.downloads == 0
     digest = hashlib.sha256(b"corrupted").hexdigest()
@@ -147,7 +147,7 @@ def test_failed_download_names_the_retry(tmp_path: Path) -> None:
         doctor(fix=True, hub=hub, out=io.StringIO())
 
     assert "network unreachable" in raised.value.what
-    assert raised.value.next_step.startswith("tabular-studio doctor --fix")
+    assert raised.value.next_step.startswith("rowsetta doctor --fix")
 
 
 def test_download_progress_is_one_line_with_bytes_and_percent(
@@ -201,7 +201,7 @@ def launch_demo(hub: FakeHub, monkeypatch: pytest.MonkeyPatch, home: Path) -> li
     served: list[object] = []
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.delenv("TABSTUDIO_TEACHER", raising=False)
-    monkeypatch.setattr(sys, "argv", ["tabular-studio", *RETRY.split()[1:]])
+    monkeypatch.setattr(sys, "argv", ["rowsetta", *RETRY.split()[1:]])
     monkeypatch.setattr(cli, "fetch_checkpoint", partial(fetch_checkpoint, hub=hub))
     monkeypatch.setattr(cli, "local_teacher", FakeTeacher)
 
@@ -323,7 +323,7 @@ def test_offline_first_run_fails_without_downloading(tmp_path: Path) -> None:
         fetch_checkpoint(offline=True, retry=RETRY, hub=hub)
 
     assert raised.value.what == "The model is not downloaded yet, and --offline skips the download."
-    assert raised.value.next_step == "tabular-studio doctor --fix while online"
+    assert raised.value.next_step == "rowsetta doctor --fix while online"
     assert hub.downloads == 0
 
 

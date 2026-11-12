@@ -88,4 +88,4 @@ def test_too_few_labels_per_class_names_what_is_missing() -> None:
     with pytest.raises(NeedAuditLabelsError) as raised:
         audit_labels(FakeTeacher(), table, store)
     assert raised.value.missing == {"b": AUDIT_FOLDS - 3}
-    assert raised.value.next_step == "tabular-studio demo; label 2 more rows of: b"
+    assert raised.value.next_step == "rowsetta demo; label 2 more rows of: b"

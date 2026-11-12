@@ -2,7 +2,7 @@
 
 The changed rows and their new labels come from a fixed seed, so every run writes
 the same file: `uv run python scripts/mislabel_demo.py /tmp/penguins-mislabelled.csv`,
-then `uv run tabular-studio open /tmp/penguins-mislabelled.csv` and pick `species`.
+then `uv run rowsetta open /tmp/penguins-mislabelled.csv` and pick `species`.
 """
 
 import sys

@@ -1,7 +1,7 @@
-$ tabular-studio --help
-usage: tabular-studio [-h] {open,demo,export,doctor} ...
+$ rowsetta --help
+usage: rowsetta [-h] {open,demo,export,doctor} ...
 
-Tabular Studio (working title): local tabular labelling and rule export.
+Rowsetta: local tabular labelling and rule export.
 
 positional arguments:
   {open,demo,export,doctor}

@@ -29,7 +29,7 @@ class SavedSession(SessionPersistence):
     def open(self, data: bytes, source: SourceRef) -> tuple[LabelStore, None]:
         if source.sha256 != self.store.source.sha256:
             message = f"`{self.csv}` changed since the session was saved."
-            recovery = shlex.join(["tabular-studio", "open", str(self.csv)])
+            recovery = shlex.join(["rowsetta", "open", str(self.csv)])
             raise UserError(message, f"{recovery}, then label it again")
         if self.store.source.model_copy(update={"file_name": source.file_name}) != source:
             message = "The saved session uses a different source row sample."
@@ -53,7 +53,7 @@ def export_session(session: Path, *, export_format: ExportFormat, dialect: Diale
         data = csv.read_bytes()
     except OSError as error:
         message = f"Could not read `{csv}`, the CSV this session labels: {error.strerror}."
-        recovery = shlex.join(["tabular-studio", "export", str(session)])
+        recovery = shlex.join(["rowsetta", "export", str(session)])
         raise UserError(message, f"{recovery} once the CSV is back in place") from error
     workspace = Workspace(SavedSession(store, csv))
     workspace.load(data, csv.name, max_rows=row_limit(), display_name=str(csv))
@@ -80,11 +80,11 @@ def _read_session(session: Path) -> LabelStore:
         text = session.read_text(encoding="utf-8")
     except OSError as error:
         message = f"Could not read `{session}`: {error.strerror}."
-        raise UserError(message, "tabular-studio export <a saved .tabstudio.json>") from error
+        raise UserError(message, "rowsetta export <a saved .tabstudio.json>") from error
     try:
         return LabelStore.from_json(text)
     except ValidationError as error:
         message = f"`{session}` is not a saved session: {error.error_count()} invalid fields."
         raise UserError(
-            message, "tabular-studio open <the CSV>, then label it again to save a new session"
+            message, "rowsetta open <the CSV>, then label it again to save a new session"
         ) from error

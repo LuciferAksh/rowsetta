@@ -30,7 +30,7 @@ class FileTooLargeError(UserError):
             "(50 MB in the browser).",
             shlex.join(
                 [
-                    "tabular-studio",
+                    "rowsetta",
                     "open",
                     file_name,
                     "--max-file-mb",
@@ -54,7 +54,7 @@ class TooManyColumnsError(UserError):
             f"the model takes at most {max_columns}.",
             shlex.join(
                 [
-                    "tabular-studio",
+                    "rowsetta",
                     "open",
                     file_name,
                     "--columns",
@@ -83,7 +83,7 @@ class UnknownColumnsError(UserError):
             f"`{file_name}` has no column named {', '.join(f'`{name}`' for name in unknown)}.",
             shlex.join(
                 [
-                    "tabular-studio",
+                    "rowsetta",
                     "open",
                     file_name,
                     "--columns",
@@ -105,7 +105,7 @@ class BadCsvError(UserError):
             f"{shlex.join(['iconv', '-f', 'WINDOWS-1252', '-t', 'UTF-8', file_name])} "
             f"> {shlex.quote(file_name + '.utf8.csv')}. "
             "Save it as UTF-8 CSV with a comma, semicolon or tab separator, then run "
-            f"`{shlex.join(['tabular-studio', 'open', file_name])}`",
+            f"`{shlex.join(['rowsetta', 'open', file_name])}`",
         )
 
 
@@ -128,7 +128,7 @@ class WorkspaceError(UserError):
     def __init__(
         self,
         what: str,
-        next_step: str = "tabular-studio demo; load a CSV and choose its target.",
+        next_step: str = "rowsetta demo; load a CSV and choose its target.",
         *,
         status_code: int = 409,
     ) -> None:
@@ -147,5 +147,5 @@ class NeedLabelsError(UserError):
         )
         super().__init__(
             "Proposals start once every class has 2 labels.",
-            f"tabular-studio demo; label {needed}",
+            f"rowsetta demo; label {needed}",
         )

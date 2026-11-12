@@ -108,7 +108,7 @@ def test_cli_refuses_token_on_non_loopback_bind() -> None:
 import sys
 from ipaddress import IPv4Address
 from tabular_studio.cli import main
-sys.argv = ['tabular-studio', 'demo', '--no-browser', '--host', str(IPv4Address(0))]
+sys.argv = ['rowsetta', 'demo', '--no-browser', '--host', str(IPv4Address(0))]
 main()
 """,
         ],

@@ -1,7 +1,7 @@
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { defineConfig } from 'vitest/config';
 
-// The local server, as `tabular-studio demo --port 8787` starts it.
+// The local server, as `rowsetta demo --port 8787` starts it.
 const BACKEND = 'http://127.0.0.1:8787';
 
 // The backend serves its API beside the page at the root, so the dev server

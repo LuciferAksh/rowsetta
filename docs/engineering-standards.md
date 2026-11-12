@@ -81,7 +81,7 @@ here so contributors work to the same bar.
 - `docs/architecture.md` with a diagram; `docs/adr/` with a short Architecture
   Decision Record for every major choice.
 - Reproducibility: one command to set up (`make setup`), one to check (`make
-  check`), one to run the demo (`uv run tabular-studio demo`). Scripts that
+  check`), one to run the demo (`uv run rowsetta demo`). Scripts that
   download models or datasets verify SHA-256 checksums.
 - Dependency pins are checked against the registry on the date
   `docs/development.md` records; a newer stable release replaces a pin, never an

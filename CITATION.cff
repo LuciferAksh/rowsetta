@@ -1,7 +1,6 @@
 cff-version: 1.2.0
 message: "If you use this project, cite the repository once its public URL is available."
-title: "Tabular Studio (working title)"
+title: "Rowsetta"
 authors:
-  - name: "Tabular Studio contributors"
+  - name: "Rowsetta contributors"
 license: Apache-2.0
-# TODO before public release: confirm authorship, final name and repository URL.

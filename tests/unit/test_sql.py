@@ -207,7 +207,7 @@ def test_used_datetime_split_names_column_and_recovery() -> None:
         tree_to_sql(student.tree, feature_spec=spec, target="answer", dialect="duckdb")
     assert caught.value.column == "event time"
     assert "event time" in caught.value.what
-    assert caught.value.next_step.startswith("tabular-studio open ")
+    assert caught.value.next_step.startswith("rowsetta open ")
     assert "exclude column 'event time'" in caught.value.next_step
     assert "re-teach without it" in caught.value.next_step
 

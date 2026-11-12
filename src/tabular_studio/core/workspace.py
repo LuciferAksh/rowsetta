@@ -346,7 +346,7 @@ class Workspace:
             _column_type(name, str(table.frame[name].dtype)) for name in table.frame.columns
         )
         return Certificate(
-            tool_name="Tabular Studio (working title)",
+            tool_name="Rowsetta",
             tool_version=metadata.tool_version,
             export_date=metadata.export_date,
             row_count=table.source_rows,

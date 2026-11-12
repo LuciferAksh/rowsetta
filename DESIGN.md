@@ -220,7 +220,7 @@ lens to it.
 - The demo table: `uv run python scripts/mislabel_demo.py OUT.csv` writes the
   Palmer penguins table with nine species labels changed (rows 19, 77, 196,
   210, 231, 264, 285, 304 and 317, seed 7). Open it with
-  `uv run tabular-studio open OUT.csv` and pick `species`.
+  `uv run rowsetta open OUT.csv` and pick `species`.
 - Doubted labels, their ranks and percentages: the server's label audit
   (`GET /suspects`, `src/tabular_studio/core/audit.py`), each label scored by
   the pinned TabICL model with its own row held out.

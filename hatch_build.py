@@ -8,7 +8,7 @@ from typing import Any
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
 PNPM_MISSING = (
-    "Building the tabular-studio wheel needs Node 26 and pnpm on PATH to build its web "
+    "Building the rowsetta wheel needs Node 26 and pnpm on PATH to build its web "
     "interface. Next: install Node 26 and pnpm, or run `uv pip install -e .` for an "
     "editable install that serves the API without the interface."
 )

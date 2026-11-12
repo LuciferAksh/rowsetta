@@ -3,9 +3,9 @@ requires = ["hatchling==1.33.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "tabular-studio"
+name = "rowsetta"
 version = "0.1.0"
-description = "Local tabular labelling and rule export (working title)"
+description = "Local tabular labelling and rule export"
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
@@ -26,7 +26,7 @@ dependencies = [
 ]
 
 [project.scripts]
-tabular-studio = "tabular_studio.cli:main"
+rowsetta = "tabular_studio.cli:main"
 
 [[tool.uv.index]]
 name = "pytorch-cpu"

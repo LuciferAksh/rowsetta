@@ -45,7 +45,7 @@ def _reject(row: int, reason: str) -> None:
     logging.getLogger(__name__).error(message)
     error = ApiError(
         message,
-        "tabular-studio open data.csv; re-teach the rule and retry the export.",
+        "rowsetta open data.csv; re-teach the rule and retry the export.",
         status_code=500,
     )
     raise HTTPException(

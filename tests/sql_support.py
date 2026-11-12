@@ -90,7 +90,7 @@ def certificate() -> Certificate:
     coverage = Coverage(8, 10)
     accuracy = Rate(7, 8, 0.5, 0.99, coverage)
     return Certificate(
-        tool_name="Tabular Studio (working title)",
+        tool_name="Rowsetta",
         tool_version="0.1.0",
         export_date=date(2026, 11, 5),
         row_count=10,

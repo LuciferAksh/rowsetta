@@ -12,13 +12,13 @@ jobs:
         include:
           - os: macos-latest
             install: brew install uv
-            demo: uvx tabular-studio@0.1.0 demo --no-browser --port 8787
+            demo: uvx rowsetta@0.1.0 demo --no-browser --port 8787
           - os: ubuntu-latest
             install: curl -LsSf https://astral.sh/uv/install.sh | sh
-            demo: uvx --torch-backend cpu tabular-studio@0.1.0 demo --no-browser --port 8787
+            demo: uvx --torch-backend cpu rowsetta@0.1.0 demo --no-browser --port 8787
           - os: windows-latest
             install: powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-            demo: uvx --torch-backend cpu tabular-studio@0.1.0 demo --no-browser --port 8787
+            demo: uvx --torch-backend cpu rowsetta@0.1.0 demo --no-browser --port 8787
     runs-on: ${{ matrix.os }}
     defaults:
       run:

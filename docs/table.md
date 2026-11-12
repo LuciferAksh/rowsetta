@@ -12,7 +12,7 @@ happens outside the product, the smallest concrete external command comes first
 and the recovery sentence follows it. `BadCsvError` starts with
 `iconv -f WINDOWS-1252 -t UTF-8 data.csv > data.csv.utf8.csv`, then
 "Save it as UTF-8 CSV with a comma, semicolon or tab separator, then run
-`tabular-studio open data.csv`". WINDOWS-1252 is a concrete conversion
+`rowsetta open data.csv`". WINDOWS-1252 is a concrete conversion
 example; replace it with the actual source encoding. Conversion writes a
 separate file. Save the corrected CSV under the original name before running
 the open command. Encoding conversion alone cannot repair malformed CSV

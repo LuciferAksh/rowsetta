@@ -43,12 +43,12 @@ export class BackendError extends Error {
 const UNREACHABLE: ErrorBody = {
   error: 'The local server did not respond.',
   next_step:
-    'Check that tabular-studio is still running in your terminal, then reload this page.',
+    'Check that rowsetta is still running in your terminal, then reload this page.',
 };
 
 // The likeliest cause is a page left open across an upgrade, served by a newer server.
 const MALFORMED_NEXT_STEP =
-  'Reload this page; if it repeats, reinstall tabular-studio.';
+  'Reload this page; if it repeats, reinstall rowsetta.';
 
 // A restarted local server is back within seconds; the cap keeps a stopped one
 // from being asked more than twice a minute.
