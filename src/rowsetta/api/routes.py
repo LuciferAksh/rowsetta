@@ -35,7 +35,7 @@ from rowsetta.api.sql_check import sql_check, sql_check_data
 from rowsetta.api.upload import table_upload
 from rowsetta.core.distill import Student, disagreements, leaf_summary
 from rowsetta.core.errors import UserError, WorkspaceError
-from rowsetta.core.export.dbt import to_dbt
+from rowsetta.core.export.dbt import to_dbt, validate_names
 from rowsetta.core.export.json import to_json
 from rowsetta.core.export.python import to_python
 from rowsetta.core.export.sql import Certificate, Dialect, NotExecuted, to_sql
@@ -257,6 +257,11 @@ def export_artifact(
 
     dbt exports are project-relative paths mapped to file contents.
     """
+    if export_format == "dbt":
+        try:
+            validate_names("source_data", workspace.require_store().target)
+        except UserError as error:
+            raise ApiError(error.what, error.next_step, status_code=422) from error
     facts = workspace.certificate(export_metadata(fake=fake))
     student = workspace.student
     if student is None:

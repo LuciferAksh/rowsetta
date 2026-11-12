@@ -5,6 +5,7 @@ import pandas as pd
 import pytest
 
 from rowsetta.core.distill import Count, Coverage, fit_student
+from rowsetta.core.errors import UserError
 from rowsetta.core.export.dbt import COVERAGE_DRIFT_MARGIN, to_dbt
 from tests.sql_support import certificate, engine
 from tests.unit.test_distill import ten_rows
@@ -49,9 +50,9 @@ def test_coverage_requires_a_measured_baseline(coverage: Coverage) -> None:
 
 @pytest.mark.parametrize("name", ["../seed", "bad' }}", "two words", ""])
 def test_dbt_resource_names_cannot_escape_refs_or_paths(name: str) -> None:
-    with pytest.raises(ValueError, match="dbt identifier"):
+    with pytest.raises(UserError, match="dbt identifier"):
         to_dbt(fit_student(*ten_rows()), source=name, certificate=certificate())
-    with pytest.raises(ValueError, match="dbt identifier"):
+    with pytest.raises(UserError, match="dbt identifier"):
         to_dbt(
             fit_student(*ten_rows()), source="seed", certificate=replace(certificate(), target=name)
         )

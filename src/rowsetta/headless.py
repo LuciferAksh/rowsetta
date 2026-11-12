@@ -11,6 +11,7 @@ from rowsetta.api.routes import ExportFormat, export_artifact
 from rowsetta.api.schemas import DistillInput
 from rowsetta.app import local_teacher, row_limit
 from rowsetta.core.errors import NeedLabelsError, UserError
+from rowsetta.core.export.dbt import validate_names
 from rowsetta.core.export.sql import Dialect
 from rowsetta.core.session import LabelStore, SourceRef
 from rowsetta.core.teacher import predict_table
@@ -48,6 +49,8 @@ def export_session(session: Path, *, export_format: ExportFormat, dialect: Diale
     match its SHA-256. dbt exports print as a JSON map of project files.
     """
     store = _read_session(session)
+    if export_format == "dbt":
+        validate_names("source_data", store.target)
     csv = session.parent / store.source.file_name
     try:
         data = csv.read_bytes()

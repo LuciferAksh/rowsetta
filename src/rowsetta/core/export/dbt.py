@@ -5,9 +5,23 @@ import re
 from fractions import Fraction
 
 from rowsetta.core.distill import Student
+from rowsetta.core.errors import UserError
 from rowsetta.core.export.sql import Certificate, Dialect, to_sql
 
 COVERAGE_DRIFT_MARGIN = 0.10
+
+
+def validate_names(source: str, target: str) -> None:
+    """Reject invalid dbt resources before fitting or building a certificate."""
+    for name in (source, target):
+        if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name) is None:
+            message = f"Invalid dbt identifier: {name!r}."
+            raise UserError(
+                message,
+                "Use SQL, Python or JSON export to keep the current target and labels. "
+                "For dbt, choose a target and source starting with a letter or underscore, "
+                "followed by letters, digits or underscores.",
+            )
 
 
 def to_dbt(
@@ -18,10 +32,7 @@ def to_dbt(
     Resource names must be plain dbt identifiers. The caller writes these files
     into its project; no profiles, credentials or data enter the export.
     """
-    for name in (source, certificate.target):
-        if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name) is None:
-            message = f"Use a dbt identifier containing letters, digits and underscores: {name!r}"
-            raise ValueError(message)
+    validate_names(source, certificate.target)
     coverage = certificate.in_sample.coverage
     if coverage.total <= 0 or not 0 <= coverage.answered <= coverage.total:
         message = "dbt coverage drift requires certificate coverage with a positive total."
