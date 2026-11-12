@@ -46,7 +46,9 @@ def main() -> None:
     """Stage locally unless the maintainer explicitly requests an upload."""
     cli = argparse.ArgumentParser(description=__doc__)
     cli.add_argument("--local", type=Path, required=True, help="local staging directory")
-    cli.add_argument("--upload", metavar="OWNER/REPO", help="explicit owner-only mirror upload")
+    cli.add_argument(
+        "--upload", metavar="ACCOUNT/REPO", help="explicit maintainer-requested mirror upload"
+    )
     cli.add_argument(
         "--fp32", action="store_true", help="also stage the pinned diagnostic fp32 graph"
     )

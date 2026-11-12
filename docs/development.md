@@ -82,23 +82,17 @@ Sources: `https://pypi.org/pypi/<package>/json` and
   attribution, and forecast-web 1.0.0's npm NOTICE. forecast-web is vendored as
   `frontend/vendor/forecast-web-1.0.0.tgz` after the source review in ADR 0009.
 
-## Pending work
+## Local workflows
 
-- The selected name needs an accepted trademark search (ADR 0000).
-- There is no remote yet. The workflows pin every action to a full commit SHA
-  and pass `actionlint`, but none has run on GitHub. Pull request checks,
-  Dependabot, branch protection and CodeQL default setup are enabled once it
-  exists, and the CI time with and without the CPU-only torch source is
-  measured then.
-- The full browser teacher's weight mirror needs a Hugging Face write token, supplied
-  locally through `HF_TOKEN` and never committed.
-- Before a public release: security and conduct contacts, citation authorship
-  and the repository URL.
-- `make browser` builds the static lite-model demo in `site/`; see ADR 0003 and
-  ADR 0007 for the measured full-model no-go. `make demo-gif` exits 2 until the demo
-  recording exists, so a pipeline that calls it
-  fails instead of publishing nothing.
-- The web page is unstyled; no visual direction has been chosen.
-- The README is a development stub until the name is final.
+- `make setup` installs locked dependencies and builds the local frontend. It
+  installs pre-commit hooks only when `core.hooksPath` is unset; an existing hook
+  configuration is preserved. Run `make check` before committing in either case.
+- `make browser` builds the static demo in `site/`. Chromium with WebGPU uses
+  TabICLv2; other browsers use the labelled lite-model fallback. See ADR 0003,
+  ADR 0007 and ADR 0009 for the runtime decisions.
+- Browser-demo labels live in memory and are lost on reload or when the tab
+  closes. The local app saves labels in its existing session storage; reopening
+  the same CSV restores its session.
+- `make demo-gif` records and validates `docs/demo.gif`.
 - Release runs on a `v*` tag; Pages and the install smoke run only when
   dispatched or called by the release.

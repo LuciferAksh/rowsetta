@@ -22,14 +22,11 @@ In a source checkout, with Python 3.13, uv 0.13.7, Node 26 and pnpm 12.16.1
 installed, run:
 
 ```sh
-make setup
+make setup && uv run rowsetta demo
 ```
 
-Start the bundled penguins demo:
-
-```sh
-uv run rowsetta demo
-```
+Setup installs the locked dependencies, builds the frontend and preserves any
+existing `core.hooksPath`. The command starts the bundled penguins demo.
 
 The first run downloads the pinned model weights; startup time depends on your
 connection. Choose `species` to inspect existing labels, or clear them and label
@@ -51,9 +48,10 @@ performance advantage from them.
 
 Rowsetta handles classification on CSV files. It samples tables above `10,000`
 rows, defaults to a `200 MB` file limit and accepts up to `100` columns
-([limits in code](src/rowsetta/core/table.py)). Free-text
-columns are skipped. Leak checks find some identifiers and near-copies of the
-target, not every post-outcome column.
+([limits in code](src/rowsetta/core/table.py)). Text columns inferred as free text
+are skipped when more than half of their values are distinct. Lower-cardinality
+text can remain a feature. Leak checks find some identifiers and near-copies of
+the target, not every post-outcome column.
 
 ## Develop
 
