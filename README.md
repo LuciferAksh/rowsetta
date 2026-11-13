@@ -9,7 +9,7 @@ Label a few rows in a CSV, let a model suggest the rest, and export what it lear
 
 Your data stays on your machine. No account or model token is required.
 
-**[Try the live demo](https://intesarjawad.github.io/rowsetta/)**
+**[Try the live demo](https://rowsetta.intesarjawad.com/)**
 
 ## How it works
 
